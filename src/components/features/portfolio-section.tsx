@@ -8,13 +8,13 @@ const testimonials = [
     client: 'Innovate Corp',
     logoId: 'client-logo-1',
     quote: 'Vexa AI transformed our data strategy. Their custom AI model has given us a significant competitive edge.',
-    person: 'Jane Doe, CEO',
+    person: 'Samara Sharin, CEO',
   },
   {
     client: 'Tech Solutions Ltd.',
     logoId: 'client-logo-2',
     quote: "The software solution they developed for us is robust, scalable, and was delivered on time and on budget. A truly professional team.",
-    person: 'John Smith, CTO',
+    person: 'Maliha Mehnaz, CTO',
   },
   {
     client: 'CloudPioneers',
