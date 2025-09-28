@@ -1,3 +1,29 @@
+import Header from '@/components/common/header';
+import HeroSection from '@/components/features/hero-section';
+import ServicesSection from '@/components/features/services-section';
+import AboutSection from '@/components/features/about-section';
+import PortfolioSection from '@/components/features/portfolio-section';
+import RecommendationTool from '@/components/features/recommendation-tool';
+import BlogSection from '@/components/features/blog-section';
+import ContactSection from '@/components/features/contact-section';
+import Footer from '@/components/common/footer';
+import AIChatbot from '@/components/features/ai-chatbot';
+
 export default function Home() {
-  return <></>;
+  return (
+    <div className="flex flex-col min-h-screen bg-background">
+      <Header />
+      <main className="flex-grow">
+        <HeroSection />
+        <ServicesSection />
+        <AboutSection />
+        <PortfolioSection />
+        <RecommendationTool />
+        <BlogSection />
+        <ContactSection />
+      </main>
+      <Footer />
+      <AIChatbot />
+    </div>
+  );
 }

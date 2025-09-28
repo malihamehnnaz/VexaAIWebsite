@@ -1,3 +1,58 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-background",
+      "description": "Abstract technology background for hero section",
+      "imageUrl": "https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxhYnN0cmFjdCUyMHRlY2hub2xvZ3l8ZW58MHx8fHwxNzU5MDE0OTg5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract technology"
+    },
+    {
+      "id": "about-us",
+      "description": "Team collaborating in a modern office",
+      "imageUrl": "https://images.unsplash.com/photo-1568992688065-536aad8a12f6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHx0ZWFtJTIwb2ZmaWNlfGVufDB8fHx8MTc1OTAxMDYyOXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team office"
+    },
+    {
+      "id": "blog-post-1",
+      "description": "Image for the first blog post about AI",
+      "imageUrl": "https://images.unsplash.com/photo-1697577418970-95d99b5a55cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhcnRpZmljaWFsJTIwaW50ZWxsaWdlbmNlfGVufDB8fHx8MTc1OTAyNjgyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "artificial intelligence"
+    },
+    {
+      "id": "blog-post-2",
+      "description": "Image for the second blog post about software development",
+      "imageUrl": "https://images.unsplash.com/photo-1610563166150-b34df4f3bcd6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxzb2Z0d2FyZSUyMGRldmVsb3BtZW50fGVufDB8fHx8MTc1OTAwNzA0NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "software development"
+    },
+    {
+      "id": "blog-post-3",
+      "description": "Image for the third blog post about cloud services",
+      "imageUrl": "https://images.unsplash.com/photo-1667984390527-850f63192709?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjbG91ZCUyMGNvbXB1dGluZ3xlbnwwfHx8fDE3NTkwNDMwNjZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cloud computing"
+    },
+    {
+      "id": "client-logo-1",
+      "description": "Logo for client 1",
+      "imageUrl": "https://images.unsplash.com/photo-1505156868547-9b49f4df4e04?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxsb2dvJTIwdGVjaHxlbnwwfHx8fDE3NTg5NjE5MTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "logo tech"
+    },
+    {
+      "id": "client-logo-2",
+      "description": "Logo for client 2",
+      "imageUrl": "https://images.unsplash.com/photo-1708634421109-18f3309dffa2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxsb2dvJTIwbWluaW1hbHxlbnwwfHx8fDE3NTg5OTcwMTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "logo minimal"
+    },
+    {
+      "id": "client-logo-3",
+      "description": "Logo for client 3",
+      "imageUrl": "https://images.unsplash.com/photo-1630885664862-b66bc35f47f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxsb2dvJTIwY3JlYXRpdmV8ZW58MHx8fHwxNzU4OTc0NDExfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "logo creative"
+    },
+    {
+      "id": "client-logo-4",
+      "description": "Logo for client 4",
+      "imageUrl": "https://images.unsplash.com/photo-1572539561705-80f7a8d6d151?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxsb2dvJTIwbW9kZXJufGVufDB8fHx8MTc1ODk5NDQ2Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "logo modern"
+    }
+  ]
 }
