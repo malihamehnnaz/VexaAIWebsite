@@ -1,9 +1,7 @@
-import Image from 'next/image';
-
 export default function Logo() {
   return (
-    <div className="flex items-center">
-      <Image src="/logo.png" alt="Vexa AI Logo" width={140} height={40} className="h-10 w-auto" />
-    </div>
+    <span className="text-2xl font-bold text-primary tracking-wider font-headline">
+      Vexa AI
+    </span>
   );
 }
