@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { Mail, Phone } from 'lucide-react';
+import { Mail, Phone, MapPin } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -56,6 +56,10 @@ export default function ContactSection() {
                 <div className="flex items-center gap-4">
                     <Phone className="h-6 w-6 text-accent"/>
                     <a href="tel:+1234567890" className="text-lg hover:text-primary transition-colors">+1 (234) 567-890</a>
+                </div>
+                <div className="flex items-center gap-4">
+                    <MapPin className="h-6 w-6 text-accent"/>
+                    <span className="text-lg">Umeå, Sweden</span>
                 </div>
             </div>
           </div>
