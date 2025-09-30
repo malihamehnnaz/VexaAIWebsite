@@ -1,6 +1,5 @@
 import Header from '@/components/common/header';
 import HeroSection from '@/components/features/hero-section';
-import ServicesSection from '@/components/features/services-section';
 import AboutSection from '@/components/features/about-section';
 import PortfolioSection from '@/components/features/portfolio-section';
 import RecommendationTool from '@/components/features/recommendation-tool';
@@ -15,7 +14,6 @@ export default function Home() {
       <Header />
       <main className="flex-grow">
         <HeroSection />
-        <ServicesSection />
         <AboutSection />
         <PortfolioSection />
         <RecommendationTool />

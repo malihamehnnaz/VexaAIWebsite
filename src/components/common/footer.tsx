@@ -3,7 +3,7 @@ import { Twitter, Linkedin, Github } from 'lucide-react';
 import Logo from './logo';
 
 const navLinks = [
-  { href: '#services', label: 'Services' },
+  { href: '/services', label: 'Services' },
   { href: '#about', label: 'About' },
   { href: '#portfolio', label: 'Portfolio' },
   { href: '#blog', label: 'Blog' },
