@@ -7,6 +7,12 @@
       "imageHint": "abstract technology"
     },
     {
+      "id": "hero-background-video",
+      "description": "Abstract technology video background for hero section",
+      "videoUrl": "https://videos.pexels.com/video-files/3252391/3252391-hd_1920_1080_25fps.mp4",
+      "imageHint": "abstract technology video"
+    },
+    {
       "id": "about-us",
       "description": "Team collaborating in a modern office",
       "imageUrl": "https://images.unsplash.com/photo-1568992688065-536aad8a12f6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHx0ZWFtJTIwb2ZmaWNlfGVufDB8fHx8MTc1OTAxMDYyOXww&ixlib=rb-4.1.0&q=80&w=1080",
@@ -51,7 +57,7 @@
     {
       "id": "client-logo-4",
       "description": "Logo for client 4",
-      "imageUrl": "https://images.unsplash.com/photo-1572539561705-80f7a8d6d151?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxsb2dvJTIwbW9kZXJufGVufDB8fHx8MTc1ODk5NDQ2Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1572539561705-80f7a8d6d151?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxsb2dvJTIwbW9kZXJufGVufDB8fHx8fDE3NTg5OTQ0NjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "logo modern"
     },
     {

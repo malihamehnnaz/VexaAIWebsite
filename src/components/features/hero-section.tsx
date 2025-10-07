@@ -1,23 +1,16 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { ArrowRight } from 'lucide-react';
+import VideoBackground from './video-background';
 
-const heroImage = PlaceHolderImages.find(p => p.id === 'hero-background');
+const heroAsset = PlaceHolderImages.find(p => p.id === 'hero-background-video');
 
 export default function HeroSection() {
   return (
     <section className="relative h-[80vh] min-h-[500px] w-full flex items-center justify-center text-center text-white">
-      {heroImage && (
-        <Image
-          src={heroImage.imageUrl}
-          alt={heroImage.description}
-          fill
-          className="object-cover"
-          priority
-          data-ai-hint={heroImage.imageHint}
-        />
+      {heroAsset && heroAsset.videoUrl && (
+        <VideoBackground src={heroAsset.videoUrl} />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/20" />
       <div className="relative z-10 container px-4 md:px-6">
