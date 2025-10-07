@@ -16,7 +16,7 @@
     {
       "id": "about-us",
       "description": "Team of developers collaborating in a modern office",
-      "imageUrl": "https://images.unsplash.com/photo-1552664730-d307ca884978?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwY29sbGFib3JhdGlvbnxlbnwwfHx8fDE3NjE4NTEzODR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx0ZWNoJTIwdGVhbXxlbnwwfHx8fDE3NjE5NTYxODZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "tech team"
     },
     {
@@ -40,7 +40,7 @@
     {
       "id": "blog-post-4",
       "description": "Conceptual image of an AI robot brain for agentic solutions blog post",
-      "imageUrl": "https://images.unsplash.com/photo-1535378620166-273708d44e4c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBSSUyMGFnZW50fGVufDB8fHx8fDE3NjE5NTU2MzV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1535378620166-273708d44e4c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBSSUyMGFnZW50fGVufDB8fHx8fDE3NjE5NTU2MzV8MA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "AI agent"
     },
     {
@@ -112,7 +112,7 @@
     {
       "id": "cloud-inline-1",
       "description": "Server racks in a data center, representing cloud infrastructure.",
-      "imageUrl": "https://images.unsplash.com/photo-1522124012132-b4352adcf6f6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxkYXRhJTIwY2VudGVyfGVufDB8fHx8fDE3NjE5NTU4ODJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1522124012132-b4352adcf6f6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxkYXRhJTIwY2VudGVyfGVufDB8fHx8fDE3NjE5NTU4ODJ8MA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "data center"
     },
     {
