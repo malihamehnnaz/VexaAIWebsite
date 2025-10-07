@@ -22,25 +22,25 @@
     {
       "id": "blog-post-1",
       "description": "Image for the first blog post about AI",
-      "imageUrl": "https://images.unsplash.com/photo-1697577418970-95d99b5a55cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhcnRpZmljaWFsJTIwaW50ZWxsaWdlbmNlfGVufDB8fHx8MTc1OTAyNjgyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1697577418970-95d99b5a55cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhcnRpZmljaWFsJTIwaW50ZWxsaWdlbmNlfGVufDB8fHx8fDE3NTkwMjY4MjN8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "artificial intelligence"
     },
     {
       "id": "blog-post-2",
       "description": "Image for the second blog post about software development",
-      "imageUrl": "https://images.unsplash.com/photo-1610563166150-b34df4f3bcd6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxzb2Z0d2FyZSUyMGRldmVsb3BtZW50fGVufDB8fHx8MTc1OTAwNzA0NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1610563166150-b34df4f3bcd6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxzb2Z0d2FyZSUyMGRldmVsb3BtZW50fGVufDB8fHx8fDE3NTkwMDcwNDR8MA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "software development"
     },
     {
       "id": "blog-post-3",
       "description": "Image for the third blog post about cloud services",
-      "imageUrl": "https://images.unsplash.com/photo-1667984390527-850f63192709?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjbG91ZCUyMGNvbXB1dGluZ3xlbnwwfHx8fDE3NTkwNDMwNjZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1667984390527-850f63192709?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjbG91ZCUyMGNvbXB1dGluZ3xlbnwwfHx8fDE3NTkwNDMwNjZ8MA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "cloud computing"
     },
     {
       "id": "blog-post-4",
       "description": "Conceptual image of an AI robot brain for agentic solutions blog post",
-      "imageUrl": "https://images.unsplash.com/photo-1535378620242-8ad6a7a53FEB?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBSSUyMHJvYm90fGVufDB8fHx8fDE3NjA5NDM1MjB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1535378620242-8ad6a7a53FEB?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBSSUyMHJvYm90fGVufDB8fHx8fDE3NjA5NDM1MjB8MA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "AI robot"
     },
     {
@@ -94,8 +94,8 @@
     {
       "id": "project-grocery-app",
       "description": "A person using a grocery delivery app on their smartphone",
-      "imageUrl": "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxncm9jZXJ5JTIwYXBwfGVufDB8fHx8fDE3NjA5NDQ3ODZ8MA&ixlib-rb-4.1.0&q=80&w=1080",
-      "imageHint": "grocery app"
+      "imageUrl": "https://images.unsplash.com/photo-1591969853982-fba84a44b383?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxncm9jZXJ5JTIwZGVsaXZlcnl8ZW58MHx8fHwxNzYxMDMxNTA3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "grocery delivery"
     },
     {
       "id": "project-hrm-website",
