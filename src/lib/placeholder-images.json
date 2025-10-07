@@ -22,7 +22,7 @@
     {
       "id": "blog-post-1",
       "description": "Image for the first blog post about AI",
-      "imageUrl": "https://images.unsplash.com/photo-1697577418970-95d99b5a55cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhcnRpZmljaWFsJTIwaW50ZWxsaWdlbmNlfGVufDB8fHx8fDE3NTkwMjY4MjN8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1697577418970-95d99b5a55cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhcnRpZmljaWFsJTIwaW50ZWxsaWdlbmNlfGVufDB8fHx8fDE3NTkwMjY4MjN8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "artificial intelligence"
     },
     {
@@ -34,13 +34,13 @@
     {
       "id": "blog-post-3",
       "description": "Image for the third blog post about cloud services",
-      "imageUrl": "https://images.unsplash.com/photo-1667984390527-850f63192709?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjbG91ZCUyMGNvbXB1dGluZ3xlbnwwfHx8fDE3NTkwNDMwNjZ8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjbG91ZCUyMGNvbXB1dGluZ3xlbnwwfHx8fDE3NjE5NTU0OTN8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "cloud computing"
     },
     {
       "id": "blog-post-4",
       "description": "Conceptual image of an AI robot brain for agentic solutions blog post",
-      "imageUrl": "https://images.unsplash.com/photo-1678483789004-a829244a5113?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBSSUyMGFnZW50fGVufDB8fHx8fDE3NjA5NDU1MDd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1535378620166-273708d44e4c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBSSUyMGFnZW50fGVufDB8fHx8fDE3NjE5NTU2MzV8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "AI agent"
     },
     {
@@ -108,6 +108,18 @@
       "description": "Code on a screen representing an automation testing script",
       "imageUrl": "https://images.unsplash.com/photo-1605379399642-870262d3d051?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzb2Z0d2FyZSUyMHRlc3Rpbmd8ZW58MHx8fHwxNzYxMjY2MDk3fDA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "software testing"
+    },
+    {
+      "id": "cloud-inline-1",
+      "description": "Server racks in a data center, representing cloud infrastructure.",
+      "imageUrl": "https://images.unsplash.com/photo-1522124012132-b4352adcf6f6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxkYXRhJTIwY2VudGVyfGVufDB8fHx8fDE3NjE5NTU4ODJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "data center"
+    },
+    {
+      "id": "cloud-inline-2",
+      "description": "A diagram showing a hybrid cloud architecture.",
+      "imageUrl": "https://images.unsplash.com/photo-1517048676732-d65bc937f952?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMHN0cmF0ZWd5fGVufDB8fHx8fDE3NjE5NTU5NDd8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "business strategy"
     }
   ]
 }

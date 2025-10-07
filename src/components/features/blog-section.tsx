@@ -26,7 +26,7 @@ const blogPosts = [
     title: 'Is Your Business Ready for the Cloud?',
     description: 'A comprehensive guide to cloud migration, its benefits, and potential challenges.',
     image: PlaceHolderImages.find(p => p.id === 'blog-post-3'),
-    link: '#',
+    link: '/blog/cloud-readiness',
   },
 ];
 
@@ -54,7 +54,7 @@ export default function BlogSection() {
         <div className="mx-auto mt-12 grid gap-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {blogPosts.map((post) => (
             <Card key={post.title} className="flex flex-col overflow-hidden shadow-lg hover:shadow-2xl transition-shadow duration-300">
-              {post.image && (
+              {post.image && post.image.imageUrl && (
                 <Image
                   src={post.image.imageUrl}
                   alt={post.image.description}
