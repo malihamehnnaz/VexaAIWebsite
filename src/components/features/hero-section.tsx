@@ -2,18 +2,26 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { ArrowRight } from 'lucide-react';
-import VideoBackground from './video-background';
 
 const heroAsset = PlaceHolderImages.find(p => p.id === 'hero-background-video');
 
 export default function HeroSection() {
   return (
-    <section className="relative h-[80vh] min-h-[500px] w-full flex items-center justify-center text-center text-white">
+    <section className="relative h-[80vh] min-h-[500px] w-full flex items-center justify-center text-center text-white overflow-hidden">
       {heroAsset && heroAsset.videoUrl && (
-        <VideoBackground src={heroAsset.videoUrl} />
+         <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute z-0 w-full h-full object-cover"
+        >
+            <source src={heroAsset.videoUrl} type="video/mp4" />
+            Your browser does not support the video tag.
+        </video>
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/20" />
-      <div className="relative z-10 container px-4 md:px-6">
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/20 z-10" />
+      <div className="relative z-20 container px-4 md:px-6">
         <div className="flex flex-col items-center space-y-6">
           <h1 className="font-headline text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
             Intelligent Solutions for a Digital World
