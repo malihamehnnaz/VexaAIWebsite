@@ -22,7 +22,7 @@
     {
       "id": "blog-post-1",
       "description": "Image for the first blog post about AI",
-      "imageUrl": "https://images.unsplash.com/photo-1697577418970-95d99b5a55cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhcnRpZmljaWFsJTIwaW50ZWxsaWdlbmNlfGVufDB8fHx8fDE3NTkwMjY4MjN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1697577418970-95d99b5a55cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhcnRpZmljaWFsJTIwaW50ZWxsaWdlbmNlfGVufDB8fHx8fDE3NTkwMjY4MjN8MA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "artificial intelligence"
     },
     {
@@ -34,7 +34,7 @@
     {
       "id": "blog-post-3",
       "description": "Image for the third blog post about cloud services",
-      "imageUrl": "https://images.unsplash.com/photo-1667984390527-850f63192709?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjbG91ZCUyMGNvbXB1dGluZ3xlbnwwfHx8fDE3NTkwNDMwNjZ8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1667984390527-850f63192709?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjbG91ZCUyMGNvbXB1dGluZ3xlbnwwfHx8fDE3NTkwNDMwNjZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "cloud computing"
     },
     {
@@ -94,20 +94,20 @@
     {
       "id": "project-grocery-app",
       "description": "A person using a grocery delivery app on their smartphone",
-      "imageUrl": "https://images.unsplash.com/photo-1591969853982-fba84a44b383?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxncm9jZXJ5JTIwZGVsaXZlcnl8ZW58MHx8fHwxNzYxMDMxNTA3fDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "grocery delivery"
+      "imageUrl": "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxncm9jZXJ5JTIwYXBwfGVufDB8fHx8fDE3NjExODg1ODB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "grocery app"
     },
     {
       "id": "project-hrm-website",
       "description": "A clean and modern dashboard for an HRM website",
-      "imageUrl": "https://images.unsplash.com/photo-1552664730-d307ca884978?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxobSUyMGRhc2hib2FyZHxlbnwwfHx8fDE3NjA5NDQ4NDR8MA&ixlib-rb-4.1.0&q=80&w=1080",
-      "imageHint": "HRM dashboard"
+      "imageUrl": "https://images.unsplash.com/photo-1616401784845-180882ba9ba8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxobSUyMHdlYnNpdGV8ZW58MHx8fHwxNzYxMTg4NjU0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "HRM website"
     },
     {
       "id": "project-automation-testing",
       "description": "Code on a screen representing an automation testing script",
-      "imageUrl": "https://images.unsplash.com/photo-1629904853716-f0bc64219164?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzb2Z0d2FyZSUyMHRlc3RpbmclMjBhdXRvbWF0aW9ufGVufDB8fHx8fDE3NjA5NDQ4OTh8MA&ixlib-rb-4.1.0&q=80&w=1080",
-      "imageHint": "automation testing"
+      "imageUrl": "https://images.unsplash.com/photo-1517694712202-1428bc3835b3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx0ZXN0JTIwYXV0b21hdGlvbnxlbnwwfHx8fHwxNzYxMTg4NzAyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "test automation"
     }
   ]
 }
