@@ -28,16 +28,14 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+       {
+        protocol: 'https',
+        hostname: 'videos.pexels.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
-  remotePatterns: [
-    {
-      protocol: 'https',
-      hostname: 'videos.pexels.com',
-      port: '',
-      pathname: '/**',
-    },
-  ],
 };
 
 export default nextConfig;
