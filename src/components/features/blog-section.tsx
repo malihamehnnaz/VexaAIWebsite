@@ -13,10 +13,10 @@ const blogPosts = [
     link: '/blog/future-of-gen-ai',
   },
   {
-    title: '5 Principles of Scalable Software Architecture',
-    description: 'Learn the key principles for designing software that grows with your business needs.',
-    image: PlaceHolderImages.find(p => p.id === 'blog-post-2'),
-    link: '#',
+    title: 'Agentic Solutions in Business Automation',
+    description: 'Discover how AI agents can automate complex workflows and drive efficiency in your business.',
+    image: PlaceHolderImages.find(p => p.id === 'blog-post-4'),
+    link: '/blog/agentic-solutions-in-business-automation',
   },
   {
     title: 'Is Your Business Ready for the Cloud?',
