@@ -4,9 +4,10 @@ import Logo from './logo';
 
 const navLinks = [
   { href: '/', label: 'Home' },
-  { href: '/services', label: 'Services' },
+  { href: '/#services', label: 'Services' },
   { href: '/#about', label: 'About' },
   { href: '/#portfolio', label: 'Portfolio' },
+  { href: '/#pricing', label: 'Pricing' },
   { href: '/#blog', label: 'Blog' },
   { href: '/#contact', label: 'Contact' },
 ];
@@ -47,7 +48,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="mt-8 border-t border-border pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Vexa AI. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} VexaAI. All rights reserved.</p>
         </div>
       </div>
     </footer>

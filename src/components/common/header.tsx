@@ -10,9 +10,10 @@ import Logo from '@/components/common/logo'
 
 const navLinks = [
   { href: '/', label: 'Home' },
-  { href: '/services', label: 'Services' },
+  { href: '#services', label: 'Services' },
   { href: '#about', label: 'About' },
   { href: '#portfolio', label: 'Portfolio' },
+  { href: '#pricing', label: 'Pricing' },
   { href: '#blog', label: 'Blog' },
 ]
 

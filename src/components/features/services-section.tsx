@@ -1,49 +1,42 @@
-import { BrainCircuit, CodeXml, Cloud, Bot, GitBranch, DatabaseZap } from 'lucide-react';
+import { BrainCircuit, CodeXml, Cloud, Bot, GitBranch, DatabaseZap, DraftingCompass } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 
-const serviceCategories = [
-  {
-    category: 'Artificial Intelligence',
-    icon: BrainCircuit,
-    services: [
-      {
-        title: 'AI Consulting',
-        icon: Bot,
-        description: 'Initial consultation and strategy development for AI adoption, helping you find the best opportunities for AI in your business.',
-      },
-      {
-        title: 'Custom AI Model Development',
-        icon: BrainCircuit,
-        description: 'Building tailored AI and machine learning models to address your specific business challenges and unlock unique insights.',
-      },
-      {
-        title: 'AI Integration',
-        icon: GitBranch,
-        description: 'Seamlessly integrating powerful AI solutions into your existing systems and workflows to enhance capabilities without disruption.',
-      },
-    ],
-  },
-  {
-    category: 'Software & Cloud',
-    icon: CodeXml,
-    services: [
-      {
+const services = [
+    {
         title: 'Custom Software Development',
         icon: CodeXml,
-        description: 'Designing and building bespoke software solutions, from web applications to enterprise systems, tailored to your needs.',
-      },
-      {
-        title: 'Cloud Migration & Management',
-        icon: Cloud,
-        description: 'Migrating your infrastructure to the cloud and providing ongoing management for scalability, security, and efficiency.',
-      },
-      {
-        title: 'DevOps & Automation',
+        description: 'Scalable, robust, and tailored software solutions built with modern frameworks.',
+    },
+    {
+        title: 'Generative AI Solutions',
+        icon: Bot,
+        description: 'Deploy AI agents, chatbots, and content generators trained on your business data.',
+    },
+    {
+        title: 'Machine Learning & Automation',
+        icon: BrainCircuit,
+        description: 'Intelligent models that optimize processes and predict outcomes.',
+    },
+    {
+        title: 'Data Engineering & Analytics',
         icon: DatabaseZap,
-        description: 'Implementing DevOps practices and automation to streamline your software delivery pipeline, increasing speed and reliability.',
-      },
-    ],
-  },
+        description: 'End-to-end data pipelines, dashboards, and insights for smarter decisions.',
+    },
+    {
+        title: 'Web & Mobile App Development',
+        icon: DraftingCompass,
+        description: 'Beautiful, high-performance digital products with responsive design.',
+    },
+    {
+        title: 'Cloud Deployment & Integration',
+        icon: Cloud,
+        description: 'Seamless deployment on AWS, Azure, or Google Cloud for maximum uptime and security.',
+    },
+    {
+        title: 'AI Consultation & Strategy',
+        icon: GitBranch,
+        description: 'Expert guidance to implement AI in your workflow effectively.',
+    },
 ];
 
 export default function ServicesSection() {
@@ -60,32 +53,20 @@ export default function ServicesSection() {
             </p>
           </div>
         </div>
-        <div className="mt-12 space-y-16">
-          {serviceCategories.map((category) => (
-            <div key={category.category}>
-              <div className="flex items-center justify-center mb-8">
-                 <h3 className="font-headline text-2xl font-semibold tracking-tight flex items-center gap-3">
-                    <category.icon className="h-8 w-8 text-accent" />
-                    {category.category}
-                </h3>
-              </div>
-              <div className="mx-auto grid items-start gap-8 sm:max-w-4xl sm:grid-cols-1 md:gap-12 lg:max-w-5xl lg:grid-cols-3">
-                {category.services.map((service) => (
-                  <Card key={service.title} className="shadow-md hover:shadow-xl transition-shadow duration-300">
-                    <CardHeader className="flex flex-row items-center gap-4">
-                      <div className="bg-primary/10 p-3 rounded-full">
-                         <service.icon className="h-6 w-6 text-primary" />
-                      </div>
-                      <CardTitle className="font-headline text-lg">{service.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <CardDescription>{service.description}</CardDescription>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          ))}
+        <div className="mx-auto mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {services.map((service) => (
+                <Card key={service.title} className="shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col">
+                <CardHeader className="flex flex-row items-center gap-4">
+                    <div className="bg-primary/10 p-3 rounded-full">
+                        <service.icon className="h-6 w-6 text-primary" />
+                    </div>
+                    <CardTitle className="font-headline text-lg">{service.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                    <CardDescription>{service.description}</CardDescription>
+                </CardContent>
+                </Card>
+            ))}
         </div>
       </div>
     </section>

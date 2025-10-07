@@ -12,31 +12,11 @@ export default function AboutSection() {
           <div className="flex flex-col justify-center space-y-6">
             <div className="space-y-4">
               <h2 className="font-headline text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-primary">
-                Our Mission & Vision
+                About VexaAI
               </h2>
               <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                At Vexa AI, our mission is to empower businesses with transformative technology. We believe in building intelligent solutions that drive growth, efficiency, and innovation.
+                VexaAI delivers next-generation software and generative AI solutions that empower businesses across industries to automate, innovate, and scale faster. Our mission is to merge creativity with technology to build intelligent systems that adapt, learn, and evolve with your business.
               </p>
-            </div>
-            <div className="space-y-4">
-                <h3 className="font-headline text-2xl font-bold tracking-tighter">Our Values</h3>
-                <ul className="grid gap-4">
-                  <li>
-                    <p>
-                      <span className="font-semibold text-foreground">Innovation:</span> We are committed to pushing the boundaries of what's possible with AI and software.
-                    </p>
-                  </li>
-                  <li>
-                    <p>
-                      <span className="font-semibold text-foreground">Partnership:</span> We work closely with our clients, building strong relationships to achieve shared success.
-                    </p>
-                  </li>
-                  <li>
-                    <p>
-                      <span className="font-semibold text-foreground">Excellence:</span> We strive for the highest quality in everything we do, from code to customer service.
-                    </p>
-                  </li>
-                </ul>
             </div>
           </div>
           <div className="flex items-center justify-center">

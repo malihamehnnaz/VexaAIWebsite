@@ -10,11 +10,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+  company: z.string().optional(),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
-  message: z.string().min(10, { message: 'Message must be at least 10 characters.' }),
+  projectDescription: z.string().min(10, { message: 'Message must be at least 10 characters.' }),
 });
 
 export default function ContactSection() {
@@ -23,8 +25,9 @@ export default function ContactSection() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
+      company: '',
       email: '',
-      message: '',
+      projectDescription: '',
     },
   });
 
@@ -48,7 +51,12 @@ export default function ContactSection() {
             <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
               Have a project in mind or just want to learn more about our services? We'd love to hear from you.
             </p>
-            <div className="space-y-4">
+             <div className="flex flex-col sm:flex-row gap-4">
+                <Button asChild size="lg">
+                    <Link href="#">Request a Demo</Link>
+                </Button>
+            </div>
+            <div className="space-y-4 pt-4">
                 <div className="flex items-center gap-4">
                     <Mail className="h-6 w-6 text-accent"/>
                     <a href="mailto:contact@vexa.ai" className="text-lg hover:text-primary transition-colors">contact@vexa.ai</a>
@@ -71,9 +79,22 @@ export default function ContactSection() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name</FormLabel>
+                      <FormLabel>Name</FormLabel>
                       <FormControl>
                         <Input placeholder="John Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="company"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Your Company" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -94,19 +115,19 @@ export default function ContactSection() {
                 />
                 <FormField
                   control={form.control}
-                  name="message"
+                  name="projectDescription"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Message</FormLabel>
+                      <FormLabel>Project Description</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Tell us about your project or inquiry..." {...field} />
+                        <Textarea placeholder="Tell us about your project..." {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                  Send Message
+                  Submit
                 </Button>
               </form>
             </Form>

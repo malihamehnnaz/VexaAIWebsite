@@ -30,13 +30,13 @@ export default function HeroSection() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Button asChild size="lg">
-              <Link href="/services">
+              <Link href="/#services">
                 Explore Our Services
               </Link>
             </Button>
             <Button asChild variant="secondary" size="lg">
               <Link href="#contact">
-                Get in Touch <ArrowRight className="ml-2 h-5 w-5" />
+                Get Started <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
           </div>
