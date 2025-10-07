@@ -1,8 +1,8 @@
+
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { motion } from 'framer-motion';
 
 const heroImage = PlaceHolderImages.find(p => p.id === 'blog-post-4');
 const inlineImage1 = PlaceHolderImages.find(p => p.id === 'blog-inline-3');
@@ -12,7 +12,7 @@ export default function BlogPostPage() {
   return (
     <article className="w-full">
       <header className="relative h-[60vh] min-h-[400px] w-full flex items-end justify-center text-center text-white">
-        {heroImage && (
+        {heroImage && heroImage.imageUrl && (
           <Image
             src={heroImage.imageUrl}
             alt={heroImage.description}
@@ -55,7 +55,7 @@ export default function BlogPostPage() {
             For years, automation has been about scripts and predefined workflows. But what happens when the process isn't linear? What if it requires decision-making, data gathering from multiple sources, and adapting to unforeseen circumstances? This is where agentic solutions come in, acting as digital employees for your most complex operational needs.
           </p>
 
-          {inlineImage1 && (
+          {inlineImage1 && inlineImage1.imageUrl && (
             <div className="my-8 rounded-lg overflow-hidden shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl">
                  <Image
                     src={inlineImage1.imageUrl}
@@ -83,7 +83,7 @@ export default function BlogPostPage() {
             <li><strong>Automated Market Research:</strong> An agent can be tasked to "research the competitive landscape for our new product," and it will browse the web, analyze competitor websites, summarize findings, and deliver a comprehensive report.</li>
           </ul>
 
-          {inlineImage2 && (
+          {inlineImage2 && inlineImage2.imageUrl && (
              <div className="my-8 rounded-lg overflow-hidden shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl">
                 <Image
                     src={inlineImage2.imageUrl}
