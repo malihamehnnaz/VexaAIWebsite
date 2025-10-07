@@ -4,33 +4,24 @@
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
-const testimonials = [
+const projects = [
   {
-    client: 'Innovate Corp',
-    logoId: 'client-logo-1',
-    quote: 'Vexa AI transformed our data strategy. Their custom AI model has given us a significant competitive edge.',
-    person: 'Samara Sharin, CEO',
+    title: 'Mobile App for Grocery Delivery',
+    description: 'A user-friendly mobile application that simplifies grocery shopping with real-time tracking and seamless payment integration.',
+    imageId: 'project-grocery-app',
   },
   {
-    client: 'Tech Solutions Ltd.',
-    logoId: 'client-logo-2',
-    quote: "The software solution they developed for us is robust, scalable, and was delivered on time and on budget. A truly professional team.",
-    person: 'Maliha Mehnaz, CTO',
+    title: 'HRM Website with Chat Engine',
+    description: 'A comprehensive Human Resource Management website featuring a company-specific, AI-powered chat engine for instant employee support.',
+    imageId: 'project-hrm-website',
   },
   {
-    client: 'CloudPioneers',
-    logoId: 'client-logo-3',
-    quote: 'Our migration to the cloud was seamless thanks to Vexa AI. Our infrastructure is now more efficient and cost-effective than ever.',
-    person: 'Emily White, Head of IT',
-  },
-  {
-    client: 'Future Gadgets',
-    logoId: 'client-logo-4',
-    quote: 'The AI consulting provided invaluable insights that are now at the core of our product development. Highly recommended.',
-    person: 'Michael Brown, Founder',
+    title: 'Automation Testing Framework',
+    description: 'A robust automation testing framework for QA teams, designed to accelerate release cycles and improve software quality.',
+    imageId: 'project-automation-testing',
   },
 ];
 
@@ -38,7 +29,7 @@ export default function PortfolioSection() {
   return (
     <motion.section 
         id="portfolio" 
-        className="w-full py-12 md:py-16 lg:py-20"
+        className="w-full py-8 md:py-12 lg:py-16"
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
@@ -51,7 +42,7 @@ export default function PortfolioSection() {
               Trusted by Industry Leaders
             </h2>
             <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-              We partner with businesses of all sizes to deliver exceptional results. Here's what our clients have to say.
+              We have successfully delivered 23 projects for clients all over the world. Here are a few examples of our work.
             </p>
           </div>
         </div>
@@ -59,32 +50,31 @@ export default function PortfolioSection() {
           <Carousel
             opts={{
               align: 'start',
-              loop: true,
             }}
             className="w-full"
           >
             <CarouselContent>
-              {testimonials.map((testimonial, index) => {
-                const logo = PlaceHolderImages.find(p => p.id === testimonial.logoId);
+              {projects.map((project, index) => {
+                const image = PlaceHolderImages.find(p => p.id === project.imageId);
                 return (
                   <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
-                    <div className="p-4">
-                      <Card className="h-full flex flex-col justify-between shadow-md hover:shadow-xl transition-shadow duration-300">
-                        <CardContent className="flex flex-col items-center justify-center text-center p-6 space-y-6">
-                           {logo && (
-                            <Image
-                                src={logo.imageUrl}
-                                alt={`${testimonial.client} Logo`}
-                                width={150}
-                                height={75}
-                                className="object-contain"
-                                data-ai-hint={logo.imageHint}
-                            />
-                           )}
-                           <blockquote className="text-lg italic text-foreground">
-                            "{testimonial.quote}"
-                           </blockquote>
-                           <footer className="font-semibold text-muted-foreground">{testimonial.person}</footer>
+                    <div className="p-4 h-full">
+                      <Card className="h-full flex flex-col overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300">
+                        {image && (
+                           <Image
+                               src={image.imageUrl!}
+                               alt={project.title}
+                               width={600}
+                               height={400}
+                               className="w-full h-48 object-cover"
+                               data-ai-hint={image.imageHint}
+                           />
+                        )}
+                        <CardHeader>
+                          <CardTitle className="font-headline text-xl">{project.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                          <CardDescription>{project.description}</CardDescription>
                         </CardContent>
                       </Card>
                     </div>
