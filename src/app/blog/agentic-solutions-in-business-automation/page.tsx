@@ -56,7 +56,7 @@ export default function BlogPostPage() {
           </p>
 
           {inlineImage1 && inlineImage1.imageUrl && (
-            <div className="my-8 rounded-lg overflow-hidden shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+            <div className="my-8 rounded-lg overflow-hidden shadow-xl">
                  <Image
                     src={inlineImage1.imageUrl}
                     alt={inlineImage1.description}
@@ -84,7 +84,7 @@ export default function BlogPostPage() {
           </ul>
 
           {inlineImage2 && inlineImage2.imageUrl && (
-             <div className="my-8 rounded-lg overflow-hidden shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+             <div className="my-8 rounded-lg overflow-hidden shadow-xl">
                 <Image
                     src={inlineImage2.imageUrl}
                     alt={inlineImage2.description}

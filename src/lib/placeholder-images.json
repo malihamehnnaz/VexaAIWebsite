@@ -39,7 +39,7 @@
     {
       "id": "blog-post-4",
       "description": "Image for the blog post about agentic solutions",
-      "imageUrl": "https://images.unsplash.com/photo-1696205259483-376cb0382343?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxhaSUyMGFnZW50fGVufDB8fHx8MTc2MDIyMzU2NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1677442135703-1787eea5ce01?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBSSUyMGFnZW50fGVufDB8fHx8fDE3NjAzMTI0MTB8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "AI agent"
     },
     {
@@ -81,13 +81,13 @@
     {
       "id": "blog-inline-3",
       "description": "An illustration of an AI agent working on a complex workflow",
-      "imageUrl": "https://images.unsplash.com/photo-1718043648614-2c6b45f69c3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxhdXRvbWF0ZWQlMjB3b3JrZmxvd3xlbnwwfHx8fDE3NjAyMjM2NDd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhdXRvbWF0ZWQlMjB3b3JrZmxvd3xlbnwwfHx8fDE3NjAzMTI0NDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "automated workflow"
     },
     {
       "id": "blog-inline-4",
       "description": "A conceptual image representing business process automation with gears and charts",
-      "imageUrl": "https://images.unsplash.com/photo-1521791136064-7986c2920216?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxidXNpbmVzcyUyMHByb2Nlc3MlMjBhdXRvbWF0aW9ufGVufDB8fHx8fDE3NjAyMjM3MTd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMGF1dG9tYXRpb258ZW58MHx8fHwxNzYwMzEyNDY3fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "business automation"
     }
   ]
