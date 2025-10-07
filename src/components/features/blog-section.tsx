@@ -3,13 +3,14 @@ import { ArrowRight } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 const blogPosts = [
   {
     title: 'The Future of Business with Generative AI',
     description: 'Explore how generative AI is reshaping industries and what it means for your business strategy.',
     image: PlaceHolderImages.find(p => p.id === 'blog-post-1'),
-    link: '#',
+    link: '/blog/future-of-gen-ai',
   },
   {
     title: '5 Principles of Scalable Software Architecture',
@@ -60,9 +61,9 @@ export default function BlogSection() {
               </CardContent>
               <CardFooter>
                 <Button variant="link" asChild className="p-0 h-auto">
-                  <a href={post.link}>
+                  <Link href={post.link}>
                     Read More <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
+                  </Link>
                 </Button>
               </CardFooter>
             </Card>
