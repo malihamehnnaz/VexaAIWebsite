@@ -1,15 +1,12 @@
-import Image from 'next/image';
+import { Rocket } from 'lucide-react';
 
 export default function Logo() {
   return (
     <div className="flex items-center gap-2">
-        <Image
-          src="/logo.png"
-          alt="Vexa AI Logo"
-          width={150}
-          height={35}
-          className="object-contain"
-        />
+      <Rocket className="h-6 w-6 text-primary" />
+      <span className="font-headline text-2xl font-bold text-foreground">
+        Vexa AI
+      </span>
     </div>
   );
 }
