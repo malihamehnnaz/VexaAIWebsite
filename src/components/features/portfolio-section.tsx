@@ -1,5 +1,8 @@
 
+'use client';
+
 import Image from 'next/image';
+import { motion } from 'framer-motion';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Card, CardContent } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -33,7 +36,14 @@ const testimonials = [
 
 export default function PortfolioSection() {
   return (
-    <section id="portfolio" className="w-full py-12 md:py-16 lg:py-20">
+    <motion.section 
+        id="portfolio" 
+        className="w-full py-12 md:py-16 lg:py-20"
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.5 }}
+    >
       <div className="container mx-auto max-w-7xl px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="space-y-2">
@@ -87,6 +97,6 @@ export default function PortfolioSection() {
           </Carousel>
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 }

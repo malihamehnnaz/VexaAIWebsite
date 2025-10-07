@@ -1,4 +1,7 @@
 
+'use client';
+
+import { motion } from 'framer-motion';
 import { CheckCircle, Zap, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 
 const features = [
@@ -26,7 +29,14 @@ const features = [
 
 export default function WhyChooseUsSection() {
   return (
-    <section id="why-us" className="w-full py-12 md:py-16 lg:py-20 bg-secondary">
+    <motion.section 
+        id="why-us" 
+        className="w-full py-12 md:py-16 lg:py-20 bg-secondary"
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.3 }}
+        transition={{ duration: 0.5 }}
+    >
       <div className="container mx-auto max-w-7xl px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="space-y-2">
@@ -52,6 +62,6 @@ export default function WhyChooseUsSection() {
           ))}
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 }

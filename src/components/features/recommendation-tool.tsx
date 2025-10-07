@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Loader2, Wand2, Lightbulb, Package, ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -61,7 +62,14 @@ export default function RecommendationTool() {
   }
 
   return (
-    <section id="recommendation" className="w-full py-12 md:py-16 lg:py-20">
+    <motion.section 
+        id="recommendation" 
+        className="w-full py-12 md:py-16 lg:py-20"
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.3 }}
+        transition={{ duration: 0.5 }}
+    >
         <div className="container mx-auto max-w-4xl px-4 md:px-6 text-center">
             <Wand2 className="mx-auto h-12 w-12 text-primary" />
             <h2 className="mt-4 font-headline text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-primary">
@@ -154,6 +162,6 @@ export default function RecommendationTool() {
                 </DialogContent>
             </Dialog>
         </div>
-    </section>
+    </motion.section>
   );
 }
