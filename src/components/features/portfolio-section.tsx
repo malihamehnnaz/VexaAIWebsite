@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,7 +33,7 @@ const testimonials = [
 
 export default function PortfolioSection() {
   return (
-    <section id="portfolio" className="w-full py-16 md:py-24 lg:py-32">
+    <section id="portfolio" className="w-full py-12 md:py-16 lg:py-20">
       <div className="container mx-auto max-w-7xl px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="space-y-2">

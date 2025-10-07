@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -28,7 +29,7 @@ const blogPosts = [
 
 export default function BlogSection() {
   return (
-    <section id="blog" className="w-full py-16 md:py-24 lg:py-32 bg-secondary">
+    <section id="blog" className="w-full py-12 md:py-16 lg:py-20 bg-secondary">
       <div className="container mx-auto max-w-7xl px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="space-y-2">

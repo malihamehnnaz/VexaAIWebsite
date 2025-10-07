@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,7 +7,7 @@ const aboutImage = PlaceHolderImages.find(p => p.id === 'about-us');
 
 export default function AboutSection() {
   return (
-    <section id="about" className="w-full py-16 md:py-24 lg:py-32 bg-secondary">
+    <section id="about" className="w-full py-12 md:py-16 lg:py-20 bg-secondary">
       <div className="container mx-auto max-w-7xl px-4 md:px-6">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-24">
           <div className="flex flex-col justify-center space-y-6">

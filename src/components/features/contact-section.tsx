@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -41,7 +42,7 @@ export default function ContactSection() {
   }
 
   return (
-    <section id="contact" className="w-full py-16 md:py-24 lg:py-32">
+    <section id="contact" className="w-full py-12 md:py-16 lg:py-20">
       <div className="container mx-auto max-w-7xl px-4 md:px-6">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-24">
           <div className="space-y-6">

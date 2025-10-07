@@ -1,3 +1,4 @@
+
 import { BrainCircuit, CodeXml, Cloud, Bot, GitBranch, DatabaseZap, DraftingCompass } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 
@@ -41,7 +42,7 @@ const services = [
 
 export default function ServicesSection() {
   return (
-    <section id="services" className="w-full py-16 md:py-24 lg:py-32 bg-background dark:bg-secondary">
+    <section id="services" className="w-full py-12 md:py-16 lg:py-20 bg-background dark:bg-secondary">
       <div className="container mx-auto max-w-7xl px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="space-y-2">

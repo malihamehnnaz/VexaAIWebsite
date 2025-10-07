@@ -1,3 +1,4 @@
+
 import { CheckCircle, Zap, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 
 const features = [
@@ -25,7 +26,7 @@ const features = [
 
 export default function WhyChooseUsSection() {
   return (
-    <section id="why-us" className="w-full py-16 md:py-24 lg:py-32 bg-secondary">
+    <section id="why-us" className="w-full py-12 md:py-16 lg:py-20 bg-secondary">
       <div className="container mx-auto max-w-7xl px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="space-y-2">

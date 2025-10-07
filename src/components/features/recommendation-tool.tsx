@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState } from 'react';
@@ -60,7 +61,7 @@ export default function RecommendationTool() {
   }
 
   return (
-    <section id="recommendation" className="w-full py-16 md:py-24 lg:py-32">
+    <section id="recommendation" className="w-full py-12 md:py-16 lg:py-20">
         <div className="container mx-auto max-w-4xl px-4 md:px-6 text-center">
             <Wand2 className="mx-auto h-12 w-12 text-primary" />
             <h2 className="mt-4 font-headline text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-primary">
