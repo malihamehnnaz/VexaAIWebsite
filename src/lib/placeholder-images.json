@@ -16,7 +16,7 @@
     {
       "id": "about-us",
       "description": "Team of developers collaborating in a modern office",
-      "imageUrl": "https://images.unsplash.com/photo-1521737852577-6848d78326a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHx0ZWNoJTIwdGVhbXxlbnwwfHx8fDE3NjA4NTA5MTJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1552664730-d307ca884978?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwY29sbGFib3JhdGlvbnxlbnwwfHx8fDE3NjE4NTEzODR8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "tech team"
     },
     {
@@ -34,14 +34,14 @@
     {
       "id": "blog-post-3",
       "description": "Image for the third blog post about cloud services",
-      "imageUrl": "https://images.unsplash.com/photo-1667984390527-850f63192709?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjbG91ZCUyMGNvbXB1dGluZ3xlbnwwfHx8fDE3NTkwNDMwNjZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1667984390527-850f63192709?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjbG91ZCUyMGNvbXB1dGluZ3xlbnwwfHx8fDE3NTkwNDMwNjZ8MA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "cloud computing"
     },
     {
       "id": "blog-post-4",
       "description": "Conceptual image of an AI robot brain for agentic solutions blog post",
-      "imageUrl": "https://images.unsplash.com/photo-1535378620242-8ad6a7a53FEB?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBSSUyMHJvYm90fGVufDB8fHx8fDE3NjA5NDM1MjB8MA&ixlib-rb-4.1.0&q=80&w=1080",
-      "imageHint": "AI robot"
+      "imageUrl": "https://images.unsplash.com/photo-1678483789004-a829244a5113?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBSSUyMGFnZW50fGVufDB8fHx8fDE3NjA5NDU1MDd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "AI agent"
     },
     {
       "id": "client-logo-1",
@@ -58,13 +58,13 @@
     {
       "id": "client-logo-3",
       "description": "Logo for client 3",
-      "imageUrl": "https://images.unsplash.com/photo-1630885664862-b66bc35f47f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxsb2dvJTIwY3JlYXRpdmV8ZW58MHx8fHwxNzU4OTc0NDExfDA&ixlib_rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1630885664862-b66bc35f47f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxsb2dvJTIwY3JlYXRpdmV8ZW58MHx8fHwxNzU4OTc0NDExfDA&ixlib_rb_4.1.0&q=80&w=1080",
       "imageHint": "logo creative"
     },
     {
       "id": "client-logo-4",
       "description": "Logo for client 4",
-      "imageUrl": "https://images.unsplash.com/photo-1572539561705-80f7a8d6d151?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxsb2dvJTIwbW9kZXJufGVufDB8fHx8fDE3NTg5OTQ0NjJ8MA&ixlib_rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1572539561705-80f7a8d6d151?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxsb2dvJTIwbW9kZXJufGVufDB8fHx8fDE3NTg5OTQ0NjJ8MA&ixlib_rb_4.1.0&q=80&w=1080",
       "imageHint": "logo modern"
     },
     {
@@ -82,32 +82,32 @@
     {
       "id": "blog-inline-3",
       "description": "An illustration of an AI agent analyzing data charts and graphs",
-      "imageUrl": "https://images.unsplash.com/photo-1611926653458-09294b3142bf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBSSUyMGFuYWx5dGljc3xlbnwwfHx8fDE3NjA5NDM3NDJ8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1696208221808-1f6d33301030?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBSSUyMGFuYWx5dGljcyUyMGRhc2hib2FyZHxlbnwwfHx8fDE3NjA5NDU1ODd8MA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "AI analytics"
     },
     {
       "id": "blog-inline-4",
       "description": "A conceptual image representing business process automation with robotic arms and digital interfaces",
-      "imageUrl": "https://images.unsplash.com/photo-1679934393081-424b9a0a4189?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMHByb2Nlc3MlMjBhdXRvbWF0aW9ufGVufDB8fHx8fDE3NjA5NDM4MTN8MA&ixlib-rb-4.1.0&q=80&w=1080",
-      "imageHint": "process automation"
+      "imageUrl": "https://images.unsplash.com/photo-1531746790731-6c087fecd65a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxAIJTIwYXV0b21hdGlvbnxlbnwwfHx8fDE3NjA5NDU2NDJ8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "AI automation"
     },
     {
       "id": "project-grocery-app",
       "description": "A person using a grocery delivery app on their smartphone",
-      "imageUrl": "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxncm9jZXJ5JTIwYXBwfGVufDB8fHx8fDE3NjExODg1ODB8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "grocery app"
+      "imageUrl": "https://images.unsplash.com/photo-1542838132-92c53300491e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxncm9jZXJ5JTIwc2hvcHBpbmd8ZW58MHx8fHwxNzYxMTg4ODU4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "grocery shopping"
     },
     {
       "id": "project-hrm-website",
       "description": "A clean and modern dashboard for an HRM website",
-      "imageUrl": "https://images.unsplash.com/photo-1616401784845-180882ba9ba8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxobSUyMHdlYnNpdGV8ZW58MHx8fHwxNzYxMTg4NjU0fDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "HRM website"
+      "imageUrl": "https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxocl90ZWNofGVufDB8fHx8fDE3NjEyNjYwNTB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "hr tech"
     },
     {
       "id": "project-automation-testing",
       "description": "Code on a screen representing an automation testing script",
-      "imageUrl": "https://images.unsplash.com/photo-1517694712202-1428bc3835b3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx0ZXN0JTIwYXV0b21hdGlvbnxlbnwwfHx8fHwxNzYxMTg4NzAyfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "test automation"
+      "imageUrl": "https://images.unsplash.com/photo-1605379399642-870262d3d051?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzb2Z0d2FyZSUyMHRlc3Rpbmd8ZW58MHx8fHwxNzYxMjY2MDk3fDA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "software testing"
     }
   ]
 }
