@@ -14,9 +14,9 @@
     },
     {
       "id": "about-us",
-      "description": "Team collaborating in a modern office",
-      "imageUrl": "https://images.unsplash.com/photo-1568992688065-536aad8a12f6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHx0ZWFtJTIwb2ZmaWNlfGVufDB8fHx8MTc1OTAxMDYyOXww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "team office"
+      "description": "Modern office with a focus on technology and collaboration",
+      "imageUrl": "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBvZmZpY2V8ZW58MHx8fHwxNzYwMzM3NjIwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "modern office"
     },
     {
       "id": "blog-post-1",
