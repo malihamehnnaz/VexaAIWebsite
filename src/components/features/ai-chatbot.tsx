@@ -25,7 +25,7 @@ export default function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
 
   const auth = useAuth();
   const firestore = useFirestore();
@@ -51,19 +51,21 @@ export default function AIChatbot() {
   }, [user, isUserLoading, auth]);
 
   const scrollToBottom = () => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({
-        top: scrollAreaRef.current.scrollHeight,
+    if (scrollViewportRef.current) {
+        scrollViewportRef.current.scrollTo({
+        top: scrollViewportRef.current.scrollHeight,
         behavior: 'smooth',
       });
     }
   };
   
   useEffect(() => {
+    // Scroll to bottom when messages change or when the chat opens.
     if (isOpen) {
-      scrollToBottom();
+      // A small delay ensures the DOM has updated before we try to scroll.
+      setTimeout(scrollToBottom, 100);
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, isAiLoading]);
 
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -73,7 +75,7 @@ export default function AIChatbot() {
     const userMessage: Message = { role: 'user', content: input, timestamp: serverTimestamp() };
     
     // Non-blocking write to Firestore
-    await addDoc(messagesRef, userMessage);
+    addDoc(messagesRef, userMessage);
     
     setInput('');
     setIsAiLoading(true);
@@ -81,11 +83,11 @@ export default function AIChatbot() {
     try {
       const response = await getChatbotResponse({ question: input });
       const assistantMessage: Message = { role: 'assistant', content: response.answer, timestamp: serverTimestamp() };
-      await addDoc(messagesRef, assistantMessage);
+      addDoc(messagesRef, assistantMessage);
     } catch (error) {
       console.error("Error getting chatbot response:", error);
       const errorMessage: Message = { role: 'assistant', content: "Sorry, I'm having trouble connecting. Please try again later.", timestamp: serverTimestamp() };
-      await addDoc(messagesRef, errorMessage);
+      addDoc(messagesRef, errorMessage);
     } finally {
       setIsAiLoading(false);
     }
@@ -112,7 +114,7 @@ export default function AIChatbot() {
               <Logo />
             </SheetTitle>
           </SheetHeader>
-          <ScrollArea className="flex-1" ref={scrollAreaRef}>
+          <ScrollArea className="flex-1" viewportRef={scrollViewportRef}>
             <div className="p-4 space-y-6">
               {(isUserLoading || isHistoryLoading) && (
                 <div className="flex justify-center items-center h-full">
