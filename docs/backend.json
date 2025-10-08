@@ -63,32 +63,6 @@
     }
   },
   "auth": {
-    "providers": [
-      "anonymous"
-    ]
-  },
-  "firestore": {
-    "structure": [
-      {
-        "path": "users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/entities/User"
-          },
-          "description": "Stores user profiles. Path-based ownership: Only the user with the matching {userId} can access their profile data."
-        }
-      },
-      {
-        "path": "users/{userId}/chat_messages/{messageId}",
-        "definition": {
-          "entityName": "ChatMessage",
-          "schema": {
-            "$ref": "#/entities/ChatMessage"
-          },
-          "description": "Stores chat messages for each user. Includes denormalized 'userId' for authorization."
-        }
-      }
-    ]
+    "providers": []
   }
 }

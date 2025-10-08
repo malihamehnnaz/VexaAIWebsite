@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, type FormEvent } from 'react';
-import { MessageCircle, Send, Bot, User, Loader2, Sparkles } from 'lucide-react';
+import { MessageCircle, Send, Bot, User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
@@ -10,10 +10,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getChatbotResponse } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/common/logo';
-import { useUser, useAuth, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+
+const CHAT_HISTORY_KEY = 'vex-chat-history';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -22,28 +20,10 @@ type Message = {
 
 export default function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
-  const [localMessages, setLocalMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-
-  const { user, isUserLoading } = useUser();
-  const auth = useAuth();
-  const firestore = useFirestore();
-
-  const messagesCollectionRef = useMemoFirebase(
-    () => user ? collection(firestore, 'users', user.uid, 'chat_messages') : null,
-    [firestore, user]
-  );
-
-  const messagesQuery = useMemoFirebase(
-    () => messagesCollectionRef ? query(messagesCollectionRef, orderBy('timestamp', 'asc')) : null,
-    [messagesCollectionRef]
-  );
-  
-  const { data: firestoreMessages, isLoading: isHistoryLoading } = useCollection<Message>(messagesQuery);
-  
-  const messages = firestoreMessages || localMessages;
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -54,35 +34,43 @@ export default function AIChatbot() {
     }
   };
 
+  // Load history from localStorage when sheet opens
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isAiLoading]);
-
-  const saveMessage = async (message: Message) => {
-    if (messagesCollectionRef) {
-      addDocumentNonBlocking(messagesCollectionRef, {
-        ...message,
-        timestamp: serverTimestamp(),
-        userId: user!.uid,
-      });
+    if (isOpen) {
+      try {
+        const storedHistory = localStorage.getItem(CHAT_HISTORY_KEY);
+        if (storedHistory) {
+          setMessages(JSON.parse(storedHistory));
+        } else {
+           setMessages([{ role: 'assistant', content: "Hello! I'm Vexa AI's assistant. How can I help you today with our AI, software, or cloud services?" }]);
+        }
+      } catch (error) {
+        console.error("Failed to parse chat history from localStorage", error);
+        setMessages([{ role: 'assistant', content: "Hello! I'm Vexa AI's assistant. How can I help you today with our AI, software, or cloud services?" }]);
+      }
     }
-  };
-  
-  const handleLogin = () => {
-    initiateAnonymousSignIn(auth);
-  }
+  }, [isOpen]);
+
+  // Save history to localStorage whenever it changes
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
+      } catch (error) {
+        console.error("Failed to save chat history to localStorage", error);
+      }
+    }
+    scrollToBottom();
+  }, [messages]);
+
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim()) return;
 
     const userMessage: Message = { role: 'user', content: input };
-    
-    if(user) {
-      saveMessage(userMessage);
-    } else {
-      setLocalMessages(prev => [...prev, userMessage]);
-    }
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     
     setInput('');
     setIsAiLoading(true);
@@ -90,39 +78,15 @@ export default function AIChatbot() {
     try {
       const response = await getChatbotResponse({ question: input });
       const assistantMessage: Message = { role: 'assistant', content: response.answer };
-      if(user) {
-        saveMessage(assistantMessage);
-      } else {
-        setLocalMessages(prev => [...prev, assistantMessage]);
-      }
+      setMessages([...newMessages, assistantMessage]);
     } catch (error) {
       console.error("Error getting chatbot response:", error);
       const errorMessage: Message = { role: 'assistant', content: "Sorry, I'm having trouble connecting. Please try again later." };
-      if(user) {
-        saveMessage(errorMessage);
-      } else {
-        setLocalMessages(prev => [...prev, errorMessage]);
-      }
+      setMessages([...newMessages, errorMessage]);
     } finally {
       setIsAiLoading(false);
     }
   };
-  
-  useEffect(() => {
-    if (isOpen && !user && !isUserLoading) {
-      initiateAnonymousSignIn(auth);
-    }
-  }, [isOpen, user, isUserLoading, auth]);
-
-  useEffect(() => {
-    if (isOpen && user && localMessages.length === 0 && (!firestoreMessages || firestoreMessages.length === 0)) {
-       const welcomeMessage: Message = { role: 'assistant', content: "Hello! I'm Vexa AI's assistant. How can I help you today with our AI, software, or cloud services?" };
-       saveMessage(welcomeMessage);
-    } else if (isOpen && !user && localMessages.length === 0) {
-       setLocalMessages([{ role: 'assistant', content: "Hello! I'm Vexa AI's assistant. How can I help you today with our AI, software, or cloud services?" }]);
-    }
-  }, [isOpen, user, firestoreMessages]);
-
 
   return (
     <>
@@ -144,12 +108,6 @@ export default function AIChatbot() {
           </SheetHeader>
           <ScrollArea className="flex-1" ref={scrollAreaRef}>
             <div className="p-4 space-y-6">
-              {(isUserLoading || isHistoryLoading) && (
-                <div className="flex justify-center items-center h-full">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              )}
-              
               {messages.map((message, index) => (
                 <div
                   key={index}
@@ -201,9 +159,9 @@ export default function AIChatbot() {
                 autoComplete="off"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                disabled={isAiLoading || isUserLoading || !user}
+                disabled={isAiLoading}
               />
-              <Button type="submit" size="icon" disabled={isAiLoading || isUserLoading || !user}>
+              <Button type="submit" size="icon" disabled={isAiLoading}>
                 <Send className="h-4 w-4" />
                 <span className="sr-only">Send</span>
               </Button>
