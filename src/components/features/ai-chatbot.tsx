@@ -109,10 +109,19 @@ export default function AIChatbot() {
   };
   
   useEffect(() => {
-    if (isOpen && !user && localMessages.length === 0) {
-      setLocalMessages([{ role: 'assistant', content: "Hello! I'm Vexa AI's assistant. How can I help you today with our AI, software, or cloud services?" }]);
+    if (isOpen && !user && !isUserLoading) {
+      initiateAnonymousSignIn(auth);
     }
-  }, [isOpen, user, localMessages.length]);
+  }, [isOpen, user, isUserLoading, auth]);
+
+  useEffect(() => {
+    if (isOpen && user && localMessages.length === 0 && (!firestoreMessages || firestoreMessages.length === 0)) {
+       const welcomeMessage: Message = { role: 'assistant', content: "Hello! I'm Vexa AI's assistant. How can I help you today with our AI, software, or cloud services?" };
+       saveMessage(welcomeMessage);
+    } else if (isOpen && !user && localMessages.length === 0) {
+       setLocalMessages([{ role: 'assistant', content: "Hello! I'm Vexa AI's assistant. How can I help you today with our AI, software, or cloud services?" }]);
+    }
+  }, [isOpen, user, firestoreMessages]);
 
 
   return (
@@ -138,14 +147,6 @@ export default function AIChatbot() {
               {(isUserLoading || isHistoryLoading) && (
                 <div className="flex justify-center items-center h-full">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              )}
-
-              {!isUserLoading && !user && (
-                 <div className="text-center p-4 rounded-lg bg-secondary">
-                    <Sparkles className="mx-auto h-8 w-8 text-primary mb-2" />
-                    <p className="text-sm font-medium">Want to save your chat history?</p>
-                    <Button onClick={handleLogin} size="sm" className="mt-4">Sign in to get started</Button>
                 </div>
               )}
               
@@ -200,9 +201,9 @@ export default function AIChatbot() {
                 autoComplete="off"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                disabled={isAiLoading || isUserLoading}
+                disabled={isAiLoading || isUserLoading || !user}
               />
-              <Button type="submit" size="icon" disabled={isAiLoading || isUserLoading}>
+              <Button type="submit" size="icon" disabled={isAiLoading || isUserLoading || !user}>
                 <Send className="h-4 w-4" />
                 <span className="sr-only">Send</span>
               </Button>
