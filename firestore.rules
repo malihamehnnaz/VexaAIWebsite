@@ -1,86 +1,68 @@
 /**
- * @file Firebase Security Rules for Vexa AI Platform
+ * @fileOverview
+ * This ruleset enforces a strict user-ownership model for both user profiles and their associated chat messages.
+ * All data is nested under /users/{userId}, ensuring clear ownership.
  *
- * @description This ruleset enforces a strict user-ownership model for both user profiles and chat messages.
- * All data is nested under /users/{userId}, ensuring that only the authenticated user can access their own data.
- * Chat messages are stored in a subcollection of each user's document.
+ * Data Structure:
+ * - /users/{userId}: Stores user profile information. Only the user with the matching {userId} can access their profile.
+ * - /users/{userId}/chat_messages/{messageId}: Stores chat messages for each user. Each message includes a denormalized 'userId' field to allow independent authorization.
  *
- * @dataStructure
- * - /users/{userId}: Stores user profile information.
- * - /users/{userId}/chat_messages/{messageId}: Stores chat messages for a specific user. Each message
- *   includes a denormalized userId field to simplify authorization.
- *
- * @keySecurityDecisions
- * - User listing is disallowed to protect user privacy.
- * - Chat message ownership is verified by matching the authenticated user ID against the userId field
- *   within the message document.
- *
- * @denormalizationForAuthorization
- * - Chat messages include the userId to avoid costly get() operations when checking ownership.
- *
- * @structuralSegregation
- * - User-specific data (profile and chat messages) is stored under the /users/{userId} path,
- *   providing clear ownership and simplifying security rules.
+ * Key Security Decisions:
+ * - User listing is disallowed.
+ * - Read-only collections are not used in this data model.
+ * - Ambiguous relationships default to strict owner-only access.
+ * - Denormalization is used on `ChatMessage` documents to improve the performance and security of rules.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces strict user-ownership for user profiles. Only the authenticated user can read or write their own profile.
+     * @description Allows a user to read and write their own user profile.
      * @path /users/{userId}
-     * @allow (get, create, update, delete) - User with matching {userId} can access their profile.
-     * @deny (get, create, update, delete) - Any other user attempting to access this profile.
+     * @allow (create, update, delete, get): if request.auth.uid == '{userId}'
+     * @deny (create, update, delete, get): if request.auth.uid != '{userId}'
      * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
       function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
+        return request.auth.uid == userId;
       }
 
       function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
+        return isOwner(userId) && resource != null;
       }
 
-      // Read rules
       allow get: if isOwner(userId);
       allow list: if false;
 
-      // Write rules
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Enforces user-ownership for chat messages. Only the owner can read, create, update or delete their chat messages.
+     * @description Allows a user to read and write their own chat messages.
      * @path /users/{userId}/chat_messages/{messageId}
-     * @allow (create) - User creates a new chat message with their user ID.
-     * @allow (get, list, update, delete) - User with matching {userId} can access and manage their own chat messages.
-     * @deny (get, list, create, update, delete) - Any other user attempting to access these chat messages.
-     * @principle Enforces document ownership for all operations, validating that the message belongs to the authenticated user.
+     * @allow (create): if request.auth.uid == '{userId}'
+     * @allow (update, delete): if request.auth.uid == resource.data.userId
+     * @deny (create): if request.auth.uid != '{userId}'
+     * @deny (update, delete): if request.auth.uid != resource.data.userId
+     * @principle Enforces document ownership for writes and provides secure reads.
      */
     match /users/{userId}/chat_messages/{messageId} {
       function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      function isMessageOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
+        return request.auth.uid == userId;
       }
 
       function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
+        return isOwner(userId) && resource != null;
       }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
 
-
-      // Read Rules
-      allow get: if isMessageOwner(userId);
-      allow list: if isMessageOwner(userId);
-
-      // Write Rules
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId) && resource.data.userId == userId;
     }
   }
