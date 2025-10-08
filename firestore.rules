@@ -1,69 +1,79 @@
 /**
- * @fileOverview
- * This ruleset enforces a strict user-ownership model for both user profiles and their associated chat messages.
- * All data is nested under /users/{userId}, ensuring clear ownership.
+ * @fileoverview Firestore Security Rules for Vexa AI application.
+ *
+ * Core Philosophy:
+ * This ruleset provides public read access to services, client projects, and blog articles,
+ * while restricting write access to authorized admins. Contact form entries are also
+ * restricted to admins. No user-specific data or ownership models are enforced
+ * directly in these rules, assuming admin privileges are managed by backend functions.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information. Only the user with the matching {userId} can access their profile.
- * - /users/{userId}/chat_messages/{messageId}: Stores chat messages for each user. Each message includes a denormalized 'userId' field to allow independent authorization.
+ * The Firestore database consists of four top-level collections:
+ * - /services/{serviceId}: Stores information about services.
+ * - /client_projects/{projectId}: Stores information about client projects.
+ * - /blog_articles/{articleId}: Stores blog articles.
+ * - /contact_form_entries/{entryId}: Stores contact form entries.
  *
  * Key Security Decisions:
- * - User listing is disallowed.
- * - Read-only collections are not used in this data model.
- * - Ambiguous relationships default to strict owner-only access.
- * - Denormalization is used on `ChatMessage` documents to improve the performance and security of rules.
+ * - Public read access is granted for /services, /client_projects, and /blog_articles.
+ * - All write operations are denied by default, assuming admin operations are handled server-side.
+ * - No data validation is performed in these rules, as prototyping assumes flexible data shapes.
+ *
+ * Denormalization for Authorization:
+ * No denormalization is required as the collections do not implement user-specific authorization.
+ * It is assumed that backend functions handle admin roles and write access.
+ *
+ * Structural Segregation:
+ * Collections are structurally segregated with clear public/admin separation, simplifying read/write rules.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows a user to read and write their own user profile.
-     * @path /users/{userId}
-     * @allow (create, update, delete, get): if request.auth.uid == '{userId}'
-     * @deny (create, update, delete, get): if request.auth.uid != '{userId}'
-     * @principle Enforces document ownership for all operations.
+     * @description Allows public read access to services, but restricts all writes.
+     * @path /services/{serviceId}
+     * @allow get, list: if true
+     * @deny create, update, delete: if false
+     * @principle Allows public reads, denies all writes, assuming write operations will be managed by backend functions.
      */
-    match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if false;
-
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+    match /services/{serviceId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows a user to read and write their own chat messages.
-     * @path /users/{userId}/chat_messages/{messageId}
-     * @allow (create): if request.auth.uid == '{userId}'
-     * @allow (update, delete): if request.auth.uid == resource.data.userId
-     * @deny (create): if request.auth.uid != '{userId}'
-     * @deny (update, delete): if request.auth.uid != resource.data.userId
-     * @principle Enforces document ownership for writes and provides secure reads.
+     * @description Allows public read access to client projects, but restricts all writes.
+     * @path /client_projects/{projectId}
+     * @allow get, list: if true
+     * @deny create, update, delete: if false
+     * @principle Allows public reads, denies all writes, assuming write operations will be managed by backend functions.
      */
-    match /users/{userId}/chat_messages/{messageId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
+    match /client_projects/{projectId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+    /**
+     * @description Allows public read access to blog articles, but restricts all writes.
+     * @path /blog_articles/{articleId}
+     * @allow get, list: if true
+     * @deny create, update, delete: if false
+     * @principle Allows public reads, denies all writes, assuming write operations will be managed by backend functions.
+     */
+    match /blog_articles/{articleId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
 
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId) && resource.data.userId == userId;
+    /**
+     * @description Restricts all access to contact form entries, assuming admin access is handled server-side.
+     * @path /contact_form_entries/{entryId}
+     * @deny get, list, create, update, delete: if false
+     * @principle Denies all access, assuming operations will be managed by backend functions.
+     */
+    match /contact_form_entries/{entryId} {
+      allow get, list, create, update, delete: if false;
     }
   }
 }

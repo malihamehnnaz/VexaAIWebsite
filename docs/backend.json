@@ -1,68 +1,236 @@
 {
   "entities": {
-    "User": {
+    "Service": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "User",
+      "title": "Service",
       "type": "object",
-      "description": "Represents a user of the Vexa AI platform.",
+      "description": "Represents a service offered by Vexa AI.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the user."
+          "description": "Unique identifier for the service."
         },
         "name": {
           "type": "string",
-          "description": "The user's full name."
+          "description": "Name of the service."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the service."
+        },
+        "pricing": {
+          "type": "number",
+          "description": "Pricing of the service."
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the service (e.g., AI, Software Development, Cloud)."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the image representing the service."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "pricing",
+        "category"
+      ]
+    },
+    "ClientProject": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ClientProject",
+      "type": "object",
+      "description": "Represents a project completed for a client.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the project."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the project."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the project."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of an image showcasing the project."
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Name of the client."
+        },
+        "testimonial": {
+          "type": "string",
+          "description": "Testimonial from the client."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "clientName"
+      ]
+    },
+    "BlogArticle": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BlogArticle",
+      "type": "object",
+      "description": "Represents a blog article.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the blog article."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the blog article."
+        },
+        "content": {
+          "type": "string",
+          "description": "Content of the blog article."
+        },
+        "author": {
+          "type": "string",
+          "description": "Author of the blog article."
+        },
+        "publicationDate": {
+          "type": "string",
+          "description": "Date when the blog article was published.",
+          "format": "date-time"
+        },
+        "tags": {
+          "type": "array",
+          "description": "tags of the blog article",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "content",
+        "author",
+        "publicationDate"
+      ]
+    },
+    "ContactFormEntry": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ContactFormEntry",
+      "type": "object",
+      "description": "Represents an entry from the contact form.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the contact form entry."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the person submitting the form."
         },
         "email": {
           "type": "string",
-          "description": "The user's email address.",
+          "description": "Email address of the person submitting the form.",
           "format": "email"
         },
-        "signupDate": {
+        "message": {
           "type": "string",
-          "description": "The date and time the user signed up.",
+          "description": "Message content from the contact form."
+        },
+        "submissionDate": {
+          "type": "string",
+          "description": "Date and time of form submission.",
           "format": "date-time"
         }
       },
       "required": [
-        "id"
-      ]
-    },
-    "ChatMessage": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ChatMessage",
-      "type": "object",
-      "description": "Represents a single message in a chat conversation.",
-      "properties": {
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who sent the message."
-        },
-        "timestamp": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The date and time the message was sent."
-        },
-        "role": {
-          "type": "string",
-          "enum": ["user", "assistant"],
-          "description": "The role of the message sender."
-        },
-        "content": {
-          "type": "string",
-          "description": "The text content of the message."
-        }
-      },
-      "required": [
-        "userId",
-        "timestamp",
-        "role",
-        "content"
+        "id",
+        "name",
+        "email",
+        "message",
+        "submissionDate"
       ]
     }
   },
   "auth": {
-    "providers": []
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/services/{serviceId}",
+        "definition": {
+          "entityName": "Service",
+          "schema": {
+            "$ref": "#/backend/entities/Service"
+          },
+          "description": "Stores information about services offered by Vexa AI.",
+          "params": [
+            {
+              "name": "serviceId",
+              "description": "Unique identifier for the service."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/client_projects/{projectId}",
+        "definition": {
+          "entityName": "ClientProject",
+          "schema": {
+            "$ref": "#/backend/entities/ClientProject"
+          },
+          "description": "Stores information about projects completed for clients.",
+          "params": [
+            {
+              "name": "projectId",
+              "description": "Unique identifier for the project."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/blog_articles/{articleId}",
+        "definition": {
+          "entityName": "BlogArticle",
+          "schema": {
+            "$ref": "#/backend/entities/BlogArticle"
+          },
+          "description": "Stores blog articles.",
+          "params": [
+            {
+              "name": "articleId",
+              "description": "Unique identifier for the blog article."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/contact_form_entries/{entryId}",
+        "definition": {
+          "entityName": "ContactFormEntry",
+          "schema": {
+            "$ref": "#/backend/entities/ContactFormEntry"
+          },
+          "description": "Stores contact form submissions.",
+          "params": [
+            {
+              "name": "entryId",
+              "description": "Unique identifier for the contact form entry."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to store data related to Vexa AI's services, client projects, blog articles, and contact form submissions. The structure focuses on simplicity, security, and scalability.\n\n*   `/services`: This collection stores information about the services offered. Each document represents a single service. No authorization concerns are present here. It's assumed that read access should be public, and write access is limited to admins (handled via backend functions, not security rules).\n*   `/client_projects`: This collection stores information about past projects. Similar to services, read access is public, while write access is restricted to admins.\n*   `/blog_articles`: This collection stores blog articles.  Read access is public, write access is for admins only.\n*   `/contact_form_entries`: This collection stores contact form submissions. Read and write access is limited to authenticated admins, likely managed through backend functions after form submission.\n\n**Authorization Independence and QAPs:**\n\nAll collections are structurally segregated, meaning documents within each collection have similar security requirements. There is no complex hierarchical authorization.  This simplifies security rules and enables efficient `list` operations (QAPs) because rules don't need to filter based on complex conditions or `get()` calls."
   }
 }
