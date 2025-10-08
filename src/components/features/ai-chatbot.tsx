@@ -10,20 +10,45 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getChatbotResponse } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/common/logo';
-
-const CHAT_HISTORY_KEY = 'vex-chat-history';
+import { useUser, useFirestore, useAuth, useMemoFirebase } from '@/firebase';
+import { collection, serverTimestamp, query, orderBy, addDoc } from 'firebase/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 
 type Message = {
   role: 'user' | 'assistant';
   content: string;
+  timestamp?: any;
 };
 
 export default function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
+
+  const messagesRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, `users/${user.uid}/chat_messages`);
+  }, [firestore, user]);
+
+  const messagesQuery = useMemoFirebase(() => {
+    if (!messagesRef) return null;
+    return query(messagesRef, orderBy('timestamp', 'asc'));
+  }, [messagesRef]);
+
+  const { data: messages, isLoading: isHistoryLoading } = useCollection<Message>(messagesQuery);
+  
+  // Automatically sign in anonymously if not logged in
+  useEffect(() => {
+    if (!user && !isUserLoading && auth) {
+      initiateAnonymousSignIn(auth);
+    }
+  }, [user, isUserLoading, auth]);
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -33,60 +58,41 @@ export default function AIChatbot() {
       });
     }
   };
-
-  // Load history from localStorage when sheet opens
+  
   useEffect(() => {
     if (isOpen) {
-      try {
-        const storedHistory = localStorage.getItem(CHAT_HISTORY_KEY);
-        if (storedHistory) {
-          setMessages(JSON.parse(storedHistory));
-        } else {
-           setMessages([{ role: 'assistant', content: "Hello! I'm Vexa AI's assistant. How can I help you today with our AI, software, or cloud services?" }]);
-        }
-      } catch (error) {
-        console.error("Failed to parse chat history from localStorage", error);
-        setMessages([{ role: 'assistant', content: "Hello! I'm Vexa AI's assistant. How can I help you today with our AI, software, or cloud services?" }]);
-      }
+      scrollToBottom();
     }
-  }, [isOpen]);
-
-  // Save history to localStorage whenever it changes
-  useEffect(() => {
-    if (messages.length > 0) {
-      try {
-        localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
-      } catch (error) {
-        console.error("Failed to save chat history to localStorage", error);
-      }
-    }
-    scrollToBottom();
-  }, [messages]);
+  }, [messages, isOpen]);
 
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || !messagesRef) return;
 
-    const userMessage: Message = { role: 'user', content: input };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    const userMessage: Message = { role: 'user', content: input, timestamp: serverTimestamp() };
+    
+    // Non-blocking write to Firestore
+    await addDoc(messagesRef, userMessage);
     
     setInput('');
     setIsAiLoading(true);
 
     try {
       const response = await getChatbotResponse({ question: input });
-      const assistantMessage: Message = { role: 'assistant', content: response.answer };
-      setMessages([...newMessages, assistantMessage]);
+      const assistantMessage: Message = { role: 'assistant', content: response.answer, timestamp: serverTimestamp() };
+      await addDoc(messagesRef, assistantMessage);
     } catch (error) {
       console.error("Error getting chatbot response:", error);
-      const errorMessage: Message = { role: 'assistant', content: "Sorry, I'm having trouble connecting. Please try again later." };
-      setMessages([...newMessages, errorMessage]);
+      const errorMessage: Message = { role: 'assistant', content: "Sorry, I'm having trouble connecting. Please try again later.", timestamp: serverTimestamp() };
+      await addDoc(messagesRef, errorMessage);
     } finally {
       setIsAiLoading(false);
     }
   };
+
+  const initialMessage: Message[] = [{ role: 'assistant', content: "Hello! I'm Vexa AI's assistant. How can I help you today with our AI, software, or cloud services?" }];
+  const chatContent = (messages && messages.length > 0) ? messages : initialMessage;
 
   return (
     <>
@@ -108,7 +114,12 @@ export default function AIChatbot() {
           </SheetHeader>
           <ScrollArea className="flex-1" ref={scrollAreaRef}>
             <div className="p-4 space-y-6">
-              {messages.map((message, index) => (
+              {(isUserLoading || isHistoryLoading) && (
+                <div className="flex justify-center items-center h-full">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              )}
+              {!(isUserLoading || isHistoryLoading) && chatContent.map((message, index) => (
                 <div
                   key={index}
                   className={cn(
@@ -154,14 +165,14 @@ export default function AIChatbot() {
             <form onSubmit={handleSubmit} className="flex w-full items-center space-x-2">
               <Input
                 id="message"
-                placeholder="Ask about our services..."
+                placeholder={user ? "Ask about our services..." : "Please wait..."}
                 className="flex-1"
                 autoComplete="off"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                disabled={isAiLoading}
+                disabled={isAiLoading || !user || isUserLoading}
               />
-              <Button type="submit" size="icon" disabled={isAiLoading}>
+              <Button type="submit" size="icon" disabled={isAiLoading || !user || isUserLoading}>
                 <Send className="h-4 w-4" />
                 <span className="sr-only">Send</span>
               </Button>

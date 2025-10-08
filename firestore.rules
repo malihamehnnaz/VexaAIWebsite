@@ -3,77 +3,85 @@
  *
  * Core Philosophy:
  * This ruleset provides public read access to services, client projects, and blog articles,
- * while restricting write access to authorized admins. Contact form entries are also
- * restricted to admins. No user-specific data or ownership models are enforced
- * directly in these rules, assuming admin privileges are managed by backend functions.
+ * while restricting write access to administrators. Contact form entries are accessible only to admins.
  *
  * Data Structure:
- * The Firestore database consists of four top-level collections:
- * - /services/{serviceId}: Stores information about services.
- * - /client_projects/{projectId}: Stores information about client projects.
- * - /blog_articles/{articleId}: Stores blog articles.
- * - /contact_form_entries/{entryId}: Stores contact form entries.
+ * - /services/{serviceId}: Publicly readable service details.
+ * - /client_projects/{projectId}: Publicly readable client project details.
+ * - /blog_articles/{articleId}: Publicly readable blog articles.
+ * - /contact_form_entries/{entryId}: Contact form submissions, accessible only to admins.
  *
  * Key Security Decisions:
- * - Public read access is granted for /services, /client_projects, and /blog_articles.
- * - All write operations are denied by default, assuming admin operations are handled server-side.
- * - No data validation is performed in these rules, as prototyping assumes flexible data shapes.
- *
- * Denormalization for Authorization:
- * No denormalization is required as the collections do not implement user-specific authorization.
- * It is assumed that backend functions handle admin roles and write access.
- *
- * Structural Segregation:
- * Collections are structurally segregated with clear public/admin separation, simplifying read/write rules.
+ * - Public read access is granted for services, client projects, and blog articles.
+ * - Administrative write access is assumed to be handled by backend functions (not covered by these rules).
+ * - Listing all documents in the collection is allowed by default, since no user specific data exists.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows public read access to services, but restricts all writes.
+     * @description Allows public read access to service details. Write access is restricted to admins (via backend).
      * @path /services/{serviceId}
-     * @allow get, list: if true
-     * @deny create, update, delete: if false
-     * @principle Allows public reads, denies all writes, assuming write operations will be managed by backend functions.
+     * @allow get, list: if true;
+     * @allow create: if false;
+     * @allow update: if false;
+     * @allow delete: if false;
+     * @principle Public read, admin-only write.
      */
     match /services/{serviceId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows public read access to client projects, but restricts all writes.
+     * @description Allows public read access to client project details. Write access is restricted to admins (via backend).
      * @path /client_projects/{projectId}
-     * @allow get, list: if true
-     * @deny create, update, delete: if false
-     * @principle Allows public reads, denies all writes, assuming write operations will be managed by backend functions.
+     * @allow get, list: if true;
+     * @allow create: if false;
+     * @allow update: if false;
+     * @allow delete: if false;
+     * @principle Public read, admin-only write.
      */
     match /client_projects/{projectId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows public read access to blog articles, but restricts all writes.
+     * @description Allows public read access to blog articles. Write access is restricted to admins (via backend).
      * @path /blog_articles/{articleId}
-     * @allow get, list: if true
-     * @deny create, update, delete: if false
-     * @principle Allows public reads, denies all writes, assuming write operations will be managed by backend functions.
+     * @allow get, list: if true;
+     * @allow create: if false;
+     * @allow update: if false;
+     * @allow delete: if false;
+     * @principle Public read, admin-only write.
      */
     match /blog_articles/{articleId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Restricts all access to contact form entries, assuming admin access is handled server-side.
+     * @description Restricts access to contact form entries to authenticated admins.
      * @path /contact_form_entries/{entryId}
-     * @deny get, list, create, update, delete: if false
-     * @principle Denies all access, assuming operations will be managed by backend functions.
+     * @allow get, list: if false;
+     * @allow create: if false;
+     * @allow update: if false;
+     * @allow delete: if false;
+     * @principle Admin-only access.
      */
     match /contact_form_entries/{entryId} {
-      allow get, list, create, update, delete: if false;
+      allow get, list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
