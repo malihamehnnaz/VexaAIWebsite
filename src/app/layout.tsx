@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 import { PageTransition } from '@/components/common/page-transition';
 import { FirebaseClientProvider } from '@/firebase';
+import FluidCursor from '@/components/common/fluid-cursor';
 
 export const metadata: Metadata = {
   title: 'Vexa AI | AI, Software, and Cloud Solutions',
@@ -42,6 +43,7 @@ export default function RootLayout({
               {children}
             </PageTransition>
             <Toaster />
+            <FluidCursor />
           </FirebaseClientProvider>
       </body>
     </html>
