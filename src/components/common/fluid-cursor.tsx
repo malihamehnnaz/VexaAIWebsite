@@ -14,8 +14,7 @@ const FluidCursor = () => {
 
     const initFluid = () => {
       if (!canvas) return;
-      resizeCanvas();
-
+      
       let config = {
         SIM_RESOLUTION: 128,
         DYE_RESOLUTION: 1024,
@@ -25,8 +24,8 @@ const FluidCursor = () => {
         PRESSURE: 0.8,
         PRESSURE_ITERATIONS: 20,
         CURL: 20,
-        SPLAT_RADIUS: 0.15,
-        SPLAT_FORCE: 3000,
+        SPLAT_RADIUS: 0.25,
+        SPLAT_FORCE: 4000,
         SHADING: true,
         COLORFUL: true,
         COLOR_UPDATE_SPEED: 10,
@@ -54,9 +53,11 @@ const FluidCursor = () => {
       const { gl, ext } = getWebGLContext(canvas);
 
       if (!gl || !ext) {
-        console.error("Failed to initialize WebGL.");
+        console.error("Fluid simulation failed to initialize: WebGL context not available.");
         return;
       }
+      
+      resizeCanvas();
 
       if (isMobile()) {
         config.DYE_RESOLUTION = 512;
@@ -75,7 +76,6 @@ const FluidCursor = () => {
           gl = canvas.getContext('webgl', params) || canvas.getContext('experimental-webgl', params);
 
         if (!gl) {
-          console.error('WebGL is not supported.');
           return { gl: null, ext: null };
         }
 
@@ -96,16 +96,7 @@ const FluidCursor = () => {
         let formatRG = getSupportedFormat(gl, isWebGL2 ? (gl as WebGL2RenderingContext).RG16F : gl.RGBA, isWebGL2 ? (gl as WebGL2RenderingContext).RG : gl.RGBA, halfFloatTexType);
         let formatR = getSupportedFormat(gl, isWebGL2 ? (gl as WebGL2RenderingContext).R16F : gl.RGBA, isWebGL2 ? gl.RED : gl.RGBA, halfFloatTexType);
         
-        if (!formatRGBA) {
-            console.error('WebGL format RGBA not supported.');
-            return { gl, ext: null };
-        }
-         if (!formatRG) {
-            console.error('WebGL format RG not supported.');
-            return { gl, ext: null };
-        }
-         if (!formatR) {
-            console.error('WebGL format R not supported.');
+        if (!formatRGBA || !formatRG || !formatR) {
             return { gl, ext: null };
         }
 
@@ -163,14 +154,14 @@ const FluidCursor = () => {
         gl.shaderSource(shader, source);
         gl.compileShader(shader);
         if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            console.trace(gl.getShaderInfoLog(shader));
+            console.trace(`Error compiling shader: ${gl.getShaderInfoLog(shader)}`);
             gl.deleteShader(shader);
             return null;
         }
         return shader;
       }
 
-      function createProgram(vertexShader: WebGLShader | null, fragmentShader: WebGLShader | null) {
+      function createProgram(vertexShader: WebGLShader | null, fragmentShader: WebGLShader | null): WebGLProgram | null {
         if (!vertexShader || !fragmentShader) return null;
         let program = gl.createProgram();
         if (!program) return null;
@@ -178,7 +169,7 @@ const FluidCursor = () => {
         gl.attachShader(program, fragmentShader);
         gl.linkProgram(program);
         if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            console.trace(gl.getProgramInfoLog(program));
+            console.trace(`Error linking program: ${gl.getProgramInfoLog(program)}`);
             gl.deleteProgram(program);
             return null;
         }
@@ -188,14 +179,14 @@ const FluidCursor = () => {
       class Material {
         vertexShader: WebGLShader;
         fragmentShaderSource: string;
-        programs: (WebGLProgram | null)[];
+        programs: { [key: number]: WebGLProgram | null };
         activeProgram: WebGLProgram | null;
         uniforms: { [key: string]: WebGLUniformLocation | null };
       
         constructor(vertexShader: WebGLShader, fragmentShaderSource: string) {
           this.vertexShader = vertexShader;
           this.fragmentShaderSource = fragmentShaderSource;
-          this.programs = [];
+          this.programs = {};
           this.activeProgram = null;
           this.uniforms = {};
         }
@@ -230,7 +221,10 @@ const FluidCursor = () => {
         uniforms: { [key: string]: WebGLUniformLocation | null };
         program: WebGLProgram;
       
-        constructor(vertexShader: WebGLShader, fragmentShader: WebGLShader) {
+        constructor(vertexShader: WebGLShader | null, fragmentShader: WebGLShader | null) {
+            if (!vertexShader || !fragmentShader) {
+                 throw new Error("Failed to create program: invalid shaders provided");
+            }
             const program = createProgram(vertexShader, fragmentShader);
             if (!program) {
                 throw new Error("Failed to create program");
@@ -302,7 +296,6 @@ const FluidCursor = () => {
               gl_FragColor = vec4(base + splat, 1.0);
           }
       `);
-      if (!splatShader) return;
 
       const advectionShader = compileShader(gl.FRAGMENT_SHADER, `
           precision highp float;
@@ -338,7 +331,6 @@ const FluidCursor = () => {
           }`,
         ext.supportLinearFiltering ? undefined : ['MANUAL_FILTERING']
       );
-      if (!advectionShader) return;
 
       const divergenceShader = compileShader(gl.FRAGMENT_SHADER, `
           precision mediump float;
@@ -363,7 +355,6 @@ const FluidCursor = () => {
               gl_FragColor = vec4(div, 0.0, 0.0, 1.0);
           }
       `);
-      if (!divergenceShader) return;
 
       const curlShader = compileShader(gl.FRAGMENT_SHADER, `
           precision mediump float;
@@ -383,7 +374,6 @@ const FluidCursor = () => {
               gl_FragColor = vec4(0.5 * vorticity, 0.0, 0.0, 1.0);
           }
       `);
-      if (!curlShader) return;
 
       const vorticityShader = compileShader(gl.FRAGMENT_SHADER, `
           precision highp float;
@@ -413,7 +403,6 @@ const FluidCursor = () => {
               gl_FragColor = vec4(velocity, 0.0, 1.0);
           }
       `);
-      if (!vorticityShader) return;
 
       const pressureShader = compileShader(gl.FRAGMENT_SHADER, `
           precision mediump float;
@@ -435,7 +424,6 @@ const FluidCursor = () => {
               gl_FragColor = vec4(pressure, 0.0, 0.0, 1.0);
           }
       `);
-      if (!pressureShader) return;
 
       const gradientSubtractShader = compileShader(gl.FRAGMENT_SHADER, `
           precision mediump float;
@@ -457,7 +445,6 @@ const FluidCursor = () => {
               gl_FragColor = vec4(velocity, 0.0, 1.0);
           }
       `);
-      if (!gradientSubtractShader) return;
       
       const copyShader = compileShader(gl.FRAGMENT_SHADER, `
         precision mediump float;
@@ -468,7 +455,6 @@ const FluidCursor = () => {
             gl_FragColor = texture2D(uTexture, vUv);
         }
       `);
-      if (!copyShader) return;
       
       const clearShader = compileShader(gl.FRAGMENT_SHADER, `
           precision mediump float;
@@ -480,7 +466,6 @@ const FluidCursor = () => {
               gl_FragColor = value * texture2D(uTexture, vUv);
           }
       `);
-      if (!clearShader) return;
 
       const displayShaderSource = `
           precision highp float;
@@ -528,14 +513,16 @@ const FluidCursor = () => {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
         
-        const program = createProgram(baseVertexShader, copyShader);
-        if (!program) return () => {};
+        const program = new Program(baseVertexShader, copyShader);
 
-        const pos_loc = gl.getAttribLocation(program, "aPosition");
-        gl.vertexAttribPointer(pos_loc, 2, gl.FLOAT, false, 0, 0);
+        const pos_loc = gl.getAttribLocation(program.program, "aPosition");
         gl.enableVertexAttribArray(pos_loc);
 
         return (destination: any, clear = false) => {
+          gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+          gl.vertexAttribPointer(pos_loc, 2, gl.FLOAT, false, 0, 0);
+
+          program.bind();
           if (destination == null) {
             gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -673,6 +660,7 @@ const FluidCursor = () => {
 
       let lastUpdateTime = Date.now();
       let colorUpdateTimer = 0.0;
+      let started = false;
       
       function update() {
         const dt = calcDeltaTime();
@@ -857,23 +845,31 @@ const FluidCursor = () => {
           radius *= aspectRatio;
         return radius;
       }
+      
+      const startAnimation = () => {
+        if (started) return;
+        started = true;
+        update();
+      }
 
       const mouseMove = (e: MouseEvent) => {
+        startAnimation();
         let pointer = pointers[0];
         if (!pointer.down) {
-            // This ensures the animation starts on the first mouse move.
             updatePointerDownData(pointer, -1, e.clientX, e.clientY);
-            pointer.down = false; // Set to false so it doesn't think the mouse is held down.
+            pointer.down = false; 
         }
         updatePointerMoveData(pointer, e.clientX, e.clientY);
       };
       
       const mouseDown = (e: MouseEvent) => {
+          startAnimation();
           let pointer = pointers[0];
           updatePointerDownData(pointer, -1, e.clientX, e.clientY);
       };
       
       const touchStart = (e: TouchEvent) => {
+          startAnimation();
           const touches = e.targetTouches;
           for (let i = 0; i < touches.length; i++) {
               let pointer = pointers[i] || new (pointerPrototype as any)();
@@ -909,14 +905,12 @@ const FluidCursor = () => {
         }
       };
 
-
       window.addEventListener('mousemove', mouseMove);
       window.addEventListener('mousedown', mouseDown);
       window.addEventListener('mouseup', mouseUp);
       window.addEventListener('touchstart', touchStart, { passive: false });
       window.addEventListener('touchmove', touchMove, { passive: false });
       window.addEventListener('touchend', touchEnd);
-
 
       function updatePointerDownData(pointer: any, id: number, posX: number, posY: number) {
         pointer.id = id;
@@ -1022,8 +1016,6 @@ const FluidCursor = () => {
         }
         return hash;
       }
-      
-      update();
 
       return () => {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
