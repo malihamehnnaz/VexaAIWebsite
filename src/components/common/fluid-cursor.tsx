@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -1043,7 +1044,17 @@ const FluidCursor = () => {
         window.removeEventListener('touchend', touchEnd);
       }
     };
-    initFluid();
+    
+    // The component was unmounted, so we should stop the animation
+    let cleanup: () => void;
+    if (canvas) {
+      cleanup = initFluid();
+    }
+    
+    return () => {
+      if(cleanup) cleanup();
+    };
+
   }, []);
 
   return <canvas id="fluid-canvas" ref={canvasRef}></canvas>;
