@@ -24,9 +24,9 @@ const FluidCursor = () => {
         VELOCITY_DISSIPATION: 2,
         PRESSURE: 0.8,
         PRESSURE_ITERATIONS: 20,
-        CURL: 30,
-        SPLAT_RADIUS: 0.35,
-        SPLAT_FORCE: 6000,
+        CURL: 20,
+        SPLAT_RADIUS: 0.15,
+        SPLAT_FORCE: 3000,
         SHADING: true,
         COLORFUL: true,
         COLOR_UPDATE_SPEED: 10,
@@ -528,7 +528,10 @@ const FluidCursor = () => {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
         
-        const pos_loc = gl.getAttribLocation(createProgram(baseVertexShader, copyShader)!, "aPosition");
+        const program = createProgram(baseVertexShader, copyShader);
+        if (!program) return () => {};
+
+        const pos_loc = gl.getAttribLocation(program, "aPosition");
         gl.vertexAttribPointer(pos_loc, 2, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(pos_loc);
 
@@ -641,6 +644,8 @@ const FluidCursor = () => {
         copyProgram.bind();
         gl.uniform1i(copyProgram.uniforms['uTexture']!, target.attach(0));
         blit(newFBO);
+        gl.deleteTexture(target.texture);
+        gl.deleteFramebuffer(target.fbo);
         return newFBO;
       }
       
@@ -856,7 +861,9 @@ const FluidCursor = () => {
       const mouseMove = (e: MouseEvent) => {
         let pointer = pointers[0];
         if (!pointer.down) {
-          updatePointerDownData(pointer, -1, e.clientX, e.clientY);
+            // This ensures the animation starts on the first mouse move.
+            updatePointerDownData(pointer, -1, e.clientX, e.clientY);
+            pointer.down = false; // Set to false so it doesn't think the mouse is held down.
         }
         updatePointerMoveData(pointer, e.clientX, e.clientY);
       };
@@ -951,10 +958,10 @@ const FluidCursor = () => {
       }
 
       function generateColor() {
-        let c = HSVtoRGB(Math.random(), 0.5, 0.8);
-        c.r *= 0.2;
-        c.g *= 0.2;
-        c.b *= 0.2;
+        let c = HSVtoRGB(Math.random(), 0.5, 0.85);
+        c.r *= 0.15;
+        c.g *= 0.15;
+        c.b *= 0.15;
         return c;
       }
 
@@ -1039,3 +1046,5 @@ const FluidCursor = () => {
 };
 
 export default FluidCursor;
+
+    
