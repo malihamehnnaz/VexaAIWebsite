@@ -19,12 +19,12 @@ const FluidCursor = () => {
         SIM_RESOLUTION: 128,
         DYE_RESOLUTION: 1024,
         CAPTURE_RESOLUTION: 512,
-        DENSITY_DISSIPATION: 4,
+        DENSITY_DISSIPATION: 1,
         VELOCITY_DISSIPATION: 2,
         PRESSURE: 0.8,
         PRESSURE_ITERATIONS: 20,
-        CURL: 10,
-        SPLAT_RADIUS: 0.05,
+        CURL: 30,
+        SPLAT_RADIUS: 0.1,
         SPLAT_FORCE: 2000,
         SHADING: true,
         COLORFUL: true,
@@ -1046,4 +1046,6 @@ const FluidCursor = () => {
 export default FluidCursor;
 
     
+    
+
     
