@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 import { PageTransition } from '@/components/common/page-transition';
+import CustomCursor from '@/components/common/custom-cursor';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
@@ -18,8 +19,8 @@ export default function RootLayout({
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
       <defs>
         <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
-          <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+          <stop offset="0%" style="stop-color:#ff5722;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#ff8a65;stop-opacity:1" />
         </linearGradient>
       </defs>
       <rect width="100" height="100" rx="20" fill="url(#grad)" />
@@ -37,6 +38,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
+          <CustomCursor />
           <FirebaseClientProvider>
             <PageTransition>
               {children}
