@@ -19,13 +19,13 @@ const FluidCursor = () => {
         SIM_RESOLUTION: 128,
         DYE_RESOLUTION: 1024,
         CAPTURE_RESOLUTION: 512,
-        DENSITY_DISSIPATION: 1,
-        VELOCITY_DISSIPATION: 2,
+        DENSITY_DISSIPATION: 4,
+        VELOCITY_DISSIPATION: 0.5,
         PRESSURE: 0.8,
         PRESSURE_ITERATIONS: 20,
-        CURL: 30,
-        SPLAT_RADIUS: 0.1,
-        SPLAT_FORCE: 2000,
+        CURL: 20,
+        SPLAT_RADIUS: 0.2,
+        SPLAT_FORCE: 6000,
         SHADING: true,
         COLORFUL: true,
         COLOR_UPDATE_SPEED: 10,
@@ -952,10 +952,10 @@ const FluidCursor = () => {
       }
 
       function generateColor() {
-        let c = HSVtoRGB(Math.random(), 0.5, 1.0);
-        c.r *= 0.1;
-        c.g *= 0.1;
-        c.b *= 0.1;
+        let c = HSVtoRGB(Math.random(), 0.5, 0.85);
+        c.r *= 0.15;
+        c.g *= 0.15;
+        c.b *= 0.15;
         return c;
       }
 
@@ -1044,8 +1044,5 @@ const FluidCursor = () => {
 };
 
 export default FluidCursor;
-
-    
-    
 
     
