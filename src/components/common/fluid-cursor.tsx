@@ -4,14 +4,13 @@ import { useEffect, useRef } from 'react';
 
 const FluidCursor = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameId = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     let animationHandle: number;
-
+    
     const initFluid = () => {
       resizeCanvas();
 
@@ -24,8 +23,8 @@ const FluidCursor = () => {
         PRESSURE: 0.8,
         PRESSURE_ITERATIONS: 20,
         CURL: 30,
-        SPLAT_RADIUS: 0.25,
-        SPLAT_FORCE: 6000,
+        SPLAT_RADIUS: 0.1,
+        SPLAT_FORCE: 3000,
         SHADING: true,
         COLORFUL: true,
         COLOR_UPDATE_SPEED: 10,
@@ -52,6 +51,11 @@ const FluidCursor = () => {
 
       const { gl, ext } = getWebGLContext(canvas);
 
+      if (!gl) {
+        console.error("WebGL context could not be initialized.");
+        return;
+      }
+      
       if (isMobile()) {
         config.DYE_RESOLUTION = 512;
       }
@@ -71,11 +75,11 @@ const FluidCursor = () => {
 
         if (!gl) {
           alert('WebGL is not supported.');
-          throw new Error('WebGL not supported');
+          return { gl: null, ext: {} };
         }
 
-        let halfFloat: OES_texture_half_float | null;
-        let supportLinearFiltering: OES_texture_float_linear | null;
+        let halfFloat: OES_texture_half_float | null = null;
+        let supportLinearFiltering: OES_texture_float_linear | null = null;
         if (isWebGL2) {
           (gl as WebGL2RenderingContext).getExtension('EXT_color_buffer_float');
           supportLinearFiltering = (gl as WebGL2RenderingContext).getExtension('OES_texture_float_linear');
@@ -93,12 +97,17 @@ const FluidCursor = () => {
 
         if (isWebGL2) {
           formatRGBA = getSupportedFormat(gl, (gl as WebGL2RenderingContext).RGBA16F, gl.RGBA, halfFloatTexType);
-          formatRG = getSupportedFormat(gl, (gl as WebGL2RenderingContext).RG16F, gl.RG, halfFloatTexType);
+          formatRG = getSupportedFormat(gl, (gl as WebGL2RenderingContext).RG16F, (gl as WebGL2RenderingContext).RG, halfFloatTexType);
           formatR = getSupportedFormat(gl, (gl as WebGL2RenderingContext).R16F, gl.RED, halfFloatTexType);
         } else {
           formatRGBA = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
           formatRG = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
           formatR = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
+        }
+
+        if (!formatRGBA || !formatRG || !formatR) {
+             console.error("WebGL failed to get supported format.");
+             return { gl: null, ext: {} };
         }
 
         return {
@@ -141,12 +150,11 @@ const FluidCursor = () => {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
 
         const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-        if (status != gl.FRAMEBUFFER_COMPLETE) return false;
         
         gl.deleteTexture(texture);
         gl.deleteFramebuffer(fbo);
 
-        return true;
+        return status == gl.FRAMEBUFFER_COMPLETE;
       }
 
       class Material {
@@ -154,7 +162,7 @@ const FluidCursor = () => {
         fragmentShaderSource: string;
         programs: WebGLProgram[];
         activeProgram: WebGLProgram | null;
-        uniforms: { [key: string]: WebGLUniformLocation };
+        uniforms: { [key: string]: WebGLUniformLocation | null };
       
         constructor(vertexShader: WebGLShader, fragmentShaderSource: string) {
           this.vertexShader = vertexShader;
@@ -191,7 +199,7 @@ const FluidCursor = () => {
       }
 
       class Program {
-        uniforms: { [key: string]: WebGLUniformLocation };
+        uniforms: { [key: string]: WebGLUniformLocation | null };
         program: WebGLProgram;
       
         constructor(vertexShader: WebGLShader, fragmentShader: WebGLShader) {
@@ -216,25 +224,28 @@ const FluidCursor = () => {
       }
 
       function getUniforms(program: WebGLProgram) {
-        let uniforms: { [key: string]: WebGLUniformLocation } = {};
+        let uniforms: { [key: string]: WebGLUniformLocation | null } = {};
         let uniformCount = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
         for (let i = 0; i < uniformCount; i++) {
           let uniformInfo = gl.getActiveUniform(program, i);
           if (uniformInfo) {
-            uniforms[uniformInfo.name] = gl.getUniformLocation(program, uniformInfo.name) as WebGLUniformLocation;
+            uniforms[uniformInfo.name] = gl.getUniformLocation(program, uniformInfo.name);
           }
         }
         return uniforms;
       }
 
-      function compileShader(type: number, source: string, keywords?: string[] | null) {
+      function compileShader(type: number, source: string, keywords?: string[] | null): WebGLShader | null {
         source = addKeywords(source, keywords);
         const shader = gl.createShader(type);
         if (!shader) return null;
         gl.shaderSource(shader, source);
         gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
-          console.trace(gl.getShaderInfoLog(shader));
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            console.trace(gl.getShaderInfoLog(shader));
+            gl.deleteShader(shader);
+            return null;
+        }
         return shader;
       }
 
@@ -505,7 +516,7 @@ const FluidCursor = () => {
         }
     `;
 
-      if (!baseVertexShader || !blurVertexShader || !copyShader || !clearShader || !splatShader || !advectionShader || !divergenceShader || !curlShader || !vorticityShader || !pressureShader || !gradientSubtractShader) {
+      if (!baseVertexShader || !copyShader || !clearShader || !splatShader || !advectionShader || !divergenceShader || !curlShader || !vorticityShader || !pressureShader || !gradientSubtractShader) {
         console.error("Failed to compile one or more shaders.");
         return;
       }
@@ -539,7 +550,7 @@ const FluidCursor = () => {
       let divergence: any;
       let curl: any;
       let pressure: any;
-
+      
       const copyProgram = new Program(baseVertexShader, copyShader);
       const clearProgram = new Program(baseVertexShader, clearShader);
       const splatProgram = new Program(baseVertexShader, splatShader);
@@ -551,17 +562,15 @@ const FluidCursor = () => {
       const gradienSubtractProgram = new Program(baseVertexShader, gradientSubtractShader);
       const displayMaterial = new Material(baseVertexShader, displayShaderSource);
       
-      const vertex_buffers = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffers);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0]), gl.STATIC_DRAW);
-
-      const vertex_indices = gl.createBuffer();
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, vertex_indices);
-      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 1, 2, 3]), gl.STATIC_DRAW);
-      
       const pos_loc = gl.getAttribLocation(copyProgram.program, "aPosition");
-      gl.enableVertexAttribArray(pos_loc);
-      gl.vertexAttribPointer(pos_loc, 2, gl.FLOAT, false, 0, 0);
+      if(pos_loc !== -1) {
+        gl.enableVertexAttribArray(pos_loc);
+        gl.vertexAttribPointer(pos_loc, 2, gl.FLOAT, false, 0, 0);
+      } else {
+        console.error("aPosition attribute not found in copyProgram");
+        return;
+      }
+
 
       function initFramebuffers() {
         let simRes = getResolution(config.SIM_RESOLUTION);
@@ -637,7 +646,7 @@ const FluidCursor = () => {
       function resizeFBO(target: any, w: number, h: number, internalFormat: number, format: number, type: number, param: number) {
         let newFBO = createFBO(w, h, internalFormat, format, type, param);
         copyProgram.bind();
-        gl.uniform1i(copyProgram.uniforms.uTexture, target.attach(0));
+        gl.uniform1i(copyProgram.uniforms.uTexture!, target.attach(0));
         blit(newFBO);
         return newFBO;
       }
@@ -657,13 +666,12 @@ const FluidCursor = () => {
       function updateKeywords() {
         let displayKeywords = [];
         if (config.SHADING) displayKeywords.push("SHADING");
-        if (config.COLORFUL) displayKeywords.push("COLORFUL");
         displayMaterial.setKeywords(displayKeywords);
       }
 
       updateKeywords();
       initFramebuffers();
-      multipleSplats(parseInt(Math.random() * 20 + 5));
+      multipleSplats(parseInt((Math.random() * 20 + 5).toString()));
 
       let lastUpdateTime = Date.now();
       let colorUpdateTimer = 0.0;
@@ -725,65 +733,65 @@ const FluidCursor = () => {
         gl.viewport(0, 0, velocity.width, velocity.height);
 
         curlProgram.bind();
-        gl.uniform2f(curlProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
-        gl.uniform1i(curlProgram.uniforms.uVelocity, velocity.read.attach(0));
+        gl.uniform2f(curlProgram.uniforms.texelSize!, velocity.texelSizeX, velocity.texelSizeY);
+        gl.uniform1i(curlProgram.uniforms.uVelocity!, velocity.read.attach(0));
         blit(curl);
 
         vorticityProgram.bind();
-        gl.uniform2f(vorticityProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
-        gl.uniform1i(vorticityProgram.uniforms.uVelocity, velocity.read.attach(0));
-        gl.uniform1i(vorticityProgram.uniforms.uCurl, curl.attach(1));
-        gl.uniform1f(vorticityProgram.uniforms.curl, config.CURL);
-        gl.uniform1f(vorticityProgram.uniforms.dt, dt);
+        gl.uniform2f(vorticityProgram.uniforms.texelSize!, velocity.texelSizeX, velocity.texelSizeY);
+        gl.uniform1i(vorticityProgram.uniforms.uVelocity!, velocity.read.attach(0));
+        gl.uniform1i(vorticityProgram.uniforms.uCurl!, curl.attach(1));
+        gl.uniform1f(vorticityProgram.uniforms.curl!, config.CURL);
+        gl.uniform1f(vorticityProgram.uniforms.dt!, dt);
         blit(velocity.write);
         velocity.swap();
 
         divergenceProgram.bind();
-        gl.uniform2f(divergenceProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
-        gl.uniform1i(divergenceProgram.uniforms.uVelocity, velocity.read.attach(0));
+        gl.uniform2f(divergenceProgram.uniforms.texelSize!, velocity.texelSizeX, velocity.texelSizeY);
+        gl.uniform1i(divergenceProgram.uniforms.uVelocity!, velocity.read.attach(0));
         blit(divergence);
 
         clearProgram.bind();
-        gl.uniform1i(clearProgram.uniforms.uTexture, pressure.read.attach(0));
-        gl.uniform1f(clearProgram.uniforms.value, config.PRESSURE);
+        gl.uniform1i(clearProgram.uniforms.uTexture!, pressure.read.attach(0));
+        gl.uniform1f(clearProgram.uniforms.value!, config.PRESSURE);
         blit(pressure.write);
         pressure.swap();
 
         pressureProgram.bind();
-        gl.uniform2f(pressureProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
-        gl.uniform1i(pressureProgram.uniforms.uDivergence, divergence.attach(0));
+        gl.uniform2f(pressureProgram.uniforms.texelSize!, velocity.texelSizeX, velocity.texelSizeY);
+        gl.uniform1i(pressureProgram.uniforms.uDivergence!, divergence.attach(0));
         for (let i = 0; i < config.PRESSURE_ITERATIONS; i++) {
-          gl.uniform1i(pressureProgram.uniforms.uPressure, pressure.read.attach(1));
+          gl.uniform1i(pressureProgram.uniforms.uPressure!, pressure.read.attach(1));
           blit(pressure.write);
           pressure.swap();
         }
 
         gradienSubtractProgram.bind();
-        gl.uniform2f(gradienSubtractProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
-        gl.uniform1i(gradienSubtractProgram.uniforms.uPressure, pressure.read.attach(0));
-        gl.uniform1i(gradienSubtractProgram.uniforms.uVelocity, velocity.read.attach(1));
+        gl.uniform2f(gradienSubtractProgram.uniforms.texelSize!, velocity.texelSizeX, velocity.texelSizeY);
+        gl.uniform1i(gradienSubtractProgram.uniforms.uPressure!, pressure.read.attach(0));
+        gl.uniform1i(gradienSubtractProgram.uniforms.uVelocity!, velocity.read.attach(1));
         blit(velocity.write);
         velocity.swap();
 
         advectionProgram.bind();
-        gl.uniform2f(advectionProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
+        gl.uniform2f(advectionProgram.uniforms.texelSize!, velocity.texelSizeX, velocity.texelSizeY);
         if (!ext.supportLinearFiltering)
-          gl.uniform2f(advectionProgram.uniforms.dyeTexelSize, velocity.texelSizeX, velocity.texelSizeY);
+          gl.uniform2f(advectionProgram.uniforms.dyeTexelSize!, velocity.texelSizeX, velocity.texelSizeY);
         let velocityId = velocity.read.attach(0);
-        gl.uniform1i(advectionProgram.uniforms.uVelocity, velocityId);
-        gl.uniform1i(advectionProgram.uniforms.uSource, velocityId);
-        gl.uniform1f(advectionProgram.uniforms.dt, dt);
-        gl.uniform1f(advectionProgram.uniforms.dissipation, 1.0 - config.VELOCITY_DISSIPATION * dt);
+        gl.uniform1i(advectionProgram.uniforms.uVelocity!, velocityId);
+        gl.uniform1i(advectionProgram.uniforms.uSource!, velocityId);
+        gl.uniform1f(advectionProgram.uniforms.dt!, dt);
+        gl.uniform1f(advectionProgram.uniforms.dissipation!, 1.0 - config.VELOCITY_DISSIPATION * dt);
         blit(velocity.write);
         velocity.swap();
 
         gl.viewport(0, 0, dye.width, dye.height);
 
         if (!ext.supportLinearFiltering)
-          gl.uniform2f(advectionProgram.uniforms.dyeTexelSize, dye.texelSizeX, dye.texelSizeY);
-        gl.uniform1i(advectionProgram.uniforms.uVelocity, velocity.read.attach(0));
-        gl.uniform1i(advectionProgram.uniforms.uSource, dye.read.attach(1));
-        gl.uniform1f(advectionProgram.uniforms.dissipation, 1.0 - config.DENSITY_DISSIPATION * dt);
+          gl.uniform2f(advectionProgram.uniforms.dyeTexelSize!, dye.texelSizeX, dye.texelSizeY);
+        gl.uniform1i(advectionProgram.uniforms.uVelocity!, velocity.read.attach(0));
+        gl.uniform1i(advectionProgram.uniforms.uSource!, dye.read.attach(1));
+        gl.uniform1f(advectionProgram.uniforms.dissipation!, 1.0 - config.DENSITY_DISSIPATION * dt);
         blit(dye.write);
         dye.swap();
       }
@@ -801,8 +809,8 @@ const FluidCursor = () => {
 
         displayMaterial.bind();
         if (config.SHADING)
-          gl.uniform2f(displayMaterial.uniforms.texelSize, 1.0 / width, 1.0 / height);
-        gl.uniform1i(displayMaterial.uniforms.uTexture, dye.read.attach(0));
+          gl.uniform2f(displayMaterial.uniforms.texelSize!, 1.0 / width, 1.0 / height);
+        gl.uniform1i(displayMaterial.uniforms.uTexture!, dye.read.attach(0));
 
         blit(target);
       }
@@ -830,17 +838,17 @@ const FluidCursor = () => {
       function splat(x: number, y: number, dx: number, dy: number, color: { r: number, g: number, b: number }) {
         gl.viewport(0, 0, velocity.width, velocity.height);
         splatProgram.bind();
-        gl.uniform1i(splatProgram.uniforms.uTarget, velocity.read.attach(0));
-        gl.uniform1f(splatProgram.uniforms.aspectRatio, canvas.width / canvas.height);
-        gl.uniform2f(splatProgram.uniforms.point, x, y);
-        gl.uniform3f(splatProgram.uniforms.color, dx, dy, 0.0);
-        gl.uniform1f(splatProgram.uniforms.radius, correctRadius(config.SPLAT_RADIUS / 100.0));
+        gl.uniform1i(splatProgram.uniforms.uTarget!, velocity.read.attach(0));
+        gl.uniform1f(splatProgram.uniforms.aspectRatio!, canvas.width / canvas.height);
+        gl.uniform2f(splatProgram.uniforms.point!, x, y);
+        gl.uniform3f(splatProgram.uniforms.color!, dx, dy, 0.0);
+        gl.uniform1f(splatProgram.uniforms.radius!, correctRadius(config.SPLAT_RADIUS / 100.0));
         blit(velocity.write);
         velocity.swap();
 
         gl.viewport(0, 0, dye.width, dye.height);
-        gl.uniform1i(splatProgram.uniforms.uTarget, dye.read.attach(0));
-        gl.uniform3f(splatProgram.uniforms.color, color.r, color.g, color.b);
+        gl.uniform1i(splatProgram.uniforms.uTarget!, dye.read.attach(0));
+        gl.uniform3f(splatProgram.uniforms.color!, color.r, color.g, color.b);
         blit(dye.write);
         dye.swap();
       }
@@ -854,6 +862,7 @@ const FluidCursor = () => {
 
       const mouseMove = (e: MouseEvent) => {
         let pointer = pointers[0];
+        if (!pointer) return;
         let posX = scaleByPixelRatio(e.clientX);
         let posY = scaleByPixelRatio(e.clientY);
         updatePointerMoveData(pointer, posX, posY);
@@ -896,7 +905,9 @@ const FluidCursor = () => {
       };
       
       const mouseUp = () => {
-          updatePointerUpData(pointers[0]);
+          if (pointers[0]) {
+             updatePointerUpData(pointers[0]);
+          }
       };
 
       const touchEnd = (e: TouchEvent) => {
@@ -971,15 +982,16 @@ const FluidCursor = () => {
         p = v * (1 - s);
         q = v * (1 - f * s);
         t = v * (1 - (1 - f) * s);
+        let r_temp = 0, g_temp = 0, b_temp = 0;
         switch (i % 6) {
-          case 0: r = v; g = t; b = p; break;
-          case 1: r = q; g = v; b = p; break;
-          case 2: r = p; g = v; b = t; break;
-          case 3: r = p; g = q; b = v; break;
-          case 4: r = t; g = p; b = v; break;
-          case 5: r = v; g = p; b = q; break;
+          case 0: r_temp = v, g_temp = t, b_temp = p; break;
+          case 1: r_temp = q, g_temp = v, b_temp = p; break;
+          case 2: r_temp = p, g_temp = v, b_temp = t; break;
+          case 3: r_temp = p, g_temp = q, b_temp = v; break;
+          case 4: r_temp = t, g_temp = p, b_temp = v; break;
+          case 5: r_temp = v, g_temp = p, b_temp = q; break;
         }
-        return { r: r || 0, g: g || 0, b: b || 0 };
+        return { r: r_temp, g: g_temp, b: b_temp };
       }
 
       function wrap(value: number, min: number, max: number) {
@@ -1019,24 +1031,19 @@ const FluidCursor = () => {
         return hash;
       }
       
-      // Start the animation loop
       update();
 
-      // Return cleanup function for useEffect
       return () => {
-        cancelAnimationFrame(animationHandle);
+        if(animationHandle) cancelAnimationFrame(animationHandle);
         window.removeEventListener('mousemove', mouseMove);
         window.removeEventListener('mousedown', mouseDown);
         window.removeEventListener('mouseup', mouseUp);
         window.removeEventListener('touchstart', touchStart);
         window.removeEventListener('touchmove', touchMove);
         window.removeEventListener('touchend', touchEnd);
-      };
+      }
     };
-
-    const cleanup = initFluid();
-
-    return cleanup;
+    initFluid();
   }, []);
 
   return <canvas id="fluid-canvas" ref={canvasRef}></canvas>;
