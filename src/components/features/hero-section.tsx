@@ -1,42 +1,38 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ArrowRight } from 'lucide-react';
-import Image from 'next/image';
+import { PlayCircle } from 'lucide-react';
 
-const heroAsset = PlaceHolderImages.find(p => p.id === 'hero-background');
+const heroAsset = PlaceHolderImages.find(p => p.id === 'hero-background-video');
 
 export default function HeroSection() {
   return (
-    <section className="relative h-[80vh] min-h-[500px] w-full flex items-center justify-center text-center text-white overflow-hidden">
-      {heroAsset && heroAsset.imageUrl && (
-        <Image
-            src={heroAsset.imageUrl}
-            alt={heroAsset.description}
-            fill
-            className="object-cover"
-            priority
+    <section className="relative h-screen min-h-[600px] w-full flex items-center justify-center text-center text-white overflow-hidden">
+      {heroAsset && heroAsset.videoUrl && (
+        <video
+            src={heroAsset.videoUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute top-0 left-0 w-full h-full object-cover -z-10"
             data-ai-hint={heroAsset.imageHint}
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/20 z-10" />
-      <div className="relative z-20 container px-4 md:px-6">
+      <div className="absolute inset-0 bg-black/60 z-0" />
+      <div className="relative z-10 container px-4 md:px-6">
         <div className="flex flex-col items-center space-y-6">
-          <h1 className="font-headline text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
-            Intelligent Solutions for a Digital World
+          <h1 className="font-headline text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
+            We are a global team of strategists, designers and engineers.
           </h1>
           <p className="max-w-[700px] text-lg md:text-xl text-gray-200">
-            Vexa AI delivers cutting-edge Generative AI, custom software development, and robust cloud services to propel your business forward.
+            We help businesses grow and transform through technology and design.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button asChild size="lg">
-              <Link href="/#services">
-                Explore Our Services
-              </Link>
-            </Button>
-            <Button asChild variant="secondary" size="lg">
-              <Link href="#contact">
-                Get Started <ArrowRight className="ml-2 h-5 w-5" />
+            <Button asChild variant="outline" size="lg" className="bg-transparent hover:bg-primary/10 hover:text-primary-foreground border-primary text-primary-foreground">
+              <Link href="#">
+                <PlayCircle className="mr-2 h-5 w-5" />
+                Play Reel
               </Link>
             </Button>
           </div>

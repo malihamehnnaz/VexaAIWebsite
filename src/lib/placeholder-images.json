@@ -28,13 +28,13 @@
     {
       "id": "blog-post-2",
       "description": "Image for the second blog post about software development",
-      "imageUrl": "https://images.unsplash.com/photo-1610563166150-b34df4f3bcd6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxzb2Z0d2FyZSUyMGRldmVsb3BtZW50fGVufDB8fHx8fDE3NTkwMDcwNDR8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1610563166150-b34df4f3bcd6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxzb2Z0d2FyZSUyMGRldmVsb3BtZW50fGVufDB8fHx8fDE3NTkwMDcwNDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "software development"
     },
     {
       "id": "blog-post-3",
       "description": "Image for the third blog post about cloud services",
-      "imageUrl": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjbG91ZCUyMGNvbXB1dGluZ3xlbnwwfHx8fDE3NjE5NTU0OTN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjbG91ZCUyMGNvbXB1dGluZ3xlbnwwfHx8fDE3NjE5NTU0OTN8MA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "cloud computing"
     },
     {
@@ -52,7 +52,7 @@
     {
       "id": "client-logo-2",
       "description": "Logo for client 2",
-      "imageUrl": "https://images.unsplash.com/photo-1708634421109-18f3309dffa2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxsb2dvJTIwbWluaW1hbHxlbnwwfHx8fDE3NTg5OTcwMTZ8MA&ixlib_rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1708634421109-18f3309dffa2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxsb2dvJTIwbWluaW1hbHxlbnwwfHx8fDE3NTg5OTcwMTZ8MA&ixlib_rb_4.1.0&q=80&w=1080",
       "imageHint": "logo minimal"
     },
     {
@@ -94,13 +94,13 @@
     {
       "id": "project-grocery-app",
       "description": "A person using a grocery delivery app on their smartphone",
-      "imageUrl": "https://images.unsplash.com/photo-1542838132-92c53300491e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxncm9jZXJ5JTIwc2hvcHBpbmd8ZW58MHx8fHwxNzYxMTg4ODU4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1542838132-92c53300491e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxncm9jZXJ5JTIwc2hvcHBpbmd8ZW58MHx8fHwxNzYxMTg4ODU4fDA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "grocery shopping"
     },
     {
       "id": "project-hrm-website",
       "description": "A clean and modern dashboard for an HRM website",
-      "imageUrl": "https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxocl90ZWNofGVufDB8fHx8fDE3NjEyNjYwNTB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxocl90ZWNofGVufDB8fHx8fDE3NjEyNjYwNTB8MA&ixlib-rb-4.1.0&q=80&w=1080",
       "imageHint": "hr tech"
     },
     {

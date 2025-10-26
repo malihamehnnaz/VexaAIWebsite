@@ -9,12 +9,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import Logo from '@/components/common/logo'
 
 const navLinks = [
-  { href: '/', label: 'Home' },
-  { href: '#services', label: 'Services' },
-  { href: '#about', label: 'About' },
-  { href: '#portfolio', label: 'Portfolio' },
-  { href: '#pricing', label: 'Pricing' },
-  { href: '#blog', label: 'Blog' },
+  { href: '#portfolio', label: 'Work' },
+  { href: '#contact', label: 'Contact' },
 ]
 
 export default function Header() {
@@ -39,14 +35,10 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
-          <Button asChild className="hidden md:flex">
-            <Link href="#contact">Contact Us</Link>
-          </Button>
-
+        <div className="flex items-center gap-2 md:hidden">
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" className="md:hidden" size="icon">
+              <Button variant="ghost" size="icon">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Toggle menu</span>
               </Button>
@@ -66,9 +58,6 @@ export default function Header() {
                     {link.label}
                   </Link>
                 ))}
-                <Button asChild className="mt-4">
-                    <Link href="#contact" onClick={() => setIsOpen(false)}>Contact Us</Link>
-                </Button>
               </nav>
             </SheetContent>
           </Sheet>
