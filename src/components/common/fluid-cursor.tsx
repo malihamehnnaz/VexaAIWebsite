@@ -10,6 +10,7 @@ export default function FluidCursor() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // This function wraps the entire logic to ensure it runs only on the client side.
     const initFluid = () => {
         resizeCanvas();
 
@@ -81,7 +82,7 @@ export default function FluidCursor() {
                 supportLinearFiltering = gl.getExtension('OES_texture_half_float_linear');
             }
 
-            gl.clearColor(0.0, 0.0, 0.0, 1.0);
+            gl.clearColor(0.0, 0.0, 0.0, 0.0);
 
             const halfFloatTexType = isWebGL2 ? (gl as WebGL2RenderingContext).HALF_FLOAT : halfFloat.HALF_FLOAT_OES;
             let formatRGBA: any;
@@ -472,7 +473,7 @@ export default function FluidCursor() {
                     gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
                 }
                 if (clear) {
-                    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                    gl.clearColor(0.0, 0.0, 0.0, 0.0);
                     gl.clear(gl.COLOR_BUFFER_BIT);
                 }
                 gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
@@ -689,7 +690,9 @@ export default function FluidCursor() {
             blit(divergence);
 
             clearProgram.bind();
-            gl.uniform1i(clearProgram.uniforms.uTexture, pressure.read.attach(0));
+            if (clearProgram.uniforms.uTexture) {
+                gl.uniform1i(clearProgram.uniforms.uTexture, pressure.read.attach(0));
+            }
             gl.uniform1f(clearProgram.uniforms.value, config.PRESSURE);
             blit(pressure.write);
             pressure.swap();
@@ -744,14 +747,22 @@ export default function FluidCursor() {
             
             let width = target == null ? gl.drawingBufferWidth : target.width;
             let height = target == null ? gl.drawingBufferHeight : target.height;
+            
+            gl.bindFramebuffer(gl.FRAMEBUFFER, target);
             gl.viewport(0, 0, width, height);
 
+            if(config.TRANSPARENT){
+                gl.clearColor(0.0, 0.0, 0.0, 0.0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+            }
+
+            displayMaterial.setKeywords(config.SHADING ? ['SHADING'] : []);
             displayMaterial.bind();
             if (config.SHADING) {
                 gl.uniform2f(displayMaterial.uniforms.texelSize, 1.0 / width, 1.0 / height);
             }
             gl.uniform1i(displayMaterial.uniforms.uTexture, dye.read.attach(0));
-            blit(target);
+            blit(target, false);
         }
 
         function splatPointer(pointer: any) {
@@ -889,9 +900,14 @@ export default function FluidCursor() {
         }
     };
     
-    initFluid();
-
+    // Only run the fluid simulation if the canvas element exists
+    if (canvas) {
+      const cleanup = initFluid();
+      return cleanup;
+    }
   }, []);
 
   return <canvas id="fluid-canvas" ref={canvasRef} style={{ width: '100vw', height: '100vh', display: 'block' }} />;
 }
+
+    
