@@ -1,24 +1,55 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
 import useMousePosition from '@/hooks/use-mouse-position';
 
 export default function CustomCursor() {
+  const cursorRef = useRef<HTMLDivElement>(null);
   const { x, y } = useMousePosition();
+  const trailRef = useRef<HTMLSpanElement[]>([]);
 
-  return (
-    <motion.div
-      className="pointer-events-none fixed left-0 top-0 z-[9999] h-8 w-8 rounded-full border-2 border-primary"
-      animate={{
-        x: x ? x - 16 : -16,
-        y: y ? y - 16 : -16,
-      }}
-      transition={{
-        type: 'spring',
-        stiffness: 500,
-        damping: 30,
-        restDelta: 0.001,
-      }}
-    />
-  );
+  useEffect(() => {
+    if (cursorRef.current && x !== null && y !== null) {
+      cursorRef.current.style.top = y + 'px';
+      cursorRef.current.style.left = x + 'px';
+    }
+  }, [x, y]);
+  
+  useEffect(() => {
+    const createSmokeTrail = (eX: number, eY: number) => {
+        if (!cursorRef.current) return;
+        const span = document.createElement('span');
+        cursorRef.current.appendChild(span);
+        trailRef.current.push(span);
+
+        const size = Math.random() * 50;
+        span.style.width = 20 + size + 'px';
+        span.style.height = 20 + size + 'px';
+        span.style.top = eY + 'px';
+        span.style.left = eX + 'px';
+        
+        setTimeout(() => {
+            cursorRef.current?.removeChild(span);
+            trailRef.current.shift();
+        }, 1000);
+    }
+    
+    const handleMouseMove = (e: MouseEvent) => {
+        createSmokeTrail(e.clientX, e.clientY);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        trailRef.current.forEach(span => {
+            if (cursorRef.current && cursorRef.current.contains(span)) {
+                cursorRef.current.removeChild(span);
+            }
+        });
+        trailRef.current = [];
+    };
+  }, []);
+
+  return <div ref={cursorRef} className="cursor" />;
 }
