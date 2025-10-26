@@ -20,7 +20,7 @@ const FluidCursor = () => {
         DYE_RESOLUTION: 1024,
         CAPTURE_RESOLUTION: 512,
         DENSITY_DISSIPATION: 3.5,
-        VELOCITY_DISSIPATION: 2,
+        VELOCITY_DISSIPATION: 2.0,
         PRESSURE: 0.8,
         PRESSURE_ITERATIONS: 20,
         CURL: 20,
@@ -505,7 +505,7 @@ const FluidCursor = () => {
                   c *= diffuse;
               #endif
               float a = max(c.r, max(c.g, c.b));
-              gl_FragColor = vec4(c, a);
+              gl_FragColor = vec4(c, a * 0.5);
           }
       `;
 
@@ -518,12 +518,13 @@ const FluidCursor = () => {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
         
-        const program = new Program(baseVertexShader, copyShader);
-
-        const pos_loc = gl.getAttribLocation(program.program, "aPosition");
-        gl.enableVertexAttribArray(pos_loc);
-
         return (destination: any, clear = false) => {
+          if (!copyProgram) return;
+
+          const program = copyProgram;
+
+          const pos_loc = gl.getAttribLocation(program.program, "aPosition");
+          gl.enableVertexAttribArray(pos_loc);
           gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
           gl.vertexAttribPointer(pos_loc, 2, gl.FLOAT, false, 0, 0);
 
@@ -536,7 +537,7 @@ const FluidCursor = () => {
             gl.bindFramebuffer(gl.FRAMEBUFFER, destination.fbo);
           }
           if (clear) {
-            gl.clearColor(config.BACK_COLOR.r, config.BACK_COLOR.g, config.BACK_COLOR.b, 1.0);
+            gl.clearColor(0.0, 0.0, 0.0, 0.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
           }
           gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
@@ -789,7 +790,7 @@ const FluidCursor = () => {
 
       function render(target: any) {
         if (config.TRANSPARENT) {
-          gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
           gl.enable(gl.BLEND);
         } else {
           gl.disable(gl.BLEND);
@@ -803,7 +804,7 @@ const FluidCursor = () => {
           gl.uniform2f(displayMaterial.uniforms['texelSize']!, 1.0 / width, 1.0 / height);
         gl.uniform1i(displayMaterial.uniforms['uTexture']!, dye.read.attach(0));
 
-        blit(target, config.TRANSPARENT);
+        blit(target, true);
       }
 
       function splatPointer(pointer: any) {
