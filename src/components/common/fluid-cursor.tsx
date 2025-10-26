@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useRef, useEffect } from 'react';
 
@@ -48,6 +49,15 @@ const FluidCursor = () => {
             pointers.push(new (pointerPrototype as any)());
 
             const { gl, ext } = getWebGLContext(canvas);
+            if (!gl || !ext) {
+                console.error("WebGL not supported or context could not be created.");
+                return;
+            }
+
+            if (ext.supportLinearFiltering === undefined) {
+                 // Fallback for when extension is not available
+                 ext.supportLinearFiltering = false;
+            }
 
             if (!ext.supportLinearFiltering) {
                 config.DYE_RESOLUTION = 512;
@@ -63,6 +73,8 @@ const FluidCursor = () => {
                 if (!isWebGL2)
                     gl = canvas.getContext('webgl', params) || canvas.getContext('experimental-webgl', params);
 
+                if (!gl) return { gl: null, ext: {} };
+
                 let halfFloat: any;
                 let supportLinearFiltering;
                 if (isWebGL2 && gl) {
@@ -77,7 +89,7 @@ const FluidCursor = () => {
                     gl.clearColor(0.0, 0.0, 0.0, 1.0);
                 }
 
-                const halfFloatTexType = isWebGL2 && gl ? (gl as WebGL2RenderingContext).HALF_FLOAT : halfFloat.HALF_FLOAT_OES;
+                const halfFloatTexType = isWebGL2 && gl && (gl as WebGL2RenderingContext).HALF_FLOAT ? (gl as WebGL2RenderingContext).HALF_FLOAT : (halfFloat ? halfFloat.HALF_FLOAT_OES : null);
                 let formatRGBA;
                 let formatRG;
                 let formatR;
@@ -136,7 +148,13 @@ const FluidCursor = () => {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
 
-                let status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+                const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+
+                // Clean up
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                gl.deleteTexture(texture);
+                gl.deleteFramebuffer(fbo);
+
                 return status == gl.FRAMEBUFFER_COMPLETE;
             }
 
@@ -218,7 +236,7 @@ const FluidCursor = () => {
                 return uniforms;
             }
 
-            function compileShader(type: number, source: string, keywords?: string[]) {
+            function compileShader(type: number, source: string, keywords?: string[]| null) {
                 source = addKeywords(source, keywords);
 
                 const shader = gl.createShader(type);
@@ -232,7 +250,7 @@ const FluidCursor = () => {
                 return shader;
             };
 
-            function addKeywords(source: string, keywords?: string[]) {
+            function addKeywords(source: string, keywords?: string[]| null) {
                 if (keywords == null) return source;
                 let keywordsString = '';
                 keywords.forEach(keyword => {
@@ -262,9 +280,10 @@ const FluidCursor = () => {
 
             const clearShader = compileShader(gl.FRAGMENT_SHADER, `
               precision mediump float;
+              uniform sampler2D uTexture;
               uniform float value;
               void main () {
-                  gl_FragColor = vec4(value);
+                gl_FragColor = value * texture2D(uTexture, vUv);
               }
             `);
             
@@ -439,13 +458,18 @@ const FluidCursor = () => {
             `);
 
             const blit = (() => {
-                gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+                const quadBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
                 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]), gl.STATIC_DRAW);
-                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
+                const elBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elBuffer);
                 gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
-                const aPosition = gl.getAttribLocation(baseVertexShader, 'aPosition');
-                gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
+                
+                // Create a simple program to get attribute location
+                const simpleProgram = createProgram(baseVertexShader, copyShader);
+                const aPosition = gl.getAttribLocation(simpleProgram, 'aPosition');
                 gl.enableVertexAttribArray(aPosition);
+                gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
 
                 return (target: any, clear = false) => {
                     if (target == null) {
@@ -482,6 +506,7 @@ const FluidCursor = () => {
             const displayMaterial = new Material(baseVertexShader, displayShaderSource);
 
             function initFramebuffers() {
+                if (!ext.formatRGBA || !ext.formatRG || !ext.formatR) return;
                 let simRes = getResolution(config.SIM_RESOLUTION);
                 let dyeRes = getResolution(config.DYE_RESOLUTION);
 
@@ -731,7 +756,6 @@ fbo2 = temp;
             function updateKeywords() {
                 let displayKeywords = [];
                 if (config.SHADING) displayKeywords.push("SHADING");
-                if (config.COLORFUL) displayKeywords.push("COLORFUL");
                 displayMaterial.setKeywords(displayKeywords);
             }
 
