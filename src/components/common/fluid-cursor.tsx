@@ -24,7 +24,7 @@ const FluidCursor = () => {
         PRESSURE: 0.8,
         PRESSURE_ITERATIONS: 20,
         CURL: 30,
-        SPLAT_RADIUS: 0.1,
+        SPLAT_RADIUS: 0.05,
         SPLAT_FORCE: 3000,
         SHADING: true,
         COLORFUL: true,
@@ -63,7 +63,6 @@ const FluidCursor = () => {
       if (!ext.supportLinearFiltering) {
         config.DYE_RESOLUTION = 512;
         config.SHADING = false;
-        config.COLORFUL = false;
       }
 
       function getWebGLContext(canvas: HTMLCanvasElement) {
@@ -274,22 +273,6 @@ const FluidCursor = () => {
               vR = vUv + vec2(texelSize.x, 0.0);
               vT = vUv + vec2(0.0, texelSize.y);
               vB = vUv - vec2(0.0, texelSize.y);
-              gl_Position = vec4(aPosition, 0.0, 1.0);
-          }
-      `);
-
-      const blurVertexShader = compileShader(gl.VERTEX_SHADER, `
-          precision highp float;
-          attribute vec2 aPosition;
-          varying vec2 vUv;
-          varying vec2 vL;
-          varying vec2 vR;
-          uniform vec2 texelSize;
-          void main () {
-              vUv = aPosition * 0.5 + 0.5;
-              float offset = 1.33333333;
-              vL = vUv - texelSize * offset;
-              vR = vUv + texelSize * offset;
               gl_Position = vec4(aPosition, 0.0, 1.0);
           }
       `);
