@@ -89,7 +89,12 @@ const FluidCursor = () => {
           supportLinearFiltering = gl.getExtension('OES_texture_half_float_linear');
         }
 
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        if(config.TRANSPARENT){
+            gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        } else {
+            gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        }
+
 
         const halfFloatTexType = isWebGL2 ? (gl as WebGL2RenderingContext).HALF_FLOAT : (halfFloat as any).HALF_FLOAT_OES;
         let formatRGBA = getSupportedFormat(gl, isWebGL2 ? (gl as WebGL2RenderingContext).RGBA16F : gl.RGBA, gl.RGBA, halfFloatTexType);
@@ -798,7 +803,7 @@ const FluidCursor = () => {
           gl.uniform2f(displayMaterial.uniforms['texelSize']!, 1.0 / width, 1.0 / height);
         gl.uniform1i(displayMaterial.uniforms['uTexture']!, dye.read.attach(0));
 
-        blit(target);
+        blit(target, config.TRANSPARENT);
       }
 
       function splatPointer(pointer: any) {
