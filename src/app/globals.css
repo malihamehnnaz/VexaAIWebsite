@@ -64,28 +64,42 @@
     scroll-behavior: smooth;
   }
 
-  .cursor, .trail {
+  .cursor {
     position: fixed;
-    top: 0;
-    left: 0;
-    pointer-events: none;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
+    background: #fff;
+    transition: 0.1s;
     transform: translate(-50%, -50%);
+    pointer-events: none;
+    mix-blend-mode: difference;
     z-index: 9999;
   }
 
-  .cursor {
-    width: 8px;
-    height: 8px;
-    background-color: white;
+  body span {
+    position: fixed;
+    width: 30px;
+    height: 30px;
+    background: #fff;
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    animation: smoke 1s linear infinite;
     mix-blend-mode: difference;
+    z-index: 9998;
   }
-  
-  .trail {
-    width: 40px;
-    height: 40px;
-    background-color: white;
-    mix-blend-mode: difference;
-    filter: blur(10px);
+
+  @keyframes smoke {
+    0% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+      filter: blur(5px);
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0;
+      filter: blur(10px);
+    }
   }
 }
