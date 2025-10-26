@@ -1,76 +1,41 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
-import useMousePosition from '@/hooks/use-mouse-position';
-
-const colors = [
-  '#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#8b00ff',
-  '#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#8b00ff',
-  '#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082'
-];
+import { useEffect } from 'react';
 
 export default function CustomCursor() {
-  const { x, y } = useMousePosition();
-  const trailRefs = useRef<HTMLDivElement[]>([]);
-  const coords = useRef({ x: 0, y: 0 });
-  const animationFrameId = useRef<number | null>(null);
-
   useEffect(() => {
-    coords.current = { x: x || 0, y: y || 0 };
-  }, [x, y]);
+    const cursor = document.querySelector('.cursor') as HTMLElement;
+    if (!cursor) return;
 
-  useEffect(() => {
-    trailRefs.current = trailRefs.current.slice(0, colors.length);
+    const onMouseMove = (e: MouseEvent) => {
+      // Use clientX/Y for viewport-relative coordinates
+      cursor.style.left = e.clientX + 'px';
+      cursor.style.top = e.clientY + 'px';
 
-    const animateTrail = () => {
-      const p1 = trailRefs.current[0];
-      
-      if(p1) {
-        p1.style.left = coords.current.x + 'px';
-        p1.style.top = coords.current.y + 'px';
-      }
+      const span = document.createElement('span');
+      span.classList.add('trail');
+      // Position trail relative to the viewport, not the page
+      span.style.left = (e.clientX - 10) + 'px'; // Adjust for half of trail width
+      span.style.top = (e.clientY - 10) + 'px'; // Adjust for half of trail height
 
-      trailRefs.current.forEach((dot, index, arr) => {
-        const nextDot = arr[index + 1] || arr[0];
+      const size = Math.random() * 10;
+      span.style.width = (20 + size) + 'px';
+      span.style.height = (20 + size) + 'px';
 
-        if(dot && nextDot && nextDot.style.left && nextDot.style.top) {
-            // Check to avoid setting position from an un-initialized element
-            if(index !== 0) { 
-                dot.style.left = nextDot.style.left;
-                dot.style.top = nextDot.style.top;
-            }
-        }
-      });
+      document.body.appendChild(span);
 
-      animationFrameId.current = requestAnimationFrame(animateTrail);
+      setTimeout(() => {
+        document.body.removeChild(span);
+      }, 500); // Corresponds to animation duration
     };
-    
-    // Start animation only when refs are populated
-    if (trailRefs.current.length > 0) {
-        animationFrameId.current = requestAnimationFrame(animateTrail);
-    }
-    
+
+    window.addEventListener('mousemove', onMouseMove);
+
     return () => {
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
+      window.removeEventListener('mousemove', onMouseMove);
     };
-  }, [colors.length]);
+  }, []);
 
-
-  return (
-    <div className="cursor">
-      {colors.map((color, index) => (
-        <div
-          key={index}
-          ref={(el) => {
-            if (el) trailRefs.current[index] = el;
-          }}
-          className="trail"
-          style={{ backgroundColor: color }}
-        />
-      ))}
-    </div>
-  );
+  return <div className="cursor" />;
 }
