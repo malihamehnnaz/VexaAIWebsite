@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -20,27 +21,34 @@ export default function CustomCursor() {
   }, [x, y]);
 
   useEffect(() => {
+    trailRefs.current = trailRefs.current.slice(0, colors.length);
+
     const animateTrail = () => {
       const p1 = trailRefs.current[0];
-      const p2 = trailRefs.current[1];
       
       if(p1) {
-        p1.style.top = coords.current.y + 'px';
         p1.style.left = coords.current.x + 'px';
+        p1.style.top = coords.current.y + 'px';
       }
 
-      trailRefs.current.forEach((dot, index,_arr) => {
-        const nextDot = _arr[index + 1] || _arr[0];
-        
-        dot.style.top = nextDot.style.top;
-        dot.style.left = nextDot.style.left;
+      trailRefs.current.forEach((dot, index, arr) => {
+        const nextDot = arr[index + 1] || arr[0];
+
+        if(dot && nextDot && nextDot.style.left && nextDot.style.top) {
+            // Check to avoid setting position from an un-initialized element
+            if(index !== 0) { 
+                dot.style.left = nextDot.style.left;
+                dot.style.top = nextDot.style.top;
+            }
+        }
       });
 
       animationFrameId.current = requestAnimationFrame(animateTrail);
     };
-
+    
+    // Start animation only when refs are populated
     if (trailRefs.current.length > 0) {
-      animationFrameId.current = requestAnimationFrame(animateTrail);
+        animationFrameId.current = requestAnimationFrame(animateTrail);
     }
     
     return () => {
@@ -48,7 +56,7 @@ export default function CustomCursor() {
         cancelAnimationFrame(animationFrameId.current);
       }
     };
-  }, [trailRefs.current.length]);
+  }, [colors.length]);
 
 
   return (
