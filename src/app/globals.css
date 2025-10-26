@@ -66,28 +66,25 @@
 
   .cursor {
     position: fixed;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #fff;
-    transition: 0.1s;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    mix-blend-mode: difference;
-    z-index: 9999;
-  }
-
-  body span {
-    position: fixed;
     width: 30px;
     height: 30px;
-    background: #fff;
     border-radius: 50%;
     pointer-events: none;
     transform: translate(-50%, -50%);
-    animation: smoke 1s linear infinite;
+    z-index: 9999;
+    background: #fff;
     mix-blend-mode: difference;
+  }
+
+  .cursor-trail {
+    position: fixed;
+    pointer-events: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
     z-index: 9998;
+    animation: smoke 1s linear forwards;
   }
 
   @keyframes smoke {
@@ -99,7 +96,7 @@
     100% {
       transform: translate(-50%, -50%) scale(0);
       opacity: 0;
-      filter: blur(10px);
+      filter: blur(20px);
     }
   }
 }

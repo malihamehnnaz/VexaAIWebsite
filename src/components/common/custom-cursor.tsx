@@ -1,25 +1,37 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export default function CustomCursor() {
-  useEffect(() => {
-    const cursor = document.querySelector('.cursor');
-    if (!cursor) return;
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const colorIndex = useRef(0);
 
+  const colors = [
+    '#ff0000', '#ff7f00', '#ffff00', '#00ff00', 
+    '#0000ff', '#4b0082', '#9400d3'
+  ];
+
+  useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       const { clientX, clientY } = e;
-      if (cursor) {
-        cursor.setAttribute('style', `top: ${clientY}px; left: ${clientX}px;`);
+      if (cursorRef.current) {
+        cursorRef.current.style.left = `${clientX}px`;
+        cursorRef.current.style.top = `${clientY}px`;
       }
 
-      const smoke = document.createElement('span');
-      smoke.setAttribute('style', `top: ${clientY - 15}px; left: ${clientX - 15}px;`);
-      document.body.appendChild(smoke);
+      const trail = document.createElement('span');
+      trail.className = 'cursor-trail';
+      document.body.appendChild(trail);
+
+      trail.style.left = `${clientX}px`;
+      trail.style.top = `${clientY}px`;
+      
+      trail.style.background = colors[colorIndex.current];
+      colorIndex.current = (colorIndex.current + 1) % colors.length;
 
       setTimeout(() => {
-        smoke.remove();
+        trail.remove();
       }, 1000);
     };
 
@@ -28,7 +40,7 @@ export default function CustomCursor() {
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
     };
-  }, []);
+  }, [colors]);
 
-  return <div className="cursor" />;
+  return <div ref={cursorRef} className="cursor" />;
 }
