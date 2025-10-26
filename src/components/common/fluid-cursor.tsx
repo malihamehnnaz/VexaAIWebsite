@@ -68,10 +68,11 @@ const FluidCursor = () => {
             function getWebGLContext(canvas: HTMLCanvasElement) {
                 const params = { alpha: true, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: false };
 
-                let gl = canvas.getContext('webgl2', params);
+                let gl = canvas.getContext('webgl2', params) as WebGL2RenderingContext | null;
                 const isWebGL2 = !!gl;
-                if (!isWebGL2)
-                    gl = canvas.getContext('webgl', params) || canvas.getContext('experimental-webgl', params);
+                if (!isWebGL2) {
+                    gl = (canvas.getContext('webgl', params) || canvas.getContext('experimental-webgl', params)) as WebGLRenderingContext | null;
+                }
 
                 if (!gl) return { gl: null, ext: {} };
 
@@ -163,7 +164,7 @@ const FluidCursor = () => {
                 fragmentShaderSource: string;
                 programs: any[];
                 activeProgram: WebGLProgram | null;
-                uniforms: any[];
+                uniforms: { [key: string]: WebGLUniformLocation | null };
 
                 constructor(vertexShader: WebGLShader, fragmentShaderSource: string) {
                     this.vertexShader = vertexShader;
@@ -180,15 +181,18 @@ const FluidCursor = () => {
 
                     let program = this.programs[hash];
                     if (program == null) {
-                        let fragmentShader = compileShader(gl.FRAGMENT_SHADER, this.fragmentShaderSource, keywords);
+                        const fragmentShader = compileShader(gl.FRAGMENT_SHADER, this.fragmentShaderSource, keywords);
+                        if (!fragmentShader) return;
                         program = createProgram(this.vertexShader, fragmentShader);
                         this.programs[hash] = program;
                     }
 
                     if (program == this.activeProgram) return;
 
-                    this.uniforms = getUniforms(program);
-                    this.activeProgram = program;
+                    if (program) {
+                      this.uniforms = getUniforms(program);
+                      this.activeProgram = program;
+                    }
                 }
 
                 bind() {
@@ -197,12 +201,14 @@ const FluidCursor = () => {
             }
 
             class Program {
-                uniforms: { [key: string]: WebGLUniformLocation };
+                uniforms: { [key: string]: WebGLUniformLocation | null };
                 program: WebGLProgram;
 
                 constructor(vertexShader: WebGLShader, fragmentShader: WebGLShader) {
                     this.uniforms = {};
-                    this.program = createProgram(vertexShader, fragmentShader);
+                    const program = createProgram(vertexShader, fragmentShader);
+                    if (!program) throw new Error("Failed to create program");
+                    this.program = program
                     this.uniforms = getUniforms(this.program);
                 }
 
@@ -236,7 +242,7 @@ const FluidCursor = () => {
                 return uniforms;
             }
 
-            function compileShader(type: number, source: string, keywords?: string[]| null) {
+            function compileShader(type: number, source: string, keywords?: string[] | null) {
                 source = addKeywords(source, keywords);
 
                 const shader = gl.createShader(type);
@@ -244,8 +250,10 @@ const FluidCursor = () => {
                 gl.shaderSource(shader, source);
                 gl.compileShader(shader);
 
-                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
                     console.trace(gl.getShaderInfoLog(shader));
+                    return null;
+                }
 
                 return shader;
             };
@@ -278,10 +286,13 @@ const FluidCursor = () => {
               }
             `);
 
+            if (!baseVertexShader) return;
+
             const clearShader = compileShader(gl.FRAGMENT_SHADER, `
               precision mediump float;
               uniform sampler2D uTexture;
               uniform float value;
+              varying highp vec2 vUv;
               void main () {
                 gl_FragColor = value * texture2D(uTexture, vUv);
               }
@@ -456,6 +467,11 @@ const FluidCursor = () => {
                     gl_FragColor = texture2D(uTexture, vUv);
                 }
             `);
+            
+            if (!copyShader || !clearShader || !splatShader || !advectionShader || !divergenceShader || !curlShader || !vorticityShader || !pressureShader || !gradientSubtractShader) {
+              console.error("Failed to compile one or more shaders");
+              return;
+            }
 
             const blit = (() => {
                 const quadBuffer = gl.createBuffer();
@@ -465,8 +481,9 @@ const FluidCursor = () => {
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elBuffer);
                 gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
                 
-                // Create a simple program to get attribute location
                 const simpleProgram = createProgram(baseVertexShader, copyShader);
+                if (!simpleProgram) return () => {};
+
                 const aPosition = gl.getAttribLocation(simpleProgram, 'aPosition');
                 gl.enableVertexAttribArray(aPosition);
                 gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
@@ -592,7 +609,7 @@ const FluidCursor = () => {
                     swap() {
                         let temp = fbo1;
                         fbo1 = fbo2;
-fbo2 = temp;
+                        fbo2 = temp;
                     }
                 }
             }
@@ -630,7 +647,8 @@ fbo2 = temp;
                     initFramebuffers();
                 updateColors(dt);
                 applyInputs();
-                step(dt);
+                if (!config.PAUSED)
+                  step(dt);
                 render(null);
                 animationFrameId = requestAnimationFrame(update);
             }
@@ -748,6 +766,7 @@ fbo2 = temp;
                 }
                 else {
                     gl.blendFunc(gl.ONE, gl.ONE);
+                    gl.disable(gl.BLEND);
                 }
 
                 drawDisplay(target);
@@ -801,9 +820,11 @@ fbo2 = temp;
             
             const mouseMoveHandler = (e: MouseEvent) => {
                 let pointer = pointers[0];
-                let posX = scaleByPixelRatio(e.clientX);
-                let posY = scaleByPixelRatio(e.clientY);
-                updatePointerMoveData(pointer, posX, posY);
+                if (!pointer.down) {
+                    let posX = scaleByPixelRatio(e.clientX);
+                    let posY = scaleByPixelRatio(e.clientY);
+                    updatePointerMoveData(pointer, posX, posY);
+                }
             };
 
             const mouseDownHandler = (e: MouseEvent) => {
@@ -960,15 +981,15 @@ fbo2 = temp;
             window.addEventListener('touchmove', touchMoveHandler, false);
             window.addEventListener('touchend', touchEndHandler, false);
 
-            let hasMoved = false;
-            const initialMoveHandler = () => {
-                if(!hasMoved) {
+            let hasStarted = false;
+            const startAnimation = () => {
+                if(!hasStarted) {
                     update();
-                    hasMoved = true;
+                    hasStarted = true;
                 }
             }
-            window.addEventListener('mousemove', initialMoveHandler, { once: true });
-            window.addEventListener('touchstart', initialMoveHandler, { once: true });
+            window.addEventListener('mousemove', startAnimation, { once: true });
+            window.addEventListener('touchstart', startAnimation, { once: true });
             
             return () => {
                 cancelAnimationFrame(animationFrameId);
@@ -978,8 +999,8 @@ fbo2 = temp;
                 window.removeEventListener('touchstart', touchStartHandler);
                 window.removeEventListener('touchmove', touchMoveHandler);
                 window.removeEventListener('touchend', touchEndHandler);
-                window.removeEventListener('mousemove', initialMoveHandler);
-                window.removeEventListener('touchstart', initialMoveHandler);
+                window.removeEventListener('mousemove', startAnimation);
+                window.removeEventListener('touchstart', startAnimation);
             };
 
         };
@@ -993,3 +1014,5 @@ fbo2 = temp;
 };
 
 export default FluidCursor;
+
+    
