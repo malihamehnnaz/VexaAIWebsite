@@ -19,13 +19,13 @@ const FluidCursor = () => {
         SIM_RESOLUTION: 128,
         DYE_RESOLUTION: 1024,
         CAPTURE_RESOLUTION: 512,
-        DENSITY_DISSIPATION: 1,
-        VELOCITY_DISSIPATION: 0.2,
+        DENSITY_DISSIPATION: 4,
+        VELOCITY_DISSIPATION: 0.8,
         PRESSURE: 0.8,
         PRESSURE_ITERATIONS: 20,
         CURL: 30,
-        SPLAT_RADIUS: 0.05,
-        SPLAT_FORCE: 3000,
+        SPLAT_RADIUS: 0.02,
+        SPLAT_FORCE: 2000,
         SHADING: true,
         COLORFUL: true,
         COLOR_UPDATE_SPEED: 10,
@@ -1029,7 +1029,7 @@ const FluidCursor = () => {
     };
     
     // The component was unmounted, so we should stop the animation
-    let cleanup: () => void;
+    let cleanup: (() => void) | undefined;
     if (canvas) {
       cleanup = initFluid();
     }
@@ -1044,3 +1044,5 @@ const FluidCursor = () => {
 };
 
 export default FluidCursor;
+
+    
