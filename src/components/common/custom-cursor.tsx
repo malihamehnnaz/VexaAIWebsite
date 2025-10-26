@@ -3,53 +3,66 @@
 import { useEffect, useRef } from 'react';
 import useMousePosition from '@/hooks/use-mouse-position';
 
+const colors = [
+  '#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#8b00ff',
+  '#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#8b00ff',
+  '#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082'
+];
+
 export default function CustomCursor() {
-  const cursorRef = useRef<HTMLDivElement>(null);
   const { x, y } = useMousePosition();
-  const trailRef = useRef<HTMLSpanElement[]>([]);
+  const trailRefs = useRef<HTMLDivElement[]>([]);
+  const coords = useRef({ x: 0, y: 0 });
+  const animationFrameId = useRef<number | null>(null);
 
   useEffect(() => {
-    if (cursorRef.current && x !== null && y !== null) {
-      cursorRef.current.style.top = y + 'px';
-      cursorRef.current.style.left = x + 'px';
-    }
+    coords.current = { x: x || 0, y: y || 0 };
   }, [x, y]);
-  
-  useEffect(() => {
-    const createSmokeTrail = (eX: number, eY: number) => {
-        if (!cursorRef.current) return;
-        const span = document.createElement('span');
-        cursorRef.current.appendChild(span);
-        trailRef.current.push(span);
 
-        const size = Math.random() * 50;
-        span.style.width = 20 + size + 'px';
-        span.style.height = 20 + size + 'px';
-        span.style.top = eY + 'px';
-        span.style.left = eX + 'px';
+  useEffect(() => {
+    const animateTrail = () => {
+      const p1 = trailRefs.current[0];
+      const p2 = trailRefs.current[1];
+      
+      if(p1) {
+        p1.style.top = coords.current.y + 'px';
+        p1.style.left = coords.current.x + 'px';
+      }
+
+      trailRefs.current.forEach((dot, index,_arr) => {
+        const nextDot = _arr[index + 1] || _arr[0];
         
-        setTimeout(() => {
-            cursorRef.current?.removeChild(span);
-            trailRef.current.shift();
-        }, 1000);
+        dot.style.top = nextDot.style.top;
+        dot.style.left = nextDot.style.left;
+      });
+
+      animationFrameId.current = requestAnimationFrame(animateTrail);
+    };
+
+    if (trailRefs.current.length > 0) {
+      animationFrameId.current = requestAnimationFrame(animateTrail);
     }
     
-    const handleMouseMove = (e: MouseEvent) => {
-        createSmokeTrail(e.clientX, e.clientY);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-
     return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        trailRef.current.forEach(span => {
-            if (cursorRef.current && cursorRef.current.contains(span)) {
-                cursorRef.current.removeChild(span);
-            }
-        });
-        trailRef.current = [];
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
     };
-  }, []);
+  }, [trailRefs.current.length]);
 
-  return <div ref={cursorRef} className="cursor" />;
+
+  return (
+    <div className="cursor">
+      {colors.map((color, index) => (
+        <div
+          key={index}
+          ref={(el) => {
+            if (el) trailRefs.current[index] = el;
+          }}
+          className="trail"
+          style={{ backgroundColor: color }}
+        />
+      ))}
+    </div>
+  );
 }

@@ -72,27 +72,12 @@
     z-index: 9999;
   }
   
-  .cursor span {
-      position: absolute;
-      width: 50px;
-      height: 50px;
-      background: hsl(var(--primary));
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      animation: smoke 1s linear forwards;
-      mix-blend-mode: screen;
-  }
-
-  @keyframes smoke {
-      0% {
-          transform: translate(-50%, -50%) scale(1);
-          opacity: 1;
-          filter: blur(5px);
-      }
-      100% {
-          transform: translate(-50%, -50%) scale(0);
-          opacity: 0;
-          filter: blur(10px);
-      }
+  .trail {
+    position: absolute;
+    height: 6px;
+    width: 6px;
+    border-radius: 3px;
+    background: teal;
+    pointer-events: none;
   }
 }
