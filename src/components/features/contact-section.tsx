@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { companyContact } from '@/content/site-content';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -68,15 +69,15 @@ export default function ContactSection() {
             <div className="space-y-4 pt-4">
                 <div className="flex items-center gap-4">
                     <Mail className="h-6 w-6 text-accent"/>
-                    <a href="mailto:contact@vexa.ai" className="text-lg hover:text-primary transition-colors">contact@vexa.ai</a>
+                <a href={`mailto:${companyContact.email}`} className="text-lg hover:text-primary transition-colors">{companyContact.email}</a>
                 </div>
                 <div className="flex items-center gap-4">
                     <Phone className="h-6 w-6 text-accent"/>
-                    <a href="tel:+1234567890" className="text-lg hover:text-primary transition-colors">+1 (234) 567-890</a>
+                <a href={companyContact.phoneHref} className="text-lg hover:text-primary transition-colors">{companyContact.phone}</a>
                 </div>
                 <div className="flex items-center gap-4">
                     <MapPin className="h-6 w-6 text-accent"/>
-                    <span className="text-lg">Umeå, Sweden</span>
+                <span className="text-lg">{companyContact.address}</span>
                 </div>
             </div>
           </div>

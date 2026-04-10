@@ -1,33 +1,21 @@
-import Header from '@/components/common/header';
-import HeroSection from '@/components/features/hero-section';
-import ServicesSection from '@/components/features/services-section';
-import AboutSection from '@/components/features/about-section';
-import WhyChooseUsSection from '@/components/features/why-choose-us-section';
-import PortfolioSection from '@/components/features/portfolio-section';
-import PricingSection from '@/components/features/pricing-section';
-import RecommendationTool from '@/components/features/recommendation-tool';
-import BlogSection from '@/components/features/blog-section';
-import ContactSection from '@/components/features/contact-section';
-import Footer from '@/components/common/footer';
-import AIChatbot from '@/components/features/ai-chatbot';
+import Hero from '@/components/pages/home/hero';
+import Services from '@/components/pages/home/services';
+import FeaturedSolutions from '@/components/pages/home/featured-solutions';
+import Testimonials from '@/components/pages/home/testimonials';
+import CaseStudies from '@/components/pages/home/case-studies';
+import TechStack from '@/components/pages/home/tech-stack';
+import Cta from '@/components/pages/home/cta';
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <Header />
-      <main className="flex-grow">
-        <HeroSection />
-        <ServicesSection />
-        <AboutSection />
-        <WhyChooseUsSection />
-        <PortfolioSection />
-        <PricingSection />
-        <RecommendationTool />
-        <BlogSection />
-        <ContactSection />
-      </main>
-      <Footer />
-      <AIChatbot />
-    </div>
+    <>
+      <Hero />
+      <Services />
+      <FeaturedSolutions />
+      <Testimonials />
+      <CaseStudies />
+      <TechStack />
+      <Cta />
+    </>
   );
 }

@@ -17,11 +17,12 @@ export default {
     },
     extend: {
       fontFamily: {
-        body: ['PT Sans', 'sans-serif'],
-        headline: ['Space Grotesk', 'sans-serif'],
-        code: ['monospace'],
+        body: ['var(--font-inter)', 'sans-serif'],
+        headline: ['var(--font-poppins)', 'sans-serif'],
       },
       colors: {
+        'glass-start': 'rgba(255, 255, 255, 0.1)',
+        'glass-end': 'rgba(255, 255, 255, 0.01)',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {
@@ -79,6 +80,14 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       keyframes: {
+        'gradient-fade': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        'blob-spin': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
         'accordion-down': {
           from: {
             height: '0',
@@ -97,9 +106,14 @@ export default {
         },
       },
       animation: {
+        'gradient-fade': 'gradient-fade 1s ease-in-out forwards',
+        'blob-spin': 'blob-spin 20s linear infinite',
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
       },
+      backgroundImage: {
+        'hero-gradient': "radial-gradient(ellipse 80% 80% at 50% -20%,rgba(120,119,198,0.3), hsla(0,0%,100%,0))",
+      }
     },
   },
   plugins: [require('tailwindcss-animate')],

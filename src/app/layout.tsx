@@ -1,9 +1,24 @@
 import type { Metadata } from 'next';
-import { Toaster } from "@/components/ui/toaster"
+import { Inter, Poppins } from 'next/font/google';
 import './globals.css';
-import { PageTransition } from '@/components/common/page-transition';
-import { FirebaseClientProvider } from '@/firebase';
-import FluidCursor from '@/components/common/fluid-cursor';
+import ClientOverlays from '@/components/common/client-overlays';
+import { patchBrokenServerStorage } from '@/lib/storage-polyfill';
+import { cn } from '@/lib/utils';
+import SiteShell from '@/components/common/site-shell';
+import { ThemeProvider } from '@/components/common/theme-provider';
+
+patchBrokenServerStorage();
+
+const fontInter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+});
+
+const fontPoppins = Poppins({
+  subsets: ['latin'],
+  weight: ['600', '700'],
+  variable: '--font-poppins',
+});
 
 export const metadata: Metadata = {
   title: 'Vexa AI | AI, Software, and Cloud Solutions',
@@ -30,21 +45,22 @@ export default function RootLayout({
   const faviconDataUrl = `data:image/svg+xml;base64,${btoa(faviconSvg)}`;
 
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={cn(fontInter.variable, fontPoppins.variable, 'dark')} suppressHydrationWarning>
       <head>
         <link rel="icon" href={faviconDataUrl} type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-          <FirebaseClientProvider>
-            <PageTransition>
-              {children}
-            </PageTransition>
-            <Toaster />
-            <FluidCursor />
-          </FirebaseClientProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SiteShell>
+            {children}
+          </SiteShell>
+          <ClientOverlays />
+        </ThemeProvider>
       </body>
     </html>
   );
