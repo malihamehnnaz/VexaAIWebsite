@@ -10,11 +10,11 @@ import Logo from '@/components/common/logo'
 import { ThemeToggle } from './theme-toggle'
 
 const navLinks = [
+  { href: '/', label: 'Home' },
   { href: '/about', label: 'About' },
   { href: '/services', label: 'Services' },
   { href: '/solutions', label: 'Solutions' },
   { href: '/case-studies', label: 'Case Studies' },
-  { href: '/team', label: 'Team' },
   { href: '/blog', label: 'Blog' },
 ]
 
@@ -44,7 +44,7 @@ export default function Header() {
           <div className="hidden md:block">
             <ThemeToggle />
           </div>
-          <Button asChild>
+          <Button asChild className="hidden sm:inline-flex">
             <Link href="/contact">Contact Us</Link>
           </Button>
           <div className="md:hidden">

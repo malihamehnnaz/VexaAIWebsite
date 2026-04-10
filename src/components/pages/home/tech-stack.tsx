@@ -37,14 +37,15 @@ const tech = [
 
 const TechStack = () => {
   return (
-    <section className="py-24 bg-background">
+    <section className="py-14 md:py-16 bg-background">
       <div className="container mx-auto px-4">
         <SectionHeading
           title="Our Technology Stack"
           description="We use the best and most modern technologies to build our solutions."
+          className="space-y-3"
         />
         <Reveal>
-          <div className="mt-12 flex flex-wrap justify-center items-center gap-8 md:gap-12">
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-6 md:gap-8">
             {tech.map((item, index) => (
               <motion.div
                 key={index}

@@ -10,6 +10,132 @@ export default function FluidCursor() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const initFallbackSmoke = () => {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        type FallbackParticle = {
+            x: number;
+            y: number;
+            vx: number;
+            vy: number;
+            size: number;
+            alpha: number;
+            life: number;
+            ttl: number;
+            hue: number;
+        };
+
+        let animationFrameId = 0;
+        let ratio = window.devicePixelRatio || 1;
+        let lastX = window.innerWidth / 2;
+        let lastY = window.innerHeight / 2;
+        let active = false;
+        const particles: FallbackParticle[] = [];
+
+        const resize = () => {
+            ratio = window.devicePixelRatio || 1;
+            canvas.width = Math.floor(window.innerWidth * ratio);
+            canvas.height = Math.floor(window.innerHeight * ratio);
+            canvas.style.width = '100vw';
+            canvas.style.height = '100vh';
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.scale(ratio, ratio);
+        };
+
+        const spawn = (x: number, y: number, force: number) => {
+            const count = Math.max(3, Math.round(4 + force * 2));
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 18,
+                    y: y + (Math.random() - 0.5) * 18,
+                    vx: (Math.random() - 0.5) * 0.6,
+                    vy: (Math.random() - 0.5) * 0.6 - 0.35,
+                    size: 12 + Math.random() * 18 + force * 3,
+                    alpha: 0.05 + Math.random() * 0.04,
+                    life: 0,
+                    ttl: 36 + Math.random() * 18,
+                    hue: 250 + Math.random() * 50,
+                });
+            }
+        };
+
+        const onPointerMove = (event: PointerEvent) => {
+            const dx = event.clientX - lastX;
+            const dy = event.clientY - lastY;
+            const force = Math.min(8, Math.hypot(dx, dy) / 6);
+            lastX = event.clientX;
+            lastY = event.clientY;
+            active = true;
+            spawn(lastX, lastY, force);
+        };
+
+        const onPointerLeave = () => {
+            active = false;
+        };
+
+        const render = () => {
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            ctx.globalCompositeOperation = 'screen';
+            ctx.filter = 'blur(12px)';
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.vx *= 0.985;
+                particle.vy *= 0.985;
+                particle.size += 0.28;
+                particle.life += 1;
+                particle.alpha *= 0.976;
+
+                if (particle.life >= particle.ttl || particle.alpha < 0.004) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                const gradient = ctx.createRadialGradient(
+                    particle.x,
+                    particle.y,
+                    0,
+                    particle.x,
+                    particle.y,
+                    particle.size
+                );
+                gradient.addColorStop(0, `hsla(${particle.hue}, 100%, 72%, ${particle.alpha})`);
+                gradient.addColorStop(0.35, `hsla(${particle.hue + 18}, 100%, 64%, ${particle.alpha * 0.55})`);
+                gradient.addColorStop(1, `hsla(${particle.hue + 32}, 100%, 55%, 0)`);
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.filter = 'none';
+
+            if (active && Math.random() > 0.45) {
+                spawn(lastX, lastY, 1.5);
+            }
+
+            animationFrameId = window.requestAnimationFrame(render);
+        };
+
+        resize();
+        window.addEventListener('resize', resize);
+        window.addEventListener('pointermove', onPointerMove, { passive: true });
+        window.addEventListener('pointerleave', onPointerLeave);
+        render();
+
+        return () => {
+            window.removeEventListener('resize', resize);
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerleave', onPointerLeave);
+            window.cancelAnimationFrame(animationFrameId);
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        };
+    };
+
     // This function wraps the entire logic to ensure it runs only on the client side.
     const initFluid = () => {
         resizeCanvas();
@@ -33,7 +159,7 @@ export default function FluidCursor() {
             TRANSPARENT: true,
         };
 
-        function pointerPrototype() {
+        function pointerPrototype(this: any) {
             this.id = -1;
             this.texcoordX = 0;
             this.texcoordY = 0;
@@ -49,12 +175,15 @@ export default function FluidCursor() {
         let pointers: any[] = [];
         pointers.push(new (pointerPrototype as any)());
 
-        const { gl, ext } = getWebGLContext(canvas);
+        const context = getWebGLContext(canvas);
 
-        if (gl === null || ext === null) {
+        if (context.gl === null || context.ext === null) {
             console.error("WebGL not supported or context creation failed.");
-            return;
+            return initFallbackSmoke();
         }
+
+        const gl = context.gl;
+        const ext = context.ext;
 
         if (!ext.supportLinearFiltering) {
             config.DYE_RESOLUTION = 512;
@@ -62,13 +191,22 @@ export default function FluidCursor() {
             config.COLORFUL = false;
         }
 
-        function getWebGLContext(canvas: HTMLCanvasElement) {
+        function getWebGLContext(canvas: HTMLCanvasElement): {
+            gl: WebGLRenderingContext | WebGL2RenderingContext | null;
+            ext: {
+                formatRGBA: any;
+                formatRG: any;
+                formatR: any;
+                halfFloatTexType: any;
+                supportLinearFiltering: any;
+            } | null;
+        } {
             const params = { alpha: true, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: false };
 
-            let gl = canvas.getContext('webgl2', params);
+            let gl: WebGLRenderingContext | WebGL2RenderingContext | null = canvas.getContext('webgl2', params) as WebGL2RenderingContext | null;
             const isWebGL2 = !!gl;
             if (!isWebGL2)
-                gl = canvas.getContext('webgl', params) || canvas.getContext('experimental-webgl', params);
+                gl = (canvas.getContext('webgl', params) || canvas.getContext('experimental-webgl', params)) as WebGLRenderingContext | null;
             
             if (!gl) return { gl: null, ext: null };
 
@@ -152,14 +290,14 @@ export default function FluidCursor() {
             fragmentShaderSource: string;
             programs: any[];
             activeProgram: WebGLProgram | null;
-            uniforms: any[];
+            uniforms: { [key: string]: WebGLUniformLocation | null };
 
             constructor(vertexShader: WebGLShader, fragmentShaderSource: string) {
                 this.vertexShader = vertexShader;
                 this.fragmentShaderSource = fragmentShaderSource;
                 this.programs = [];
                 this.activeProgram = null;
-                this.uniforms = [];
+                this.uniforms = {};
             }
 
             setKeywords(keywords: string[]) {
@@ -635,11 +773,11 @@ export default function FluidCursor() {
         }
 
         function resizeCanvas() {
-            let width = scaleByPixelRatio(canvas.clientWidth);
-            let height = scaleByPixelRatio(canvas.clientHeight);
-            if (canvas.width != width || canvas.height != height) {
-                canvas.width = width;
-                canvas.height = height;
+            let width = scaleByPixelRatio(canvas!.clientWidth);
+            let height = scaleByPixelRatio(canvas!.clientHeight);
+            if (canvas!.width != width || canvas!.height != height) {
+                canvas!.width = width;
+                canvas!.height = height;
                 return true;
             }
             return false;
@@ -775,7 +913,7 @@ export default function FluidCursor() {
             gl.viewport(0, 0, velocity.width, velocity.height);
             splatProgram.bind();
             gl.uniform1i(splatProgram.uniforms.uTarget, velocity.read.attach(0));
-            gl.uniform1f(splatProgram.uniforms.aspectRatio, canvas.width / canvas.height);
+            gl.uniform1f(splatProgram.uniforms.aspectRatio, canvas!.width / canvas!.height);
             gl.uniform2f(splatProgram.uniforms.point, x, y);
             gl.uniform3f(splatProgram.uniforms.color, dx, dy, 0.0);
             gl.uniform1f(splatProgram.uniforms.radius, correctRadius(config.SPLAT_RADIUS / 100.0));
@@ -790,13 +928,13 @@ export default function FluidCursor() {
         }
 
         function correctRadius(radius: number) {
-            let aspectRatio = canvas.width / canvas.height;
+            let aspectRatio = canvas!.width / canvas!.height;
             if (aspectRatio > 1)
                 radius *= aspectRatio;
             return radius;
         }
         
-        const onMouseMove = (e: MouseEvent) => {
+        const onPointerMove = (e: PointerEvent) => {
             let pointer = pointers[0];
             let posX = scaleByPixelRatio(e.clientX);
             let posY = scaleByPixelRatio(e.clientY);
@@ -807,8 +945,8 @@ export default function FluidCursor() {
         function updatePointerMoveData(pointer: any, posX: number, posY: number, color: any) {
             pointer.prevTexcoordX = pointer.texcoordX;
             pointer.prevTexcoordY = pointer.texcoordY;
-            pointer.texcoordX = posX / canvas.width;
-            pointer.texcoordY = 1.0 - posY / canvas.height;
+            pointer.texcoordX = posX / canvas!.width;
+            pointer.texcoordY = 1.0 - posY / canvas!.height;
             pointer.deltaX = correctDeltaX(pointer.texcoordX - pointer.prevTexcoordX);
             pointer.deltaY = correctDeltaY(pointer.texcoordY - pointer.prevTexcoordY);
             pointer.moved = Math.abs(pointer.deltaX) > 0 || Math.abs(pointer.deltaY) > 0;
@@ -816,13 +954,13 @@ export default function FluidCursor() {
         }
 
         function correctDeltaX(delta: number) {
-            let aspectRatio = canvas.width / canvas.height;
+            let aspectRatio = canvas!.width / canvas!.height;
             if (aspectRatio < 1) delta *= aspectRatio;
             return delta;
         }
 
         function correctDeltaY(delta: number) {
-            let aspectRatio = canvas.width / canvas.height;
+            let aspectRatio = canvas!.width / canvas!.height;
             if (aspectRatio > 1) delta /= aspectRatio;
             return delta;
         }
@@ -890,12 +1028,12 @@ export default function FluidCursor() {
             return hash;
         }
         
-        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('pointermove', onPointerMove, { passive: true });
 
         update();
 
         return () => {
-            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('pointermove', onPointerMove);
             cancelAnimationFrame(animationFrameId);
         }
     };

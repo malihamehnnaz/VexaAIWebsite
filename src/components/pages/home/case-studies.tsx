@@ -10,20 +10,21 @@ import Reveal from '@/components/common/reveal';
 
 const CaseStudies = () => {
   return (
-    <section className="py-24 bg-background/95">
+    <section className="py-14 md:py-16 bg-background/95">
       <div className="container mx-auto px-4">
         <SectionHeading
           title="Proven Success Stories"
           description="Explore how we've helped our clients overcome their challenges and achieve their goals."
+          className="space-y-3"
         />
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="mt-7 grid grid-cols-1 gap-6 md:grid-cols-2">
           {caseStudies.slice(0, 2).map((study, index) => (
             <Reveal key={index} delay={index * 0.1}>
               <CaseStudyCard {...study} />
             </Reveal>
           ))}
         </div>
-        <div className="mt-12 text-center">
+        <div className="mt-7 text-center">
           <Button asChild size="lg" variant="outline">
             <Link href="/case-studies">
               View All Case Studies <ArrowRight className="ml-2 h-5 w-5" />

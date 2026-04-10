@@ -1,7 +1,7 @@
 
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
 const heroImage = PlaceHolderImages.find(p => p.id === 'blog-post-3');
@@ -34,7 +34,6 @@ export default function BlogPostPage() {
             </h1>
             <div className="flex items-center gap-4 pt-4">
                 <Avatar>
-                    <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
                     <AvatarFallback>VAI</AvatarFallback>
                 </Avatar>
                 <div>

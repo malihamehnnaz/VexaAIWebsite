@@ -10,13 +10,14 @@ import Reveal from '@/components/common/reveal';
 
 const FeaturedSolutions = () => {
   return (
-    <section className="py-24 bg-background/95">
+    <section className="py-14 md:py-16 bg-background/95">
       <div className="container mx-auto px-4">
         <SectionHeading
           title="Tailored Solutions for Your Industry"
           description="We deliver solutions that are specifically designed to meet the unique challenges of your sector."
+          className="space-y-3"
         />
-        <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="mt-7 grid grid-cols-1 gap-6 lg:grid-cols-2">
           {solutions.slice(0, 2).map((solution, index) => (
             <Reveal key={index} delay={index * 0.1}>
               <SolutionCard {...solution} />

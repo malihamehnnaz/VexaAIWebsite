@@ -8,13 +8,14 @@ import { iconMap } from '@/components/common/icon-map';
 
 const Services = () => {
   return (
-    <section className="py-24 bg-background">
+    <section className="py-14 md:py-16 bg-background">
       <div className="container mx-auto px-4">
         <SectionHeading
           title="Our Expertise"
           description="We provide a wide range of services to help you achieve your business goals."
+          className="space-y-3"
         />
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="mt-7 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {services.map((service, index) => (
             <Reveal key={index} delay={index * 0.1}>
               <ServiceCard

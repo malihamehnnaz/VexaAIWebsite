@@ -8,13 +8,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const Testimonials = () => {
   return (
-    <section className="py-24 bg-background">
+    <section className="py-14 md:py-16 bg-background">
       <div className="container mx-auto px-4">
         <SectionHeading
           title="What Our Clients Say"
           description="We are proud to have earned the trust of our clients. Here's what they have to say about our work."
+          className="space-y-3"
         />
-        <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="mt-7 grid grid-cols-1 gap-6 lg:grid-cols-3">
           {testimonials.map((testimonial, index) => (
             <Reveal key={index} delay={index * 0.1}>
               <TestimonialCard {...testimonial} />
@@ -33,7 +34,7 @@ interface TestimonialCardProps {
   company: string;
 }
 
-const TestimonialCard = ({ quote, name, role, company }: TestimonialCardProps) => {
+const TestimonialCard = ({ quote, name, role }: TestimonialCardProps) => {
   const initials = name
     .split(' ')
     .map((part) => part[0])
@@ -57,7 +58,7 @@ const TestimonialCard = ({ quote, name, role, company }: TestimonialCardProps) =
         </div>
         <div className="ml-4">
           <p className="text-base font-bold text-foreground">{name}</p>
-          <p className="text-sm text-foreground/70">{role}, {company}</p>
+          <p className="text-sm text-foreground/70">{role}</p>
         </div>
       </div>
     </motion.div>

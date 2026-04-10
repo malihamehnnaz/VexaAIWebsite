@@ -1,18 +1,16 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Logo from '@/components/common/logo';
 
-function Loader() {
+export default function Loading() {
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-background/85 backdrop-blur-xl">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-background/90 backdrop-blur-xl">
       <div className="relative flex flex-col items-center gap-6">
         <motion.div
-          className="absolute h-40 w-40 rounded-full bg-primary/15 blur-3xl"
-          animate={{ scale: [0.9, 1.15, 0.9], opacity: [0.35, 0.65, 0.35] }}
-          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute h-44 w-44 rounded-full bg-primary/20 blur-3xl"
+          animate={{ scale: [0.92, 1.12, 0.92], opacity: [0.35, 0.7, 0.35] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
           className="relative z-10 rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-2xl"
@@ -39,39 +37,9 @@ function Loader() {
           />
         </div>
         <p className="relative z-10 text-sm uppercase tracking-[0.28em] text-muted-foreground">
-          Loading experience
+          Preparing Vexa AI
         </p>
       </div>
     </div>
-  );
-}
-
-
-export function PageTransition({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const [isTransitioning, setIsTransitioning] = useState(false);
-
-  useEffect(() => {
-    setIsTransitioning(true);
-    const timer = setTimeout(() => {
-      setIsTransitioning(false);
-    }, 650);
-
-    return () => clearTimeout(timer);
-  }, [pathname]);
-
-  return (
-    <AnimatePresence mode="sync">
-      {isTransitioning && <Loader />}
-      <motion.div
-        key={pathname}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.45, ease: 'easeInOut' }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
   );
 }
