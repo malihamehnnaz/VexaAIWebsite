@@ -1,7 +1,7 @@
 
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 
 interface CaseStudyCardProps {
   id: string;

@@ -7,12 +7,15 @@ const heroImage = PlaceHolderImages.find(p => p.id === 'blog-post-1');
 const inlineImage1 = PlaceHolderImages.find(p => p.id === 'blog-inline-1');
 const inlineImage2 = PlaceHolderImages.find(p => p.id === 'blog-inline-2');
 
+const hasImageUrl = <T extends {imageUrl?: string}>(image: T | undefined): image is T & {imageUrl: string} =>
+  Boolean(image?.imageUrl);
+
 
 export default function BlogPostPage() {
   return (
     <article className="w-full">
       <header className="relative h-[60vh] min-h-[400px] w-full flex items-end justify-center text-center text-white">
-        {heroImage && (
+        {hasImageUrl(heroImage) && (
           <Image
             src={heroImage.imageUrl}
             alt={heroImage.description}
@@ -54,7 +57,7 @@ export default function BlogPostPage() {
             Generative AI is more than just a buzzword; it's a revolutionary force that is fundamentally rewriting the rules of business. From startups to global enterprises, companies are harnessing its power to unlock unprecedented levels of efficiency, personalization, and innovation. At VexaAI, we're at the forefront of this transformation, and we're here to show you what's possible.
           </p>
 
-          {inlineImage1 && (
+          {hasImageUrl(inlineImage1) && (
             <div className="my-8 rounded-lg overflow-hidden shadow-xl">
                  <Image
                     src={inlineImage1.imageUrl}
@@ -78,7 +81,7 @@ export default function BlogPostPage() {
             Content is king, but its creation can be a major resource drain. Generative AI is changing the game by automating the creation of everything from blog posts and social media updates to product descriptions and ad copy. But it doesn't stop at text. AI can now generate stunning images, professional-quality video, and even original music, freeing up your creative teams to focus on strategy and high-level concepts.
           </p>
 
-          {inlineImage2 && (
+           {hasImageUrl(inlineImage2) && (
              <div className="my-8 rounded-lg overflow-hidden shadow-xl">
                 <Image
                     src={inlineImage2.imageUrl}

@@ -9,26 +9,62 @@
  * - AnswerCustomerQuestionsOutput - The return type for the answerCustomerQuestions function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {createHash} from 'crypto';
+import OpenAI, {AzureOpenAI} from 'openai';
+import {
+  blogPosts,
+  caseStudies,
+  companyContact,
+  companyStats,
+  services,
+  solutions,
+  teamMembers,
+} from '@/content/site-content';
 
-const AnswerCustomerQuestionsInputSchema = z.object({
-  question: z
-    .string()
-    .describe('The question from the customer about Vexa AI services.'),
-});
-export type AnswerCustomerQuestionsInput = z.infer<
-  typeof AnswerCustomerQuestionsInputSchema
->;
+const MAX_QUESTION_CHARS = 700;
+const MAX_RESPONSE_TOKENS = 220;
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const MIN_SCOPE_MATCHES = 1;
+const MAX_CACHE_ENTRIES = 200;
 
-const AnswerCustomerQuestionsOutputSchema = z.object({
-  answer: z
-    .string()
-    .describe('The answer to the customer question about Vexa AI services.'),
-});
-export type AnswerCustomerQuestionsOutput = z.infer<
-  typeof AnswerCustomerQuestionsOutputSchema
->;
+type CachedAnswer = {
+  answer: string;
+  expiresAt: number;
+};
+
+const answerCache = new Map<string, CachedAnswer>();
+let azureChatClient: AzureOpenAI | null = null;
+let openAICompatibleClient: OpenAI | null = null;
+
+const STOP_WORDS = new Set([
+  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'do', 'for', 'from', 'how',
+  'i', 'in', 'is', 'it', 'me', 'my', 'of', 'on', 'or', 'the', 'to', 'us', 'we',
+  'what', 'when', 'where', 'who', 'why', 'you', 'your', 'about', 'tell', 'does',
+  'can', 'could', 'would', 'should', 'please'
+]);
+
+const SCOPE_TERMS = [
+  'vexa', 'vexa ai', 'service', 'services', 'solution', 'solutions', 'contact',
+  'email', 'phone', 'address', 'location', 'office', 'headquarters', 'hq', 'team', 'leadership', 'ceo', 'cto',
+  'founder', 'finance', 'case study', 'case studies', 'cloud', 'devops',
+  'software', 'web', 'mobile', 'app', 'platform', 'saas', 'ai', 'chatbot',
+  'copilot', 'rag', 'agent', 'agents', 'automation', 'data', 'analytics',
+  'migration', 'custom software'
+];
+
+type KnowledgeEntry = {
+  title: string;
+  content: string;
+  keywords: string[];
+};
+
+export type AnswerCustomerQuestionsInput = {
+  question: string;
+};
+
+export type AnswerCustomerQuestionsOutput = {
+  answer: string;
+};
 
 export async function answerCustomerQuestions(
   input: AnswerCustomerQuestionsInput
@@ -36,28 +72,439 @@ export async function answerCustomerQuestions(
   return answerCustomerQuestionsFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'answerCustomerQuestionsPrompt',
-  input: {schema: AnswerCustomerQuestionsInputSchema},
-  output: {schema: AnswerCustomerQuestionsOutputSchema},
-  prompt: `You are a customer service representative for Vexa AI.
+const buildKnowledgeBase = () => {
+  const serviceContext = services
+    .map(
+      service =>
+        `- ${service.title}: ${service.summary} ${service.description} Benefits: ${service.benefits.join(', ')}. Use cases: ${service.useCases.join(', ')}.`
+    )
+    .join('\n');
 
-  Answer the following question about Vexa AI's services:
+  const solutionContext = solutions
+    .map(
+      solution =>
+        `- ${solution.title}: ${solution.summary} Problem: ${solution.problem} Solution: ${solution.solution} Impact: ${solution.impact}. Highlights: ${solution.highlights.join(', ')}.`
+    )
+    .join('\n');
 
-  Question: {{{question}}}
+  const caseStudyContext = caseStudies
+    .map(
+      study =>
+        `- ${study.title} (${study.sector}): ${study.overview} Problem: ${study.problem} Solution: ${study.solution} Metrics: ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`
+    )
+    .join('\n');
 
-  Be concise and professional in your response.
-  Vexa AI provides Gen AI, software development and cloud services.`,
-});
+  const teamContext = teamMembers
+    .slice(0, 5)
+    .map(member => `- ${member.name}: ${member.role}. ${member.bio}`)
+    .join('\n');
 
-const answerCustomerQuestionsFlow = ai.defineFlow(
+  const blogContext = blogPosts
+    .slice(0, 3)
+    .map(post => `- ${post.title}: ${post.excerpt}`)
+    .join('\n');
+
+  return `
+Vexa AI company facts:
+- Email: ${companyContact.email}
+- Phone: ${companyContact.phone}
+- Address: ${companyContact.address}
+- Key stats: ${companyStats.map(stat => `${stat.value} ${stat.label}`).join('; ')}
+
+Services:
+${serviceContext}
+
+Solutions:
+${solutionContext}
+
+Case studies:
+${caseStudyContext}
+
+Leadership and team:
+${teamContext}
+
+Blog and editorial topics:
+${blogContext}
+`.trim();
+};
+
+const KNOWLEDGE_BASE = buildKnowledgeBase();
+
+const KNOWLEDGE_ENTRIES: KnowledgeEntry[] = [
   {
-    name: 'answerCustomerQuestionsFlow',
-    inputSchema: AnswerCustomerQuestionsInputSchema,
-    outputSchema: AnswerCustomerQuestionsOutputSchema,
+    title: 'contact',
+    content: `You can contact Vexa AI at ${companyContact.email}, call ${companyContact.phone}, or visit ${companyContact.address}.`,
+    keywords: ['contact', 'email', 'phone', 'address', 'reach', 'call'],
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  ...services.map(service => ({
+    title: service.title,
+    content: `${service.title}: ${service.summary} ${service.description} Key benefits include ${service.benefits.join(', ')}. Common use cases include ${service.useCases.join(', ')}.`,
+    keywords: [service.title, service.slug, ...service.technologies, ...service.useCases],
+  })),
+  ...solutions.map(solution => ({
+    title: solution.title,
+    content: `${solution.title}: ${solution.summary} ${solution.solution} Business impact: ${solution.impact}.`,
+    keywords: [solution.title, solution.slug, ...solution.highlights],
+  })),
+  ...caseStudies.map(study => ({
+    title: study.title,
+    content: `${study.title} in ${study.sector}: ${study.overview} ${study.solution} Results include ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`,
+    keywords: [study.title, study.slug, study.sector, ...study.techStack],
+  })),
+  ...teamMembers.map(member => ({
+    title: member.name,
+    content: `${member.name} is ${member.role} at Vexa AI. ${member.bio}`,
+    keywords: [member.name, member.role, member.initials],
+  })),
+  ...blogPosts.map(post => ({
+    title: post.title,
+    content: `${post.title}: ${post.excerpt}`,
+    keywords: [post.title, post.slug, post.category, post.author],
+  })),
+];
+
+const normalizeQuestion = (question: string) => question.trim().replace(/\s+/g, ' ').toLowerCase();
+
+const cacheKeyForQuestion = (question: string) =>
+  createHash('sha256').update(normalizeQuestion(question)).digest('hex');
+
+const tokenize = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(token => token.length > 1 && !STOP_WORDS.has(token));
+
+const containsAny = (value: string, terms: string[]) =>
+  terms.some(term => value.includes(term));
+
+const findServiceByKeywords = (terms: string[]) =>
+  services.find(service => {
+    const haystack = `${service.title} ${service.slug} ${service.summary} ${service.description}`.toLowerCase();
+    return terms.some(term => haystack.includes(term));
+  });
+
+const findSolutionByKeywords = (terms: string[]) =>
+  solutions.find(solution => {
+    const haystack = `${solution.title} ${solution.slug} ${solution.summary} ${solution.solution}`.toLowerCase();
+    return terms.some(term => haystack.includes(term));
+  });
+
+const formatServiceAnswer = (service: (typeof services)[number]) =>
+  `${service.title}: ${service.summary} ${service.description} Typical use cases include ${service.useCases.join(', ')}.`;
+
+const formatSolutionAnswer = (solution: (typeof solutions)[number]) =>
+  `${solution.title}: ${solution.summary} ${solution.solution} The business impact is ${solution.impact}`;
+
+const buildLocalAnswer = (question: string) => {
+  const normalized = normalizeQuestion(question);
+  const questionTokens = new Set(tokenize(normalized));
+  const explicitScopeMatch = containsAny(normalized, SCOPE_TERMS);
+
+  const scopeTokenMatches = [...questionTokens].filter(token =>
+    SCOPE_TERMS.some(term => term.includes(token) || token.includes(term))
+  ).length;
+
+  if (/^(hi|hello|hey|good morning|good afternoon|good evening)\b/.test(normalized)) {
+    return "Hello. I can help with Vexa AI services, solutions, case studies, team information, and contact details.";
   }
-);
+
+  if (!explicitScopeMatch && scopeTokenMatches < MIN_SCOPE_MATCHES) {
+    return fallbackAnswer;
+  }
+
+  if (containsAny(normalized, ['who are you', 'what is vexa', 'what does vexa', 'tell me about vexa'])) {
+    return `Vexa AI is an intelligent systems studio focused on AI products, custom software, cloud delivery, and data platforms. Core areas include ${services.map(service => service.title).slice(0, 4).join(', ')}.`;
+  }
+
+  if (containsAny(normalized, ['contact', 'email', 'phone', 'address', 'location', 'office', 'headquarters', 'hq', 'where are you', 'where is the office'])) {
+    return `You can contact Vexa AI at ${companyContact.email}, call ${companyContact.phone}, or visit ${companyContact.address}.`;
+  }
+
+  if (containsAny(normalized, ['ceo', 'founder'])) {
+    const member = teamMembers.find(teamMember => /chief executive officer|founder/i.test(teamMember.role));
+    if (member) return `${member.name} is ${member.role} at Vexa AI. ${member.bio}`;
+  }
+
+  if (containsAny(normalized, ['cto', 'technology officer'])) {
+    const member = teamMembers.find(teamMember => /chief technology officer/i.test(teamMember.role));
+    if (member) return `${member.name} is ${member.role} at Vexa AI. ${member.bio}`;
+  }
+
+  if (containsAny(normalized, ['account manager', 'consultant', 'finance manager', 'finance'])) {
+    const member = teamMembers.find(teamMember => /account manager|consultant|finance manager/i.test(teamMember.role));
+    if (member) return `${member.name} is ${member.role} at Vexa AI. ${member.bio}`;
+  }
+
+  if (containsAny(normalized, ['team', 'leadership', 'who works', 'who is on your team'])) {
+    return `Vexa AI leadership includes ${teamMembers
+      .slice(0, 4)
+      .map(member => `${member.name}, ${member.role}`)
+      .join('; ')}.`;
+  }
+
+  if (containsAny(normalized, ['services', 'what do you offer', 'what can you do'])) {
+    return `Vexa AI offers ${services.map(service => service.title).join(', ')}.`;
+  }
+
+  if (containsAny(normalized, ['cloud', 'devops', 'migration', 'azure', 'aws', 'gcp', 'kubernetes'])) {
+    const service = findServiceByKeywords(['cloud', 'devops', 'migration', 'azure', 'aws', 'gcp', 'kubernetes']);
+    if (service) return formatServiceAnswer(service);
+  }
+
+  if (containsAny(normalized, ['software', 'custom software', 'web', 'mobile', 'app', 'platform', 'saas'])) {
+    const customSoftware = findServiceByKeywords(['custom software', 'software', 'platform', 'saas']);
+    const webMobile = findServiceByKeywords(['web', 'mobile', 'app']);
+    const parts = [customSoftware, webMobile].filter(Boolean).map(service => formatServiceAnswer(service!));
+    if (parts.length > 0) return parts.join(' ');
+  }
+
+  if (containsAny(normalized, ['generative ai', 'gen ai', 'ai', 'chatbot', 'copilot', 'rag', 'agent', 'agents'])) {
+    const aiService = findServiceByKeywords(['ai agents', 'rag', 'chatbot', 'copilot', 'gen ai', 'ai']);
+    const copilotService = findServiceByKeywords(['enterprise ai copilot', 'copilot']);
+    const parts = [aiService, copilotService].filter(Boolean).map(service => formatServiceAnswer(service!));
+    if (parts.length > 0) return parts.join(' ');
+  }
+
+  if (containsAny(normalized, ['data', 'analytics', 'reporting', 'dashboard', 'pipeline'])) {
+    const service = findServiceByKeywords(['data', 'analytics', 'reporting', 'dashboard', 'pipeline']);
+    if (service) return formatServiceAnswer(service);
+  }
+
+  if (containsAny(normalized, ['solutions', 'use cases'])) {
+    return `Vexa AI solutions include ${solutions.slice(0, 5).map(solution => solution.title).join(', ')}.`;
+  }
+
+  if (containsAny(normalized, ['case study', 'case studies', 'results', 'experience', 'clients'])) {
+    return caseStudies
+      .map(study => `${study.title}: ${study.overview} Key results include ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`)
+      .join(' ');
+  }
+
+  if (containsAny(normalized, ['retail', 'healthcare', 'financial', 'finance operations'])) {
+    const matchingStudy = caseStudies.find(study => normalized.includes(study.sector.toLowerCase().split('&')[0].trim()) || normalized.includes(study.slug.replace(/-/g, ' ')));
+    if (matchingStudy) {
+      return `${matchingStudy.title}: ${matchingStudy.overview} ${matchingStudy.solution} Results include ${matchingStudy.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`;
+    }
+  }
+
+  const directSolution = findSolutionByKeywords(tokenize(normalized));
+  if (directSolution) {
+    return formatSolutionAnswer(directSolution);
+  }
+
+  const rankedEntries = KNOWLEDGE_ENTRIES.map(entry => {
+    const haystack = `${entry.title} ${entry.content} ${entry.keywords.join(' ')}`.toLowerCase();
+    let score = 0;
+
+    for (const keyword of entry.keywords) {
+      const normalizedKeyword = keyword.toLowerCase();
+      if (normalized.includes(normalizedKeyword)) {
+        score += normalizedKeyword.split(/\s+/).length > 1 ? 5 : 3;
+      }
+    }
+
+    for (const token of questionTokens) {
+      if (haystack.includes(token)) score += 1;
+    }
+
+    return {entry, score};
+  })
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2);
+
+  if (rankedEntries.length === 0) {
+    return fallbackAnswer;
+  }
+
+  return rankedEntries[0].entry.content;
+};
+
+const getCachedAnswer = (question: string) => {
+  const entry = answerCache.get(cacheKeyForQuestion(question));
+
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    answerCache.delete(cacheKeyForQuestion(question));
+    return null;
+  }
+
+  return entry.answer;
+};
+
+const setCachedAnswer = (question: string, answer: string) => {
+  for (const [key, value] of answerCache.entries()) {
+    if (value.expiresAt <= Date.now()) {
+      answerCache.delete(key);
+    }
+  }
+
+  answerCache.set(cacheKeyForQuestion(question), {
+    answer,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
+
+  while (answerCache.size > MAX_CACHE_ENTRIES) {
+    const oldestKey = answerCache.keys().next().value;
+    if (!oldestKey) break;
+    answerCache.delete(oldestKey);
+  }
+};
+
+const getOpenAICompatibleClient = () => {
+  const baseURL = process.env.OPENAI_BASE_URL ?? process.env.AZURE_OPENAI_BASE_URL;
+  const apiKey = process.env.OPENAI_API_KEY ?? process.env.AZURE_OPENAI_API_KEY;
+
+  if (!baseURL || !apiKey) {
+    return null;
+  }
+
+  if (!openAICompatibleClient) {
+    openAICompatibleClient = new OpenAI({
+      baseURL,
+      apiKey,
+    });
+  }
+
+  return openAICompatibleClient;
+};
+
+const getAzureChatClient = () => {
+  const openAICompatibleBaseURL = process.env.OPENAI_BASE_URL ?? process.env.AZURE_OPENAI_BASE_URL;
+  const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+  const apiKey = process.env.AZURE_OPENAI_API_KEY;
+  const apiVersion = process.env.AZURE_OPENAI_API_VERSION ?? '2024-12-01-preview';
+
+  if (openAICompatibleBaseURL || !endpoint || !apiKey) {
+    return null;
+  }
+
+  if (!azureChatClient) {
+    try {
+      azureChatClient = new AzureOpenAI({
+        endpoint,
+        apiKey,
+        apiVersion,
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  return azureChatClient;
+};
+
+const fallbackAnswer =
+  "I can only answer questions about Vexa AI, including our services, solutions, case studies, team, and contact details.";
+
+const answerCustomerQuestionsFlow = async (
+  input: AnswerCustomerQuestionsInput
+): Promise<AnswerCustomerQuestionsOutput> => {
+  const question = input.question.trim();
+
+  if (!question) {
+    return {
+      answer: 'Please enter a question about Vexa AI.',
+    };
+  }
+
+  if (question.length > MAX_QUESTION_CHARS) {
+    return {
+      answer: `Please shorten your message to under ${MAX_QUESTION_CHARS} characters and keep it focused on Vexa AI.`,
+    };
+  }
+
+  const cachedAnswer = getCachedAnswer(question);
+  if (cachedAnswer) {
+    return {answer: cachedAnswer};
+  }
+
+  const openAICompatibleModel = process.env.OPENAI_MODEL ?? process.env.AZURE_OPENAI_MODEL;
+  const openAICompatibleClient = getOpenAICompatibleClient();
+
+  if (openAICompatibleClient && openAICompatibleModel) {
+    try {
+      const completion = await openAICompatibleClient.chat.completions.create({
+        model: openAICompatibleModel,
+        temperature: 0.2,
+        max_completion_tokens: MAX_RESPONSE_TOKENS,
+        messages: [
+          {
+            role: 'system',
+            content: `You are Vexa AI's website assistant.
+
+Rules:
+- Answer only with information grounded in the Vexa AI knowledge base below.
+- Do not answer general questions outside Vexa AI.
+- If the question cannot be answered directly from the knowledge base, reply exactly with: ${fallbackAnswer}
+- Keep responses concise, professional, and factual.
+- Do not invent pricing, capabilities, customer names, or policies that are not present in the knowledge base.
+- Do not provide coding help, medical advice, legal advice, or broad educational answers unrelated to Vexa AI.
+
+Vexa AI knowledge base:
+${KNOWLEDGE_BASE}`,
+          },
+          {
+            role: 'user',
+            content: question,
+          },
+        ],
+      });
+
+      const answer = completion.choices?.[0]?.message?.content?.trim() || buildLocalAnswer(question);
+      setCachedAnswer(question, answer);
+
+      return {answer};
+    } catch {
+      // Fall through to Azure classic or local fallback.
+    }
+  }
+
+  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
+  const client = getAzureChatClient();
+
+  if (!client || !deployment) {
+    const localAnswer = buildLocalAnswer(question);
+    setCachedAnswer(question, localAnswer);
+    return {answer: localAnswer};
+  }
+
+  try {
+    const completion = await client.chat.completions.create({
+      model: deployment,
+      temperature: 0.2,
+      max_completion_tokens: MAX_RESPONSE_TOKENS,
+      messages: [
+        {
+          role: 'system',
+          content: `You are Vexa AI's website assistant.
+
+Rules:
+- Answer only with information grounded in the Vexa AI knowledge base below.
+- Do not answer general questions outside Vexa AI.
+- If the question cannot be answered directly from the knowledge base, reply exactly with: ${fallbackAnswer}
+- Keep responses concise, professional, and factual.
+- Do not invent pricing, capabilities, customer names, or policies that are not present in the knowledge base.
+- Do not provide coding help, medical advice, legal advice, or broad educational answers unrelated to Vexa AI.
+
+Vexa AI knowledge base:
+${KNOWLEDGE_BASE}`,
+        },
+        {
+          role: 'user',
+          content: question,
+        },
+      ],
+    });
+
+    const answer = completion.choices?.[0]?.message?.content?.trim() || buildLocalAnswer(question);
+    setCachedAnswer(question, answer);
+
+    return {answer};
+  } catch {
+    const localAnswer = buildLocalAnswer(question);
+    setCachedAnswer(question, localAnswer);
+    return {answer: localAnswer};
+  }
+};

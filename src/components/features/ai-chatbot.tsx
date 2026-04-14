@@ -18,13 +18,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 type Message = {
   role: 'user' | 'assistant';
   content: string;
-  timestamp?: any;
+  timestamp?: unknown;
 };
 
 const examplePrompts = [
-  "What is Generative AI?",
-  "Tell me about your cloud services.",
-  "How do you build custom software?",
+  'What cloud services does Vexa AI offer?',
+  'Tell me about Vexa AI\'s AI chatbot and copilot services.',
+  'How can I contact Vexa AI?',
 ];
 
 export default function AIChatbot() {
@@ -103,7 +103,7 @@ export default function AIChatbot() {
     setInput('');
   };
 
-  const initialMessage: Message[] = [{ role: 'assistant', content: "Hello! I'm Vexa's AI assistant. Ask me anything about our services, or try one of the prompts below!" }];
+  const initialMessage: Message[] = [{ role: 'assistant', content: "Hello! I'm Vexa's AI assistant. I can answer questions about Vexa AI's services, solutions, case studies, team, and contact details." }];
   const chatContent = (messages && messages.length > 0) ? messages : [];
 
   return (

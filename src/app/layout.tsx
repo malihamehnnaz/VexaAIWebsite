@@ -1,24 +1,11 @@
 import type { Metadata } from 'next';
-import { Inter, Poppins } from 'next/font/google';
 import './globals.css';
 import ClientOverlays from '@/components/common/client-overlays';
 import { patchBrokenServerStorage } from '@/lib/storage-polyfill';
-import { cn } from '@/lib/utils';
 import SiteShell from '@/components/common/site-shell';
 import { ThemeProvider } from '@/components/common/theme-provider';
 
 patchBrokenServerStorage();
-
-const fontInter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-});
-
-const fontPoppins = Poppins({
-  subsets: ['latin'],
-  weight: ['600', '700'],
-  variable: '--font-poppins',
-});
 
 export const metadata: Metadata = {
   title: 'Vexa AI | AI, Software, and Cloud Solutions',
@@ -42,10 +29,10 @@ export default function RootLayout({
       <text x="50" y="50" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle" dy=".35em">V</text>
     </svg>
   `;
-  const faviconDataUrl = `data:image/svg+xml;base64,${btoa(faviconSvg)}`;
+  const faviconDataUrl = `data:image/svg+xml,${encodeURIComponent(faviconSvg)}`;
 
   return (
-    <html lang="en" className={cn(fontInter.variable, fontPoppins.variable, 'dark')} suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <link rel="icon" href={faviconDataUrl} type="image/svg+xml" />
       </head>

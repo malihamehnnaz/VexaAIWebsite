@@ -7,6 +7,8 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Card, CardContent } from '@/components/ui/card';
 
 const aboutImage = PlaceHolderImages.find(p => p.id === 'about-us');
+const hasImageUrl = <T extends {imageUrl?: string}>(image: T | undefined): image is T & {imageUrl: string} =>
+  Boolean(image?.imageUrl);
 
 export default function AboutSection() {
   return (
@@ -31,7 +33,7 @@ export default function AboutSection() {
             </div>
           </div>
           <div className="flex items-center justify-center">
-            {aboutImage && (
+            {hasImageUrl(aboutImage) && (
                 <Card className="overflow-hidden shadow-2xl">
                     <CardContent className="p-0">
                         <Image

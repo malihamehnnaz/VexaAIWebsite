@@ -2,7 +2,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { CheckCircle, Zap, ShieldCheck, TrendingUp, Users } from 'lucide-react';
+import { Zap, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 
 const features = [
   {
