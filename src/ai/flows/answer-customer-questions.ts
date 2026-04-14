@@ -11,15 +11,24 @@
 
 import {createHash} from 'crypto';
 import OpenAI, {AzureOpenAI} from 'openai';
-import {
-  blogPosts,
-  caseStudies,
-  companyContact,
-  companyStats,
-  services,
-  solutions,
-  teamMembers,
+import type {
+  BlogPost,
+  CaseStudyItem,
+  CompanyContact,
+  ServiceItem,
+  SolutionItem,
+  TeamMember,
 } from '@/content/site-content';
+import {
+  getLocalizedBlogPosts,
+  getLocalizedCaseStudies,
+  getLocalizedCompanyContact,
+  getLocalizedCompanyStats,
+  getLocalizedServices,
+  getLocalizedSolutions,
+  getLocalizedTeamMembers,
+  type Language,
+} from '@/lib/localization';
 
 const MAX_QUESTION_CHARS = 700;
 const MAX_RESPONSE_TOKENS = 220;
@@ -32,34 +41,55 @@ type CachedAnswer = {
   expiresAt: number;
 };
 
-const answerCache = new Map<string, CachedAnswer>();
-let azureChatClient: AzureOpenAI | null = null;
-let openAICompatibleClient: OpenAI | null = null;
-
-const STOP_WORDS = new Set([
-  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'do', 'for', 'from', 'how',
-  'i', 'in', 'is', 'it', 'me', 'my', 'of', 'on', 'or', 'the', 'to', 'us', 'we',
-  'what', 'when', 'where', 'who', 'why', 'you', 'your', 'about', 'tell', 'does',
-  'can', 'could', 'would', 'should', 'please'
-]);
-
-const SCOPE_TERMS = [
-  'vexa', 'vexa ai', 'service', 'services', 'solution', 'solutions', 'contact',
-  'email', 'phone', 'address', 'location', 'office', 'headquarters', 'hq', 'team', 'leadership', 'ceo', 'cto',
-  'founder', 'finance', 'case study', 'case studies', 'cloud', 'devops',
-  'software', 'web', 'mobile', 'app', 'platform', 'saas', 'ai', 'chatbot',
-  'copilot', 'rag', 'agent', 'agents', 'automation', 'data', 'analytics',
-  'migration', 'custom software'
-];
-
 type KnowledgeEntry = {
   title: string;
   content: string;
   keywords: string[];
 };
 
+type LanguageContext = {
+  blogPosts: BlogPost[];
+  caseStudies: CaseStudyItem[];
+  companyContact: CompanyContact;
+  companyStats: { value: string; label: string }[];
+  services: ServiceItem[];
+  solutions: SolutionItem[];
+  teamMembers: TeamMember[];
+};
+
+const answerCache = new Map<string, CachedAnswer>();
+let azureChatClient: AzureOpenAI | null = null;
+let openAICompatibleClient: OpenAI | null = null;
+
+const STOP_WORDS = new Set([
+  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'can', 'could', 'do', 'does', 'for', 'from', 'how',
+  'i', 'in', 'is', 'it', 'me', 'my', 'of', 'on', 'or', 'please', 'should', 'tell', 'the', 'to', 'us', 'we',
+  'what', 'when', 'where', 'who', 'why', 'would', 'you', 'your', 'about',
+  'att', 'det', 'den', 'de', 'din', 'ditt', 'du', 'en', 'er', 'era', 'for', 'hur', 'i', 'med', 'ni', 'om',
+  'och', 'pa', 'som', 'vad', 'var', 'vem', 'vi'
+]);
+
+const LANGUAGE_SCOPE_TERMS: Record<Language, string[]> = {
+  en: [
+    'vexa', 'vexa ai', 'service', 'services', 'solution', 'solutions', 'contact',
+    'email', 'phone', 'address', 'location', 'office', 'headquarters', 'hq', 'team', 'leadership', 'ceo', 'cto',
+    'founder', 'finance', 'case study', 'case studies', 'cloud', 'devops',
+    'software', 'web', 'mobile', 'app', 'platform', 'saas', 'ai', 'chatbot',
+    'copilot', 'rag', 'agent', 'agents', 'automation', 'data', 'analytics',
+    'migration', 'custom software'
+  ],
+  sv: [
+    'vexa', 'vexa ai', 'tjanst', 'tjanster', 'losning', 'losningar', 'kontakt',
+    'e-post', 'telefon', 'adress', 'plats', 'kontor', 'team', 'ledning', 'vd', 'cto',
+    'grundare', 'ekonomi', 'case', 'moln', 'devops', 'migrering', 'mjukvara',
+    'webb', 'mobil', 'app', 'plattform', 'saas', 'ai', 'chatbot', 'copilot', 'rag',
+    'agent', 'agenter', 'automation', 'data', 'analys'
+  ],
+};
+
 export type AnswerCustomerQuestionsInput = {
   question: string;
+  language?: Language;
 };
 
 export type AnswerCustomerQuestionsOutput = {
@@ -72,275 +102,380 @@ export async function answerCustomerQuestions(
   return answerCustomerQuestionsFlow(input);
 }
 
-const buildKnowledgeBase = () => {
-  const serviceContext = services
+const resolveLanguage = (language?: Language): Language => (language === 'sv' ? 'sv' : 'en');
+
+const getLanguageName = (language: Language) => (language === 'sv' ? 'Swedish' : 'English');
+
+const getLanguageContext = (language: Language): LanguageContext => ({
+  blogPosts: getLocalizedBlogPosts(language),
+  caseStudies: getLocalizedCaseStudies(language),
+  companyContact: getLocalizedCompanyContact(language),
+  companyStats: getLocalizedCompanyStats(language),
+  services: getLocalizedServices(language),
+  solutions: getLocalizedSolutions(language),
+  teamMembers: getLocalizedTeamMembers(language),
+});
+
+const getChatbotStrings = (language: Language) => ({
+  fallbackAnswer:
+    language === 'sv'
+      ? 'Jag kan bara svara pa fragor om Vexa AI, inklusive vara tjanster, losningar, case, team och kontaktuppgifter.'
+      : 'I can only answer questions about Vexa AI, including our services, solutions, case studies, team, and contact details.',
+  emptyQuestion:
+    language === 'sv' ? 'Skriv en fraga om Vexa AI.' : 'Please enter a question about Vexa AI.',
+  shortenQuestion: (maxChars: number) =>
+    language === 'sv'
+      ? `Kort ner ditt meddelande till under ${maxChars} tecken och hall det fokuserat pa Vexa AI.`
+      : `Please shorten your message to under ${maxChars} characters and keep it focused on Vexa AI.`,
+  greeting:
+    language === 'sv'
+      ? 'Hej. Jag kan hjalpa till med Vexa AIs tjanster, losningar, case, teaminformation och kontaktuppgifter.'
+      : 'Hello. I can help with Vexa AI services, solutions, case studies, team information, and contact details.',
+  whoAreYou:
+    language === 'sv'
+      ? 'Vexa AI ar en studio for intelligenta system med fokus pa AI-produkter, specialutvecklad mjukvara, molnleverans och dataplattformar.'
+      : 'Vexa AI is an intelligent systems studio focused on AI products, custom software, cloud delivery, and data platforms.',
+  servicesPrefix: language === 'sv' ? 'Vexa AI erbjuder' : 'Vexa AI offers',
+  solutionsPrefix: language === 'sv' ? 'Vexa AIs losningar inkluderar' : 'Vexa AI solutions include',
+  teamPrefix: language === 'sv' ? 'Vexa AIs ledning inkluderar' : 'Vexa AI leadership includes',
+  resultsPrefix: language === 'sv' ? 'Viktiga resultat inkluderar' : 'Key results include',
+  serviceUseCases: language === 'sv' ? 'Vanliga anvandningsfall inkluderar' : 'Typical use cases include',
+  solutionImpact: language === 'sv' ? 'Affarseffekten ar' : 'The business impact is',
+  contactReply: (contact: CompanyContact) =>
+    language === 'sv'
+      ? `Ni kan kontakta Vexa AI via ${contact.email}, ringa ${contact.phone} eller besoka ${contact.address}.`
+      : `You can contact Vexa AI at ${contact.email}, call ${contact.phone}, or visit ${contact.address}.`,
+  memberReply: (member: TeamMember) =>
+    language === 'sv'
+      ? `${member.name} ar ${member.role} pa Vexa AI. ${member.bio}`
+      : `${member.name} is ${member.role} at Vexa AI. ${member.bio}`,
+});
+
+const buildKnowledgeBase = (language: Language, context: LanguageContext) => {
+  const labels =
+    language === 'sv'
+      ? {
+          facts: 'Fakta om Vexa AI',
+          email: 'E-post',
+          phone: 'Telefon',
+          address: 'Adress',
+          stats: 'Nyckeltal',
+          services: 'Tjanster',
+          solutions: 'Losningar',
+          studies: 'Case',
+          team: 'Ledning och team',
+          blog: 'Blogg och teman',
+          benefits: 'Fordelar',
+          useCases: 'Anvandningsfall',
+          problem: 'Utmaning',
+          solution: 'Losning',
+          impact: 'Effekt',
+          highlights: 'Hojdpunkter',
+          metrics: 'Nyckeltal',
+        }
+      : {
+          facts: 'Vexa AI company facts',
+          email: 'Email',
+          phone: 'Phone',
+          address: 'Address',
+          stats: 'Key stats',
+          services: 'Services',
+          solutions: 'Solutions',
+          studies: 'Case studies',
+          team: 'Leadership and team',
+          blog: 'Blog and editorial topics',
+          benefits: 'Benefits',
+          useCases: 'Use cases',
+          problem: 'Problem',
+          solution: 'Solution',
+          impact: 'Impact',
+          highlights: 'Highlights',
+          metrics: 'Metrics',
+        };
+
+  const serviceContext = context.services
     .map(
       service =>
-        `- ${service.title}: ${service.summary} ${service.description} Benefits: ${service.benefits.join(', ')}. Use cases: ${service.useCases.join(', ')}.`
+        `- ${service.title}: ${service.summary} ${service.description} ${labels.benefits}: ${service.benefits.join(', ')}. ${labels.useCases}: ${service.useCases.join(', ')}.`
     )
     .join('\n');
 
-  const solutionContext = solutions
+  const solutionContext = context.solutions
     .map(
       solution =>
-        `- ${solution.title}: ${solution.summary} Problem: ${solution.problem} Solution: ${solution.solution} Impact: ${solution.impact}. Highlights: ${solution.highlights.join(', ')}.`
+        `- ${solution.title}: ${solution.summary} ${labels.problem}: ${solution.problem} ${labels.solution}: ${solution.solution} ${labels.impact}: ${solution.impact}. ${labels.highlights}: ${solution.highlights.join(', ')}.`
     )
     .join('\n');
 
-  const caseStudyContext = caseStudies
+  const caseStudyContext = context.caseStudies
     .map(
       study =>
-        `- ${study.title} (${study.sector}): ${study.overview} Problem: ${study.problem} Solution: ${study.solution} Metrics: ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`
+        `- ${study.title} (${study.sector}): ${study.overview} ${labels.problem}: ${study.problem} ${labels.solution}: ${study.solution} ${labels.metrics}: ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`
     )
     .join('\n');
 
-  const teamContext = teamMembers
+  const teamContext = context.teamMembers
     .slice(0, 5)
     .map(member => `- ${member.name}: ${member.role}. ${member.bio}`)
     .join('\n');
 
-  const blogContext = blogPosts
+  const blogContext = context.blogPosts
     .slice(0, 3)
     .map(post => `- ${post.title}: ${post.excerpt}`)
     .join('\n');
 
   return `
-Vexa AI company facts:
-- Email: ${companyContact.email}
-- Phone: ${companyContact.phone}
-- Address: ${companyContact.address}
-- Key stats: ${companyStats.map(stat => `${stat.value} ${stat.label}`).join('; ')}
+${labels.facts}:
+- ${labels.email}: ${context.companyContact.email}
+- ${labels.phone}: ${context.companyContact.phone}
+- ${labels.address}: ${context.companyContact.address}
+- ${labels.stats}: ${context.companyStats.map(stat => `${stat.value} ${stat.label}`).join('; ')}
 
-Services:
+${labels.services}:
 ${serviceContext}
 
-Solutions:
+${labels.solutions}:
 ${solutionContext}
 
-Case studies:
+${labels.studies}:
 ${caseStudyContext}
 
-Leadership and team:
+${labels.team}:
 ${teamContext}
 
-Blog and editorial topics:
+${labels.blog}:
 ${blogContext}
 `.trim();
 };
 
-const KNOWLEDGE_BASE = buildKnowledgeBase();
+const buildKnowledgeEntries = (language: Language, context: LanguageContext): KnowledgeEntry[] => {
+  const strings = getChatbotStrings(language);
 
-const KNOWLEDGE_ENTRIES: KnowledgeEntry[] = [
-  {
-    title: 'contact',
-    content: `You can contact Vexa AI at ${companyContact.email}, call ${companyContact.phone}, or visit ${companyContact.address}.`,
-    keywords: ['contact', 'email', 'phone', 'address', 'reach', 'call'],
-  },
-  ...services.map(service => ({
-    title: service.title,
-    content: `${service.title}: ${service.summary} ${service.description} Key benefits include ${service.benefits.join(', ')}. Common use cases include ${service.useCases.join(', ')}.`,
-    keywords: [service.title, service.slug, ...service.technologies, ...service.useCases],
-  })),
-  ...solutions.map(solution => ({
-    title: solution.title,
-    content: `${solution.title}: ${solution.summary} ${solution.solution} Business impact: ${solution.impact}.`,
-    keywords: [solution.title, solution.slug, ...solution.highlights],
-  })),
-  ...caseStudies.map(study => ({
-    title: study.title,
-    content: `${study.title} in ${study.sector}: ${study.overview} ${study.solution} Results include ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`,
-    keywords: [study.title, study.slug, study.sector, ...study.techStack],
-  })),
-  ...teamMembers.map(member => ({
-    title: member.name,
-    content: `${member.name} is ${member.role} at Vexa AI. ${member.bio}`,
-    keywords: [member.name, member.role, member.initials],
-  })),
-  ...blogPosts.map(post => ({
-    title: post.title,
-    content: `${post.title}: ${post.excerpt}`,
-    keywords: [post.title, post.slug, post.category, post.author],
-  })),
-];
+  return [
+    {
+      title: 'contact',
+      content: strings.contactReply(context.companyContact),
+      keywords:
+        language === 'sv'
+          ? ['kontakt', 'e-post', 'telefon', 'adress', 'kontor', 'hor av dig', 'ringa']
+          : ['contact', 'email', 'phone', 'address', 'reach', 'call'],
+    },
+    ...context.services.map(service => ({
+      title: service.title,
+      content: `${service.title}: ${service.summary} ${service.description} ${language === 'sv' ? 'Viktiga fordelar inkluderar' : 'Key benefits include'} ${service.benefits.join(', ')}. ${language === 'sv' ? 'Vanliga anvandningsfall inkluderar' : 'Common use cases include'} ${service.useCases.join(', ')}.`,
+      keywords: [service.title, service.slug, ...service.technologies, ...service.useCases],
+    })),
+    ...context.solutions.map(solution => ({
+      title: solution.title,
+      content: `${solution.title}: ${solution.summary} ${solution.solution} ${language === 'sv' ? 'Affarseffekt' : 'Business impact'}: ${solution.impact}.`,
+      keywords: [solution.title, solution.slug, ...solution.highlights],
+    })),
+    ...context.caseStudies.map(study => ({
+      title: study.title,
+      content: `${study.title} ${language === 'sv' ? 'inom' : 'in'} ${study.sector}: ${study.overview} ${study.solution} ${language === 'sv' ? 'Resultat inkluderar' : 'Results include'} ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`,
+      keywords: [study.title, study.slug, study.sector, ...study.techStack],
+    })),
+    ...context.teamMembers.map(member => ({
+      title: member.name,
+      content: strings.memberReply(member),
+      keywords: [member.name, member.role, member.initials],
+    })),
+    ...context.blogPosts.map(post => ({
+      title: post.title,
+      content: `${post.title}: ${post.excerpt}`,
+      keywords: [post.title, post.slug, post.category, post.author],
+    })),
+  ];
+};
 
 const normalizeQuestion = (question: string) => question.trim().replace(/\s+/g, ' ').toLowerCase();
 
-const cacheKeyForQuestion = (question: string) =>
-  createHash('sha256').update(normalizeQuestion(question)).digest('hex');
+const cacheKeyForQuestion = (language: Language, question: string) =>
+  createHash('sha256').update(`${language}:${normalizeQuestion(question)}`).digest('hex');
 
 const tokenize = (value: string) =>
   value
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/[^\p{L}0-9\s]/gu, ' ')
     .split(/\s+/)
     .filter(token => token.length > 1 && !STOP_WORDS.has(token));
 
-const containsAny = (value: string, terms: string[]) =>
-  terms.some(term => value.includes(term));
+const containsAny = (value: string, terms: string[]) => terms.some(term => value.includes(term));
 
-const findServiceByKeywords = (terms: string[]) =>
-  services.find(service => {
+const findServiceByKeywords = (serviceItems: ServiceItem[], terms: string[]) =>
+  serviceItems.find(service => {
     const haystack = `${service.title} ${service.slug} ${service.summary} ${service.description}`.toLowerCase();
     return terms.some(term => haystack.includes(term));
   });
 
-const findSolutionByKeywords = (terms: string[]) =>
-  solutions.find(solution => {
+const findSolutionByKeywords = (solutionItems: SolutionItem[], terms: string[]) =>
+  solutionItems.find(solution => {
     const haystack = `${solution.title} ${solution.slug} ${solution.summary} ${solution.solution}`.toLowerCase();
     return terms.some(term => haystack.includes(term));
   });
 
-const formatServiceAnswer = (service: (typeof services)[number]) =>
-  `${service.title}: ${service.summary} ${service.description} Typical use cases include ${service.useCases.join(', ')}.`;
+const formatServiceAnswer = (language: Language, service: ServiceItem) => {
+  const strings = getChatbotStrings(language);
+  return `${service.title}: ${service.summary} ${service.description} ${strings.serviceUseCases} ${service.useCases.join(', ')}.`;
+};
 
-const formatSolutionAnswer = (solution: (typeof solutions)[number]) =>
-  `${solution.title}: ${solution.summary} ${solution.solution} The business impact is ${solution.impact}`;
+const formatSolutionAnswer = (language: Language, solution: SolutionItem) => {
+  const strings = getChatbotStrings(language);
+  return `${solution.title}: ${solution.summary} ${solution.solution} ${strings.solutionImpact} ${solution.impact}`;
+};
 
-const buildLocalAnswer = (question: string) => {
+const buildLocalAnswer = (language: Language, question: string, context: LanguageContext) => {
   const normalized = normalizeQuestion(question);
   const questionTokens = new Set(tokenize(normalized));
-  const explicitScopeMatch = containsAny(normalized, SCOPE_TERMS);
+  const strings = getChatbotStrings(language);
+  const scopeTerms = LANGUAGE_SCOPE_TERMS[language];
+  const explicitScopeMatch = containsAny(normalized, scopeTerms);
 
   const scopeTokenMatches = [...questionTokens].filter(token =>
-    SCOPE_TERMS.some(term => term.includes(token) || token.includes(term))
+    scopeTerms.some(term => term.includes(token) || token.includes(term))
   ).length;
 
-  if (/^(hi|hello|hey|good morning|good afternoon|good evening)\b/.test(normalized)) {
-    return "Hello. I can help with Vexa AI services, solutions, case studies, team information, and contact details.";
+  const greetingRegex = language === 'sv'
+    ? /^(hej|hejsan|tjena|god morgon|god eftermiddag|god kvall)\b/
+    : /^(hi|hello|hey|good morning|good afternoon|good evening)\b/;
+
+  if (greetingRegex.test(normalized)) {
+    return strings.greeting;
   }
 
   if (!explicitScopeMatch && scopeTokenMatches < MIN_SCOPE_MATCHES) {
-    return fallbackAnswer;
+    return strings.fallbackAnswer;
   }
 
-  if (containsAny(normalized, ['who are you', 'what is vexa', 'what does vexa', 'tell me about vexa'])) {
-    return `Vexa AI is an intelligent systems studio focused on AI products, custom software, cloud delivery, and data platforms. Core areas include ${services.map(service => service.title).slice(0, 4).join(', ')}.`;
+  if (containsAny(normalized, language === 'sv' ? ['vem ar ni', 'vad ar vexa', 'beratta om vexa', 'vad gor vexa'] : ['who are you', 'what is vexa', 'what does vexa', 'tell me about vexa'])) {
+    return `${strings.whoAreYou} ${language === 'sv' ? 'Karnomraden inkluderar' : 'Core areas include'} ${context.services.map(service => service.title).slice(0, 4).join(', ')}.`;
   }
 
-  if (containsAny(normalized, ['contact', 'email', 'phone', 'address', 'location', 'office', 'headquarters', 'hq', 'where are you', 'where is the office'])) {
-    return `You can contact Vexa AI at ${companyContact.email}, call ${companyContact.phone}, or visit ${companyContact.address}.`;
+  if (containsAny(normalized, language === 'sv' ? ['kontakt', 'e-post', 'telefon', 'adress', 'plats', 'kontor', 'var finns ni', 'var ligger kontoret'] : ['contact', 'email', 'phone', 'address', 'location', 'office', 'headquarters', 'hq', 'where are you', 'where is the office'])) {
+    return strings.contactReply(context.companyContact);
   }
 
-  if (containsAny(normalized, ['ceo', 'founder'])) {
-    const member = teamMembers.find(teamMember => /chief executive officer|founder/i.test(teamMember.role));
-    if (member) return `${member.name} is ${member.role} at Vexa AI. ${member.bio}`;
+  if (containsAny(normalized, language === 'sv' ? ['vd', 'grundare'] : ['ceo', 'founder'])) {
+    const member = context.teamMembers.find(teamMember => /chief executive officer|founder|vd|grundare/i.test(teamMember.role));
+    if (member) return strings.memberReply(member);
   }
 
-  if (containsAny(normalized, ['cto', 'technology officer'])) {
-    const member = teamMembers.find(teamMember => /chief technology officer/i.test(teamMember.role));
-    if (member) return `${member.name} is ${member.role} at Vexa AI. ${member.bio}`;
+  if (containsAny(normalized, language === 'sv' ? ['cto', 'teknikchef', 'teknikansvarig'] : ['cto', 'technology officer'])) {
+    const member = context.teamMembers.find(teamMember => /chief technology officer|cto|teknik/i.test(teamMember.role));
+    if (member) return strings.memberReply(member);
   }
 
-  if (containsAny(normalized, ['account manager', 'consultant', 'finance manager', 'finance'])) {
-    const member = teamMembers.find(teamMember => /account manager|consultant|finance manager/i.test(teamMember.role));
-    if (member) return `${member.name} is ${member.role} at Vexa AI. ${member.bio}`;
+  if (containsAny(normalized, language === 'sv' ? ['account manager', 'konsult', 'ekonomi', 'ekonomichef'] : ['account manager', 'consultant', 'finance manager', 'finance'])) {
+    const member = context.teamMembers.find(teamMember => /account manager|consultant|finance manager|ekonomi/i.test(teamMember.role));
+    if (member) return strings.memberReply(member);
   }
 
-  if (containsAny(normalized, ['team', 'leadership', 'who works', 'who is on your team'])) {
-    return `Vexa AI leadership includes ${teamMembers
+  if (containsAny(normalized, language === 'sv' ? ['team', 'ledning', 'vem jobbar hos er', 'vilka ar i teamet'] : ['team', 'leadership', 'who works', 'who is on your team'])) {
+    return `${strings.teamPrefix} ${context.teamMembers
       .slice(0, 4)
       .map(member => `${member.name}, ${member.role}`)
       .join('; ')}.`;
   }
 
-  if (containsAny(normalized, ['services', 'what do you offer', 'what can you do'])) {
-    return `Vexa AI offers ${services.map(service => service.title).join(', ')}.`;
+  if (containsAny(normalized, language === 'sv' ? ['tjanster', 'vad erbjuder ni', 'vad kan ni gora'] : ['services', 'what do you offer', 'what can you do'])) {
+    return `${strings.servicesPrefix} ${context.services.map(service => service.title).join(', ')}.`;
   }
 
-  if (containsAny(normalized, ['cloud', 'devops', 'migration', 'azure', 'aws', 'gcp', 'kubernetes'])) {
-    const service = findServiceByKeywords(['cloud', 'devops', 'migration', 'azure', 'aws', 'gcp', 'kubernetes']);
-    if (service) return formatServiceAnswer(service);
+  if (containsAny(normalized, language === 'sv' ? ['moln', 'devops', 'migrering', 'azure', 'aws', 'gcp', 'kubernetes'] : ['cloud', 'devops', 'migration', 'azure', 'aws', 'gcp', 'kubernetes'])) {
+    const service = findServiceByKeywords(context.services, ['cloud', 'moln', 'devops', 'migration', 'migrering', 'azure', 'aws', 'gcp', 'kubernetes']);
+    if (service) return formatServiceAnswer(language, service);
   }
 
-  if (containsAny(normalized, ['software', 'custom software', 'web', 'mobile', 'app', 'platform', 'saas'])) {
-    const customSoftware = findServiceByKeywords(['custom software', 'software', 'platform', 'saas']);
-    const webMobile = findServiceByKeywords(['web', 'mobile', 'app']);
-    const parts = [customSoftware, webMobile].filter(Boolean).map(service => formatServiceAnswer(service!));
+  if (containsAny(normalized, language === 'sv' ? ['mjukvara', 'specialutvecklad mjukvara', 'webb', 'mobil', 'app', 'plattform', 'saas'] : ['software', 'custom software', 'web', 'mobile', 'app', 'platform', 'saas'])) {
+    const customSoftware = findServiceByKeywords(context.services, ['custom software', 'software', 'mjukvara', 'platform', 'plattform', 'saas']);
+    const webMobile = findServiceByKeywords(context.services, ['web', 'webb', 'mobile', 'mobil', 'app']);
+    const parts = [customSoftware, webMobile].filter(Boolean).map(service => formatServiceAnswer(language, service!));
     if (parts.length > 0) return parts.join(' ');
   }
 
-  if (containsAny(normalized, ['generative ai', 'gen ai', 'ai', 'chatbot', 'copilot', 'rag', 'agent', 'agents'])) {
-    const aiService = findServiceByKeywords(['ai agents', 'rag', 'chatbot', 'copilot', 'gen ai', 'ai']);
-    const copilotService = findServiceByKeywords(['enterprise ai copilot', 'copilot']);
-    const parts = [aiService, copilotService].filter(Boolean).map(service => formatServiceAnswer(service!));
+  if (containsAny(normalized, language === 'sv' ? ['generativ ai', 'ai', 'chatbot', 'copilot', 'rag', 'agent', 'agenter'] : ['generative ai', 'gen ai', 'ai', 'chatbot', 'copilot', 'rag', 'agent', 'agents'])) {
+    const aiService = findServiceByKeywords(context.services, ['ai agents', 'rag', 'chatbot', 'copilot', 'gen ai', 'generativ ai', 'ai', 'agent', 'agenter']);
+    const copilotService = findServiceByKeywords(context.services, ['enterprise ai copilot', 'copilot']);
+    const parts = [aiService, copilotService].filter(Boolean).map(service => formatServiceAnswer(language, service!));
     if (parts.length > 0) return parts.join(' ');
   }
 
-  if (containsAny(normalized, ['data', 'analytics', 'reporting', 'dashboard', 'pipeline'])) {
-    const service = findServiceByKeywords(['data', 'analytics', 'reporting', 'dashboard', 'pipeline']);
-    if (service) return formatServiceAnswer(service);
+  if (containsAny(normalized, language === 'sv' ? ['data', 'analys', 'rapportering', 'dashboard', 'pipeline'] : ['data', 'analytics', 'reporting', 'dashboard', 'pipeline'])) {
+    const service = findServiceByKeywords(context.services, ['data', 'analytics', 'analys', 'reporting', 'dashboard', 'pipeline']);
+    if (service) return formatServiceAnswer(language, service);
   }
 
-  if (containsAny(normalized, ['solutions', 'use cases'])) {
-    return `Vexa AI solutions include ${solutions.slice(0, 5).map(solution => solution.title).join(', ')}.`;
+  if (containsAny(normalized, language === 'sv' ? ['losningar', 'anvandningsfall'] : ['solutions', 'use cases'])) {
+    return `${strings.solutionsPrefix} ${context.solutions.slice(0, 5).map(solution => solution.title).join(', ')}.`;
   }
 
-  if (containsAny(normalized, ['case study', 'case studies', 'results', 'experience', 'clients'])) {
-    return caseStudies
-      .map(study => `${study.title}: ${study.overview} Key results include ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`)
+  if (containsAny(normalized, language === 'sv' ? ['case', 'resultat', 'erfarenhet', 'kunder'] : ['case study', 'case studies', 'results', 'experience', 'clients'])) {
+    return context.caseStudies
+      .map(study => `${study.title}: ${study.overview} ${strings.resultsPrefix} ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`)
       .join(' ');
   }
 
-  if (containsAny(normalized, ['retail', 'healthcare', 'financial', 'finance operations'])) {
-    const matchingStudy = caseStudies.find(study => normalized.includes(study.sector.toLowerCase().split('&')[0].trim()) || normalized.includes(study.slug.replace(/-/g, ' ')));
+  if (containsAny(normalized, language === 'sv' ? ['retail', 'handel', 'sjukvard', 'finans', 'finance operations'] : ['retail', 'healthcare', 'financial', 'finance operations'])) {
+    const matchingStudy = context.caseStudies.find(study => normalized.includes(study.sector.toLowerCase().split('&')[0].trim()) || normalized.includes(study.slug.replace(/-/g, ' ')));
     if (matchingStudy) {
-      return `${matchingStudy.title}: ${matchingStudy.overview} ${matchingStudy.solution} Results include ${matchingStudy.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`;
+      return `${matchingStudy.title}: ${matchingStudy.overview} ${matchingStudy.solution} ${strings.resultsPrefix} ${matchingStudy.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`;
     }
   }
 
-  const directSolution = findSolutionByKeywords(tokenize(normalized));
+  const directSolution = findSolutionByKeywords(context.solutions, tokenize(normalized));
   if (directSolution) {
-    return formatSolutionAnswer(directSolution);
+    return formatSolutionAnswer(language, directSolution);
   }
 
-  const rankedEntries = KNOWLEDGE_ENTRIES.map(entry => {
-    const haystack = `${entry.title} ${entry.content} ${entry.keywords.join(' ')}`.toLowerCase();
-    let score = 0;
+  const rankedEntries = buildKnowledgeEntries(language, context)
+    .map(entry => {
+      const haystack = `${entry.title} ${entry.content} ${entry.keywords.join(' ')}`.toLowerCase();
+      let score = 0;
 
-    for (const keyword of entry.keywords) {
-      const normalizedKeyword = keyword.toLowerCase();
-      if (normalized.includes(normalizedKeyword)) {
-        score += normalizedKeyword.split(/\s+/).length > 1 ? 5 : 3;
+      for (const keyword of entry.keywords) {
+        const normalizedKeyword = keyword.toLowerCase();
+        if (normalized.includes(normalizedKeyword)) {
+          score += normalizedKeyword.split(/\s+/).length > 1 ? 5 : 3;
+        }
       }
-    }
 
-    for (const token of questionTokens) {
-      if (haystack.includes(token)) score += 1;
-    }
+      for (const token of questionTokens) {
+        if (haystack.includes(token)) score += 1;
+      }
 
-    return {entry, score};
-  })
+      return {entry, score};
+    })
     .filter(item => item.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 2);
 
   if (rankedEntries.length === 0) {
-    return fallbackAnswer;
+    return strings.fallbackAnswer;
   }
 
   return rankedEntries[0].entry.content;
 };
 
-const getCachedAnswer = (question: string) => {
-  const entry = answerCache.get(cacheKeyForQuestion(question));
+const getCachedAnswer = (language: Language, question: string) => {
+  const entry = answerCache.get(cacheKeyForQuestion(language, question));
 
   if (!entry) return null;
   if (entry.expiresAt <= Date.now()) {
-    answerCache.delete(cacheKeyForQuestion(question));
+    answerCache.delete(cacheKeyForQuestion(language, question));
     return null;
   }
 
   return entry.answer;
 };
 
-const setCachedAnswer = (question: string, answer: string) => {
+const setCachedAnswer = (language: Language, question: string, answer: string) => {
   for (const [key, value] of answerCache.entries()) {
     if (value.expiresAt <= Date.now()) {
       answerCache.delete(key);
     }
   }
 
-  answerCache.set(cacheKeyForQuestion(question), {
+  answerCache.set(cacheKeyForQuestion(language, question), {
     answer,
     expiresAt: Date.now() + CACHE_TTL_MS,
   });
@@ -395,30 +530,33 @@ const getAzureChatClient = () => {
   return azureChatClient;
 };
 
-const fallbackAnswer =
-  "I can only answer questions about Vexa AI, including our services, solutions, case studies, team, and contact details.";
-
 const answerCustomerQuestionsFlow = async (
   input: AnswerCustomerQuestionsInput
 ): Promise<AnswerCustomerQuestionsOutput> => {
+  const language = resolveLanguage(input.language);
   const question = input.question.trim();
+  const strings = getChatbotStrings(language);
 
   if (!question) {
     return {
-      answer: 'Please enter a question about Vexa AI.',
+      answer: strings.emptyQuestion,
     };
   }
 
   if (question.length > MAX_QUESTION_CHARS) {
     return {
-      answer: `Please shorten your message to under ${MAX_QUESTION_CHARS} characters and keep it focused on Vexa AI.`,
+      answer: strings.shortenQuestion(MAX_QUESTION_CHARS),
     };
   }
 
-  const cachedAnswer = getCachedAnswer(question);
+  const cachedAnswer = getCachedAnswer(language, question);
   if (cachedAnswer) {
     return {answer: cachedAnswer};
   }
+
+  const context = getLanguageContext(language);
+  const knowledgeBase = buildKnowledgeBase(language, context);
+  const fallbackAnswer = strings.fallbackAnswer;
 
   const openAICompatibleModel = process.env.OPENAI_MODEL ?? process.env.AZURE_OPENAI_MODEL;
   const openAICompatibleClient = getOpenAICompatibleClient();
@@ -439,11 +577,12 @@ Rules:
 - Do not answer general questions outside Vexa AI.
 - If the question cannot be answered directly from the knowledge base, reply exactly with: ${fallbackAnswer}
 - Keep responses concise, professional, and factual.
+- Respond only in ${getLanguageName(language)}.
 - Do not invent pricing, capabilities, customer names, or policies that are not present in the knowledge base.
 - Do not provide coding help, medical advice, legal advice, or broad educational answers unrelated to Vexa AI.
 
 Vexa AI knowledge base:
-${KNOWLEDGE_BASE}`,
+${knowledgeBase}`,
           },
           {
             role: 'user',
@@ -452,8 +591,8 @@ ${KNOWLEDGE_BASE}`,
         ],
       });
 
-      const answer = completion.choices?.[0]?.message?.content?.trim() || buildLocalAnswer(question);
-      setCachedAnswer(question, answer);
+      const answer = completion.choices?.[0]?.message?.content?.trim() || buildLocalAnswer(language, question, context);
+      setCachedAnswer(language, question, answer);
 
       return {answer};
     } catch {
@@ -465,8 +604,8 @@ ${KNOWLEDGE_BASE}`,
   const client = getAzureChatClient();
 
   if (!client || !deployment) {
-    const localAnswer = buildLocalAnswer(question);
-    setCachedAnswer(question, localAnswer);
+    const localAnswer = buildLocalAnswer(language, question, context);
+    setCachedAnswer(language, question, localAnswer);
     return {answer: localAnswer};
   }
 
@@ -485,11 +624,12 @@ Rules:
 - Do not answer general questions outside Vexa AI.
 - If the question cannot be answered directly from the knowledge base, reply exactly with: ${fallbackAnswer}
 - Keep responses concise, professional, and factual.
+- Respond only in ${getLanguageName(language)}.
 - Do not invent pricing, capabilities, customer names, or policies that are not present in the knowledge base.
 - Do not provide coding help, medical advice, legal advice, or broad educational answers unrelated to Vexa AI.
 
 Vexa AI knowledge base:
-${KNOWLEDGE_BASE}`,
+${knowledgeBase}`,
         },
         {
           role: 'user',
@@ -498,13 +638,13 @@ ${KNOWLEDGE_BASE}`,
       ],
     });
 
-    const answer = completion.choices?.[0]?.message?.content?.trim() || buildLocalAnswer(question);
-    setCachedAnswer(question, answer);
+    const answer = completion.choices?.[0]?.message?.content?.trim() || buildLocalAnswer(language, question, context);
+    setCachedAnswer(language, question, answer);
 
     return {answer};
   } catch {
-    const localAnswer = buildLocalAnswer(question);
-    setCachedAnswer(question, localAnswer);
+    const localAnswer = buildLocalAnswer(language, question, context);
+    setCachedAnswer(language, question, localAnswer);
     return {answer: localAnswer};
   }
 };

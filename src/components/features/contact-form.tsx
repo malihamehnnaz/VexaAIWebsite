@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useMemo } from 'react';
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -16,21 +17,29 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
-  }),
-  company: z.string().optional(),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  message: z.string().min(10, {
-    message: "Message must be at least 10 characters.",
-  }),
-});
+import { useLanguage } from '@/components/common/language-provider';
+import { siteCopy } from '@/lib/localization';
 
 export default function ContactForm() {
+  const { language } = useLanguage();
+  const copy = siteCopy[language].form;
+  const formSchema = useMemo(
+    () =>
+      z.object({
+        name: z.string().min(2, {
+          message: copy.validationName,
+        }),
+        company: z.string().optional(),
+        email: z.string().email({
+          message: copy.validationEmail,
+        }),
+        message: z.string().min(10, {
+          message: copy.validationMessage,
+        }),
+      }),
+    [copy.validationEmail, copy.validationMessage, copy.validationName]
+  );
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -49,7 +58,7 @@ export default function ContactForm() {
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle>Send us a Message</CardTitle>
+        <CardTitle>{copy.title}</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -59,9 +68,9 @@ export default function ContactForm() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>{copy.name}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Your Name" {...field} />
+                    <Input placeholder={copy.namePlaceholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -72,9 +81,9 @@ export default function ContactForm() {
               name="company"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Company (Optional)</FormLabel>
+                  <FormLabel>{copy.company}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Your Company" {...field} />
+                    <Input placeholder={copy.companyPlaceholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -85,9 +94,9 @@ export default function ContactForm() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>{copy.email}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Your Email" {...field} />
+                    <Input placeholder={copy.emailPlaceholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -98,10 +107,10 @@ export default function ContactForm() {
               name="message"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Message</FormLabel>
+                  <FormLabel>{copy.message}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="How can we help you?"
+                      placeholder={copy.messagePlaceholder}
                       className="resize-none"
                       {...field}
                     />
@@ -110,7 +119,7 @@ export default function ContactForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit">Send Message</Button>
+            <Button type="submit">{copy.submit}</Button>
           </form>
         </Form>
       </CardContent>

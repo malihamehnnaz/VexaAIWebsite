@@ -1,20 +1,25 @@
 'use client';
 
 import SectionHeading from '@/components/common/section-heading';
-import { caseStudies } from '@/content/site-content';
+import { getLocalizedCaseStudies, siteCopy } from '@/lib/localization';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import Reveal from '@/components/common/reveal';
+import { useLanguage } from '@/components/common/language-provider';
 
 const CaseStudies = () => {
+  const { language } = useLanguage();
+  const copy = siteCopy[language].home;
+  const caseStudies = getLocalizedCaseStudies(language);
+
   return (
     <section className="py-14 md:py-16 bg-background/95">
       <div className="container mx-auto px-4">
         <SectionHeading
-          title="Proven Success Stories"
-          description="Explore how we've helped our clients overcome their challenges and achieve their goals."
+          title={copy.successTitle}
+          description={copy.successDescription}
           className="space-y-3"
         />
         <div className="mt-7 grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -27,7 +32,7 @@ const CaseStudies = () => {
         <div className="mt-7 text-center">
           <Button asChild size="lg" variant="outline">
             <Link href="/case-studies">
-              View All Case Studies <ArrowRight className="ml-2 h-5 w-5" />
+              {copy.viewAllCaseStudies} <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>
         </div>
@@ -45,6 +50,9 @@ interface CaseStudyCardProps {
 }
 
 const CaseStudyCard = ({ slug, title, sector, overview, metrics }: CaseStudyCardProps) => {
+  const { language } = useLanguage();
+  const copy = siteCopy[language].home;
+
   return (
     <motion.div
       className="glass-card overflow-hidden h-full flex flex-col"
@@ -66,7 +74,7 @@ const CaseStudyCard = ({ slug, title, sector, overview, metrics }: CaseStudyCard
         <div className="mt-6">
           <Button asChild variant="link" className="p-0">
             <Link href={`/case-studies#${slug}`}>
-              Read Case Study <ArrowRight className="ml-2 h-4 w-4" />
+              {copy.readCaseStudy} <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
         </div>

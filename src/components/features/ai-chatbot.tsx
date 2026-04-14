@@ -14,18 +14,14 @@ import { collection, serverTimestamp, query, orderBy, addDoc } from 'firebase/fi
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '@/components/common/language-provider';
+import { siteCopy } from '@/lib/localization';
 
 type Message = {
   role: 'user' | 'assistant';
   content: string;
   timestamp?: unknown;
 };
-
-const examplePrompts = [
-  'What cloud services does Vexa AI offer?',
-  'Tell me about Vexa AI\'s AI chatbot and copilot services.',
-  'How can I contact Vexa AI?',
-];
 
 export default function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -42,6 +38,9 @@ export default function AIChatbot() {
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { language } = useLanguage();
+  const copy = siteCopy[language].chatbot;
+  const examplePrompts = copy.prompts;
 
   const messagesRef = useMemoFirebase(() => {
     if (!firestore || !user || !isClient) return null;
@@ -85,12 +84,12 @@ export default function AIChatbot() {
     setIsAiLoading(true);
 
     try {
-      const response = await getChatbotResponse({ question: message });
+      const response = await getChatbotResponse({ question: message, language });
       const assistantMessage: Message = { role: 'assistant', content: response.answer, timestamp: serverTimestamp() };
       addDoc(messagesRef, assistantMessage);
     } catch (error) {
       console.error("Error getting chatbot response:", error);
-      const errorMessage: Message = { role: 'assistant', content: "Sorry, I'm having trouble connecting. Please try again later.", timestamp: serverTimestamp() };
+      const errorMessage: Message = { role: 'assistant', content: copy.error, timestamp: serverTimestamp() };
       addDoc(messagesRef, errorMessage);
     } finally {
       setIsAiLoading(false);
@@ -103,7 +102,7 @@ export default function AIChatbot() {
     setInput('');
   };
 
-  const initialMessage: Message[] = [{ role: 'assistant', content: "Hello! I'm Vexa's AI assistant. I can answer questions about Vexa AI's services, solutions, case studies, team, and contact details." }];
+  const initialMessage: Message[] = [{ role: 'assistant', content: copy.initialMessage }];
   const chatContent = (messages && messages.length > 0) ? messages : [];
 
   return (
@@ -137,9 +136,9 @@ export default function AIChatbot() {
               <CardHeader className="text-center">
                 <CardTitle className="flex items-center justify-center gap-2">
                   <Sparkles className="h-5 w-5 text-primary" />
-                  AI Assistant
+                  {copy.title}
                 </CardTitle>
-                <CardDescription>Your guide to Vexa AI</CardDescription>
+                <CardDescription>{copy.description}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow overflow-hidden">
                 <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
@@ -174,7 +173,7 @@ export default function AIChatbot() {
                   <Input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Ask a question..."
+                    placeholder={copy.placeholder}
                     disabled={isAiLoading}
                     className="bg-background/50"
                   />

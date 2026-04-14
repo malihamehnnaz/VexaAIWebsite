@@ -1,18 +1,23 @@
 'use client';
 
 import SectionHeading from '@/components/common/section-heading';
-import { services } from '@/content/site-content';
+import { getLocalizedServices, siteCopy } from '@/lib/localization';
 import { motion } from 'framer-motion';
 import Reveal from '@/components/common/reveal';
 import { iconMap } from '@/components/common/icon-map';
+import { useLanguage } from '@/components/common/language-provider';
 
 const Services = () => {
+  const { language } = useLanguage();
+  const copy = siteCopy[language].home;
+  const services = getLocalizedServices(language);
+
   return (
     <section className="py-14 md:py-16 bg-background">
       <div className="container mx-auto px-4">
         <SectionHeading
-          title="Our Expertise"
-          description="We provide a wide range of services to help you achieve your business goals."
+          title={copy.expertiseTitle}
+          description={copy.expertiseDescription}
           className="space-y-3"
         />
         <div className="mt-7 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
