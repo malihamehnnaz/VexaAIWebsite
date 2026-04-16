@@ -16,6 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { sendContactEmail } from "@/app/actions";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -31,6 +33,7 @@ const formSchema = z.object({
 });
 
 export default function ContactForm() {
+  const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -41,9 +44,23 @@ export default function ContactForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // Here you would typically send the form data to your backend
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    const result = await sendContactEmail({
+      name: values.name,
+      company: values.company,
+      email: values.email,
+      message: values.message,
+    });
+
+    toast({
+      title: result.success ? "Message Sent" : "Message not sent",
+      description: result.message,
+      variant: result.success ? "default" : "destructive",
+    });
+
+    if (result.success) {
+      form.reset();
+    }
   }
 
   return (

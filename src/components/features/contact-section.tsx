@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
+import { sendContactEmail } from '@/app/actions';
 import { companyContact } from '@/content/site-content';
 
 const formSchema = z.object({
@@ -34,13 +34,23 @@ export default function ContactSection() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    toast({
-      title: 'Message Sent!',
-      description: 'Thank you for contacting us. We will get back to you shortly.',
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    const result = await sendContactEmail({
+      name: values.name,
+      company: values.company,
+      email: values.email,
+      message: values.projectDescription,
     });
-    form.reset();
+
+    toast({
+      title: result.success ? 'Message Sent' : 'Message not sent',
+      description: result.message,
+      variant: result.success ? 'default' : 'destructive',
+    });
+
+    if (result.success) {
+      form.reset();
+    }
   }
 
   return (
@@ -61,11 +71,6 @@ export default function ContactSection() {
             <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
               Have a project in mind or just want to learn more about our services? We'd love to hear from you.
             </p>
-             <div className="flex flex-col sm:flex-row gap-4">
-                <Button asChild size="lg">
-                    <Link href="#">Request a Demo</Link>
-                </Button>
-            </div>
             <div className="space-y-4 pt-4">
                 <div className="flex items-center gap-4">
                     <Mail className="h-6 w-6 text-accent"/>

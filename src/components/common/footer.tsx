@@ -79,10 +79,6 @@ export default function Footer() {
 
           <div className="mt-8 flex flex-col gap-3 border-t border-border/50 pt-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>&copy; {new Date().getFullYear()} Vexa AI. All rights reserved.</p>
-            <div className="flex gap-4">
-              <Link href="#" className="transition-colors hover:text-primary">Privacy</Link>
-              <Link href="#" className="transition-colors hover:text-primary">Terms</Link>
-            </div>
           </div>
         </div>
       </div>
