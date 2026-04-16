@@ -1,18 +1,23 @@
 'use client';
 
 import SectionHeading from '@/components/common/section-heading';
-import { testimonials } from '@/content/site-content';
+import { getLocalizedTestimonials, siteCopy } from '@/lib/localization';
 import { motion } from 'framer-motion';
 import Reveal from '@/components/common/reveal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useLanguage } from '@/components/common/language-provider';
 
 const Testimonials = () => {
+  const { language } = useLanguage();
+  const copy = siteCopy[language].home;
+  const testimonials = getLocalizedTestimonials(language);
+
   return (
     <section className="py-14 md:py-16 bg-background">
       <div className="container mx-auto px-4">
         <SectionHeading
-          title="What Our Clients Say"
-          description="We are proud to have earned the trust of our clients. Here's what they have to say about our work."
+          title={copy.testimonialsTitle}
+          description={copy.testimonialsDescription}
           className="space-y-3"
         />
         <div className="mt-7 grid grid-cols-1 gap-6 lg:grid-cols-3">

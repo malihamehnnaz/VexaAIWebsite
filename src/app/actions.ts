@@ -93,11 +93,14 @@ export async function getChatbotResponse(
   input: AnswerCustomerQuestionsInput
 ): Promise<AnswerCustomerQuestionsOutput> {
   const clientKey = await getChatbotClientKey();
+  const language = input.language === 'sv' ? 'sv' : 'en';
 
   if (isChatbotRateLimited(clientKey)) {
     return {
       answer:
-        'You are sending messages too quickly. Please wait a minute and try again with a Vexa AI question.',
+        language === 'sv'
+          ? 'Du skickar meddelanden for snabbt. Vanta en minut och forsok igen med en fraga om Vexa AI.'
+          : 'You are sending messages too quickly. Please wait a minute and try again with a Vexa AI question.',
     };
   }
 

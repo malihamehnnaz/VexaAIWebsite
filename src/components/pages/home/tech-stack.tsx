@@ -18,6 +18,8 @@ import {
 import { FaAws } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import Reveal from '@/components/common/reveal';
+import { siteCopy } from '@/lib/localization';
+import { useLanguage } from '@/components/common/language-provider';
 
 const tech = [
   { name: 'Next.js', icon: SiNextdotjs },
@@ -36,12 +38,15 @@ const tech = [
 ];
 
 const TechStack = () => {
+  const { language } = useLanguage();
+  const copy = siteCopy[language].home;
+
   return (
     <section className="py-14 md:py-16 bg-background">
       <div className="container mx-auto px-4">
         <SectionHeading
-          title="Our Technology Stack"
-          description="We use the best and most modern technologies to build our solutions."
+          title={copy.stackTitle}
+          description={copy.stackDescription}
           className="space-y-3"
         />
         <Reveal>

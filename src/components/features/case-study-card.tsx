@@ -1,19 +1,27 @@
 
+"use client";
+
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { useLanguage } from '@/components/common/language-provider';
+import { siteCopy } from '@/lib/localization';
 
 interface CaseStudyCardProps {
   id: string;
   title: string;
+  sector: string;
   problem: string;
   solution: string;
   techStack: string[];
-  results: string;
+  metrics: { label: string; value: string }[];
   image: string;
 }
 
-export default function CaseStudyCard({ id, title, problem, solution, techStack, results, image }: CaseStudyCardProps) {
+export default function CaseStudyCard({ id, title, sector, problem, solution, techStack, metrics, image }: CaseStudyCardProps) {
+  const { language } = useLanguage();
+  const copy = siteCopy[language].caseStudiesPage;
+
   return (
     <Card id={id} className="overflow-hidden shadow-lg">
       <div className="grid md:grid-cols-2">
@@ -22,19 +30,30 @@ export default function CaseStudyCard({ id, title, problem, solution, techStack,
           
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-semibold text-primary mb-2">Problem</h3>
+              <h3 className="text-xl font-semibold text-primary mb-2">{copy.sector}</h3>
+              <p className="text-muted-foreground">{sector}</p>
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-primary mb-2">{copy.problem}</h3>
               <p className="text-muted-foreground">{problem}</p>
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-primary mb-2">Solution</h3>
+              <h3 className="text-xl font-semibold text-primary mb-2">{copy.solution}</h3>
               <p className="text-muted-foreground">{solution}</p>
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-primary mb-2">Results</h3>
-              <p className="text-muted-foreground font-bold">{results}</p>
+              <h3 className="text-xl font-semibold text-primary mb-2">{copy.keyMetrics}</h3>
+              <div className="space-y-2 text-muted-foreground">
+                {metrics.map((metric) => (
+                  <p key={metric.label} className="flex items-center justify-between gap-4 rounded-lg border border-border/50 px-3 py-2">
+                    <span>{metric.label}</span>
+                    <span className="font-semibold text-foreground">{metric.value}</span>
+                  </p>
+                ))}
+              </div>
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-primary mb-2">Tech Stack</h3>
+              <h3 className="text-xl font-semibold text-primary mb-2">{copy.techStack}</h3>
               <div className="flex flex-wrap gap-2">
                 {techStack.map((tech, index) => (
                   <Badge key={index} variant="secondary">{tech}</Badge>

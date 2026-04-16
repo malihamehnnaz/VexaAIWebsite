@@ -1,18 +1,33 @@
 
-const journeyData = [
-  { year: "2018", event: "Company founded with a vision to revolutionize the tech consulting industry." },
-  { year: "2019", event: "Expanded our services to include AI and Machine Learning solutions." },
-  { year: "2020", event: "Achieved AWS Advanced Consulting Partner status." },
-  { year: "2021", event: "Opened our first international office and doubled our team size." },
-  { year: "2022", event: "Launched our flagship Enterprise AI Copilot product." },
-  { year: "2023", event: "Recognized as a leader in cloud and AI solutions by a major tech publication." },
-];
+'use client';
+
+import { useLanguage } from '@/components/common/language-provider';
 
 export default function CompanyJourney() {
+  const { language } = useLanguage();
+  const journeyData =
+    language === 'sv'
+      ? [
+          { year: '2018', event: 'Bolaget grundades med en vision om att fornya teknikradgivningsbranschen.' },
+          { year: '2019', event: 'Vi utokade erbjudandet med AI- och maskininlarningslosningar.' },
+          { year: '2020', event: 'Vi etablerade ett starkt erbjudande inom molnleverans och plattformsteknik.' },
+          { year: '2021', event: 'Vi oppnade vart forsta internationella kontor och fordubblade teamets storlek.' },
+          { year: '2022', event: 'Vi lanserade var flaggskeppsprodukt for Enterprise AI Copilot.' },
+          { year: '2023', event: 'Vi uppmarksammades som en ledande aktor inom moln- och AI-losningar.' },
+        ]
+      : [
+          { year: '2018', event: 'Company founded with a vision to revolutionize the tech consulting industry.' },
+          { year: '2019', event: 'Expanded our services to include AI and Machine Learning solutions.' },
+          { year: '2020', event: 'Established a strong cloud delivery and platform engineering practice.' },
+          { year: '2021', event: 'Opened our first international office and doubled our team size.' },
+          { year: '2022', event: 'Launched our flagship Enterprise AI Copilot product.' },
+          { year: '2023', event: 'Recognized as a leader in cloud and AI solutions by a major tech publication.' },
+        ];
+
   return (
     <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-center mb-12">Our Journey</h2>
+        <h2 className="text-3xl font-bold text-center mb-12">{language === 'sv' ? 'Var resa' : 'Our Journey'}</h2>
         <div className="relative">
           <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-border"></div>
           {journeyData.map((item, index) => (

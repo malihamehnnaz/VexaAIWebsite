@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import ClientOverlays from '@/components/common/client-overlays';
+import { LanguageProvider } from '@/components/common/language-provider';
 import { patchBrokenServerStorage } from '@/lib/storage-polyfill';
 import SiteShell from '@/components/common/site-shell';
 import { ThemeProvider } from '@/components/common/theme-provider';
@@ -43,10 +44,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SiteShell>
-            {children}
-          </SiteShell>
-          <ClientOverlays />
+          <LanguageProvider>
+            <SiteShell>
+              {children}
+            </SiteShell>
+            <ClientOverlays />
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -5,12 +5,20 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Card, CardContent } from '@/components/ui/card';
+import { useLanguage } from '@/components/common/language-provider';
 
 const aboutImage = PlaceHolderImages.find(p => p.id === 'about-us');
 const hasImageUrl = <T extends {imageUrl?: string}>(image: T | undefined): image is T & {imageUrl: string} =>
   Boolean(image?.imageUrl);
 
 export default function AboutSection() {
+  const { language } = useLanguage();
+  const title = language === 'sv' ? 'Om Vexa AI' : 'About Vexa AI';
+  const description =
+    language === 'sv'
+      ? 'Vexa AI levererar nasta generations mjukvara och generativa AI-losningar som hjalper foretag i olika branscher att automatisera, innovera och skala snabbare. Vart uppdrag ar att forena kreativitet och teknik for att bygga intelligenta system som anpassar sig, lar sig och utvecklas tillsammans med er verksamhet.'
+      : 'Vexa AI delivers next-generation software and generative AI solutions that empower businesses across industries to automate, innovate, and scale faster. Our mission is to merge creativity with technology to build intelligent systems that adapt, learn, and evolve with your business.';
+
   return (
     <motion.section
       id="about"
@@ -25,10 +33,10 @@ export default function AboutSection() {
           <div className="flex flex-col justify-center space-y-6">
             <div className="space-y-4">
               <h2 className="font-headline text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-primary">
-                About VexaAI
+                {title}
               </h2>
               <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                VexaAI delivers next-generation software and generative AI solutions that empower businesses across industries to automate, innovate, and scale faster. Our mission is to merge creativity with technology to build intelligent systems that adapt, learn, and evolve with your business.
+                {description}
               </p>
             </div>
           </div>

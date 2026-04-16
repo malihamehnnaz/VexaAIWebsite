@@ -1,14 +1,59 @@
 
+'use client';
+
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { useLanguage } from '@/components/common/language-provider';
+import { getLocale, siteCopy } from '@/lib/localization';
 
 const heroImage = PlaceHolderImages.find(p => p.id === 'blog-post-4');
 const inlineImage1 = PlaceHolderImages.find(p => p.id === 'blog-inline-3');
 const inlineImage2 = PlaceHolderImages.find(p => p.id === 'blog-inline-4');
 
 export default function BlogPostPage() {
+  const { language } = useLanguage();
+  const locale = getLocale(language);
+  const blogCopy = siteCopy[language].blog;
+  const content = language === 'sv'
+    ? {
+        badges: ['AI-agenter', 'Affarsautomation'],
+        title: 'Nasta steg: sa automatiserar agentisk AI affaren',
+        lead: 'Vi har passerat enkel automation. Eran med agentisk AI ar har, dar intelligenta, autonoma system inte bara foljer instruktioner utan resonerar, planerar och utfor komplexa uppgifter for att na ett mal.',
+        intro: 'I flera ar har automation handlat om skript och fasta floden. Men vad hander nar processen inte ar linjar? Nar den kraver beslut, datainsamling fran flera kallor och anpassning till nya omstandigheter? Dar kommer agentiska losningar in som digitala medarbetare for era mest komplexa operativa behov.',
+        heading1: 'Vad ar AI-agenter?',
+        body1: 'Tank pa en AI-agent som ett autonomt system skapat for att na ett specifikt mal. Du ger den inte en steg-for-steg-plan, utan ett uppdrag. Till exempel kan du istallet for att programmera ett skript att hamta data och skicka den vidare be agenten att sammanfatta forsaljningen for senaste kvartalet med regional fordelning och viktiga drivkrafter. Agenten avgor sedan sjalv vilka kallor som ska anvandas och hur resultatet ska presenteras.',
+        heading2: 'Operational effektivitet pa riktigt',
+        body2: 'Agentisk AI ar en game changer for affarsautomation. Den kan hantera dynamiska processer i flera steg som tidigare varit for komplexa for traditionell automation. Exempel:',
+        bullets: [
+          '<strong>Optimering av leveranskedjan:</strong> En agent overvakar lagernivaer, leverantorsforseningar och efterfragan i realtid och kan automatiskt styra om leveranser och justera ordrar.',
+          '<strong>Personlig kundsupport:</strong> En agent hanterar ett kundarende fran start till mal, med tillgang till orderhistorik, kunskapskallor och bokning av uppfoljning utan manuell handpaverkan.',
+          '<strong>Automatiserad marknadsanalys:</strong> En agent kan fa uppdraget att kartlagga konkurrenslandskapet for en ny produkt och sedan samla information, analysera sajter och leverera en sammanfattande rapport.',
+        ],
+        heading3: 'Vexa AIs arbetssatt for agentiska losningar',
+        body3: 'Pa Vexa AI bygger vi inte bara chatbots utan autonoma arbetsstyrkor. Vi fokuserar pa robusta och tillforlitliga AI-agenter som integreras med era befintliga system. Tillsammans identifierar vi hogvardiga automationsomraden, definierar agenternas mal och kapacitet och lanserar losningar som ger matbar ROI.',
+        body4: 'Framtidens arbete handlar inte om att ersatta manniskor utan om att forstarka dem. Genom att lata AI-agenter ta hand om komplexa, repetitiva och dataintensiva uppgifter frigors tid for strategi, kreativitet och relationer. Valkommen till den digitala medarbetarens tidsalder.',
+      }
+    : {
+        badges: ['AI Agents', 'Business Automation'],
+        title: 'The Next Frontier: How Agentic AI is Automating Business',
+        lead: "We've moved beyond simple automation. The era of agentic AI is here, where intelligent, autonomous systems don't just follow instructions—they reason, plan, and execute complex tasks to achieve goals. This is business automation on a whole new level.",
+        intro: 'For years, automation has been about scripts and predefined workflows. But what happens when the process is not linear? What if it requires decision-making, data gathering from multiple sources, and adapting to unforeseen circumstances? This is where agentic solutions come in, acting as digital employees for your most complex operational needs.',
+        heading1: 'What Are AI Agents?',
+        body1: 'Think of an AI agent as an autonomous system designed to achieve a specific goal. You do not give it a step-by-step plan; you give it an objective. For example, instead of programming a script to extract data from multiple systems and forward it, you tell an AI agent to summarize last quarter\'s sales performance, including regional breakdowns and key drivers. The agent then figures out how to retrieve, synthesize, and present that information.',
+        heading2: 'Unlocking True Operational Efficiency',
+        body2: 'Agentic AI is a game-changer for business automation. It can handle dynamic, multi-step processes that were previously too complex for traditional automation. Consider these use cases:',
+        bullets: [
+          '<strong>Supply Chain Optimization:</strong> An agent monitors inventory levels, supplier delays, and market demand in real time, automatically re-routing shipments and adjusting orders to prevent stockouts.',
+          '<strong>Personalized Customer Support:</strong> An agent manages a customer query from start to finish, accessing order history, knowledge bases, and follow-up workflows without constant human intervention.',
+          '<strong>Automated Market Research:</strong> An agent can research a competitive landscape, analyze multiple sources, summarize findings, and deliver a usable report.',
+        ],
+        heading3: 'The Vexa AI Approach to Agentic Solutions',
+        body3: 'At Vexa AI, we do not just build chatbots; we build autonomous workforces. Our approach focuses on creating robust, reliable AI agents that integrate seamlessly with your existing systems. We work with you to identify high-impact areas for automation, design the agent\'s goals and capabilities, and deploy a solution that delivers measurable ROI.',
+        body4: 'The future of work is not about replacing humans but augmenting them. By delegating complex, repetitive, and data-intensive tasks to AI agents, you free up your team to focus on strategy, creativity, and relationships. Welcome to the age of the digital employee.',
+      };
+
   return (
     <article className="w-full">
       <header className="relative h-[60vh] min-h-[400px] w-full flex items-end justify-center text-center text-white">
@@ -26,19 +71,20 @@ export default function BlogPostPage() {
         <div className="relative z-10 container px-4 md:px-6 pb-12">
           <div className="flex flex-col items-center space-y-4">
             <div className="flex gap-2">
-                <Badge variant="secondary">AI Agents</Badge>
-                <Badge variant="secondary">Business Automation</Badge>
+                {content.badges.map((badge) => (
+                  <Badge key={badge} variant="secondary">{badge}</Badge>
+                ))}
             </div>
             <h1 className="font-headline text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
-              The Next Frontier: How Agentic AI is Automating Business
+              {content.title}
             </h1>
             <div className="flex items-center gap-4 pt-4">
                 <Avatar>
                     <AvatarFallback>VAI</AvatarFallback>
                 </Avatar>
                 <div>
-                    <p className="font-semibold">By The VexaAI Team</p>
-                    <p className="text-sm text-gray-300">Published on {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    <p className="font-semibold">{blogCopy.byTeam}</p>
+                    <p className="text-sm text-gray-300">{blogCopy.publishedOn} {new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 </div>
             </div>
           </div>
@@ -48,10 +94,10 @@ export default function BlogPostPage() {
       <div className="container mx-auto max-w-4xl py-16 md:py-24 px-4 md:px-6">
         <div className="prose prose-lg dark:prose-invert mx-auto">
           <p className="lead">
-            We've moved beyond simple automation. The era of agentic AI is here, where intelligent, autonomous systems don't just follow instructions—they reason, plan, and execute complex tasks to achieve goals. This is business automation on a whole new level.
+            {content.lead}
           </p>
           <p>
-            For years, automation has been about scripts and predefined workflows. But what happens when the process isn't linear? What if it requires decision-making, data gathering from multiple sources, and adapting to unforeseen circumstances? This is where agentic solutions come in, acting as digital employees for your most complex operational needs.
+            {content.intro}
           </p>
 
           {inlineImage1 && inlineImage1.imageUrl && (
@@ -67,19 +113,19 @@ export default function BlogPostPage() {
             </div>
           )}
           
-          <h2>What Are AI Agents?</h2>
+          <h2>{content.heading1}</h2>
           <p>
-            Think of an AI agent as an autonomous system designed to achieve a specific goal. You don't give it a step-by-step plan; you give it an objective. For example, instead of programming a script to "extract data from API X, format it, and send it to system Y," you tell an AI agent: "Provide me with a summary of last quarter's sales performance, including regional breakdowns and key drivers." The agent then figures out which APIs to call, how to synthesize the data, and how to present it.
+            {content.body1}
           </p>
           
-          <h2>Unlocking True Operational Efficiency</h2>
+          <h2>{content.heading2}</h2>
           <p>
-            Agentic AI is a game-changer for business automation. It can handle dynamic, multi-step processes that were previously too complex for traditional automation. Consider these use cases:
+            {content.body2}
           </p>
           <ul>
-            <li><strong>Supply Chain Optimization:</strong> An agent monitors inventory levels, supplier delays, and market demand in real-time, automatically re-routing shipments and adjusting orders to prevent stockouts.</li>
-            <li><strong>Personalized Customer Support:</strong> An agent manages a customer query from start to finish, accessing order history, knowledge bases, and even scheduling follow-up calls without human intervention.</li>
-            <li><strong>Automated Market Research:</strong> An agent can be tasked to "research the competitive landscape for our new product," and it will browse the web, analyze competitor websites, summarize findings, and deliver a comprehensive report.</li>
+            {content.bullets.map((bullet) => (
+              <li key={bullet} dangerouslySetInnerHTML={{ __html: bullet }} />
+            ))}
           </ul>
 
           {inlineImage2 && inlineImage2.imageUrl && (
@@ -95,12 +141,12 @@ export default function BlogPostPage() {
             </div>
           )}
 
-          <h2>The VexaAI Approach to Agentic Solutions</h2>
+          <h2>{content.heading3}</h2>
           <p>
-            At VexaAI, we don't just build chatbots; we build autonomous workforces. Our approach focuses on creating robust, reliable AI agents that integrate seamlessly with your existing systems. We work with you to identify high-impact areas for automation, design the agent's goals and capabilities, and deploy a solution that delivers measurable ROI.
+            {content.body3}
           </p>
           <p>
-            The future of work isn't about replacing humans but augmenting them. By delegating complex, repetitive, and data-intensive tasks to AI agents, you free up your team to focus on what they do best: strategy, creativity, and building relationships. Welcome to the age of the digital employee.
+            {content.body4}
           </p>
         </div>
       </div>
