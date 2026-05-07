@@ -6,7 +6,7 @@ const blogPostsData = [
     slug: "the-rise-of-ai-copilots",
     title: {
       en: "The Rise of AI Copilots: A New Era of Productivity",
-      sv: 'AI-copiloters framvaxt: en ny era av produktivitet',
+      sv: 'AI-copiloters framväxt: en ny era av produktivitet',
     },
     content: {
       en: `
@@ -24,18 +24,18 @@ const blogPostsData = [
       <p>The relationship between humans and AI is evolving from one of delegation to one of collaboration. AI copilots are at the forefront of this shift, empowering individuals and teams to achieve more than ever before. As this technology continues to mature, we can expect to see even more innovative applications that will further revolutionize the way we work.</p>
     `,
       sv: `
-      <p>AI-copiloter forandrar snabbt det moderna arbetslivet. Dessa intelligenta assistenter ar integrerade direkt i de verktyg vi redan anvander och ar utformade for att forstarka manniskors kapacitet, automatisera repetitiva uppgifter och ge proaktiv vagledning. I den har artikeln tittar vi pa copiloters framvaxt, deras viktigaste fordelar och hur de skapar en ny era av produktivitet.</p>
-      <h2>Vad ar en AI-copilot?</h2>
-      <p>En AI-copilot ar en avancerad AI-assistent som arbetar sida vid sida med anvandare i deras program. Till skillnad fran traditionella chatbots eller virtuella assistenter forstar copiloten sammanhanget i applikationen och anvandarens avsikt. Den kan hjalpa till med allt fran att skriva kod och formulera e-post till att analysera data och skapa rapporter.</p>
-      <h2>Viktiga fordelar med AI-copiloter</h2>
+      <p>AI-copiloter förändrar snabbt det moderna arbetslivet. Dessa intelligenta assistenter är integrerade direkt i de verktyg vi redan använder och är utformade för att förstärka människors kapacitet, automatisera repetitiva uppgifter och ge proaktiv vägledning. I den här artikeln tittar vi på copiloters framväxt, deras viktigaste fördelar och hur de skapar en ny era av produktivitet.</p>
+      <h2>Vad är en AI-copilot?</h2>
+      <p>En AI-copilot är en avancerad AI-assistent som arbetar sida vid sida med användare i deras program. Till skillnad från traditionella chatbots eller virtuella assistenter förstår copiloten sammanhanget i applikationen och användarens avsikt. Den kan hjälpa till med allt från att skriva kod och formulera e-post till att analysera data och skapa rapporter.</p>
+      <h2>Viktiga fördelar med AI-copiloter</h2>
       <ul>
-        <li><strong>Hogre produktivitet:</strong> Genom att automatisera repetitiva uppgifter och ge intelligenta forslag minskar tiden som kravs for att slutföra arbete.</li>
-        <li><strong>Battre kvalitet:</strong> Copiloter kan minska fel genom att ge feedback och kvalitetskontroller i realtid.</li>
-        <li><strong>Mer kreativitet:</strong> Nar vardagliga moment hanteras automatiskt frigors tid for mer strategiskt och kreativt arbete.</li>
-        <li><strong>Snabbare onboarding:</strong> Copiloter kan agera som interaktiva coacher som hjalper nya anvandare att navigera komplexa system.</li>
+        <li><strong>Högre produktivitet:</strong> Genom att automatisera repetitiva uppgifter och ge intelligenta förslag minskar tiden som krävs för att slutföra arbete.</li>
+        <li><strong>Bättre kvalitet:</strong> Copiloter kan minska fel genom att ge feedback och kvalitetskontroller i realtid.</li>
+        <li><strong>Mer kreativitet:</strong> När vardagliga moment hanteras automatiskt frigörs tid för mer strategiskt och kreativt arbete.</li>
+        <li><strong>Snabbare onboarding:</strong> Copiloter kan agera som interaktiva coacher som hjälper nya användare att navigera komplexa system.</li>
       </ul>
-      <h2>Framtiden ar samarbetsinriktad</h2>
-      <p>Relationen mellan manniska och AI utvecklas fran delegering till samarbete. AI-copiloter ligger i framkant i denna forandring och gor det mojligt for individer och team att astadkomma mer an tidigare. I takt med att tekniken mognar kommer vi att se allt fler tillampningar som ytterligare forandrar hur vi arbetar.</p>
+      <h2>Framtiden är samarbetsinriktad</h2>
+      <p>Relationen mellan människa och AI utvecklas från delegering till samarbete. AI-copiloter ligger i framkant i denna förändring och gör det möjligt för individer och team att åstadkomma mer än tidigare. I takt med att tekniken mognar kommer vi att se allt fler tillämpningar som ytterligare förändrar hur vi arbetar.</p>
     `,
     },
     author: { en: "Alice Johnson", sv: 'Alice Johnson' },

@@ -17,9 +17,10 @@ interface BlogPostCardProps {
   category?: string;
   readTime?: string;
   image?: string;
+  priority?: boolean;
 }
 
-export default function BlogPostCard({ slug, title, excerpt, author, date, category, readTime, image }: BlogPostCardProps) {
+export default function BlogPostCard({ slug, title, excerpt, author, date, category, readTime, image, priority = false }: BlogPostCardProps) {
   const { language } = useLanguage();
   const copy = siteCopy[language].blog;
   const formattedDate = new Date(date).toLocaleDateString(getLocale(language), {
@@ -33,7 +34,7 @@ export default function BlogPostCard({ slug, title, excerpt, author, date, categ
       <Card className="flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-gradient-to-br from-background to-muted/30 shadow-lg shadow-primary/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10">
         {image ? (
           <CardHeader className="p-0">
-            <Image src={image} alt={title} width={400} height={250} className="h-[250px] w-full object-cover" />
+            <Image src={image} alt={title} width={400} height={250} priority={priority} className="h-[250px] w-full object-cover" />
           </CardHeader>
         ) : (
           <CardHeader className="relative flex h-[250px] items-end overflow-hidden border-b border-border/60 bg-gradient-to-br from-primary/15 via-cyan-500/10 to-background p-0">

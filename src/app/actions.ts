@@ -4,18 +4,17 @@
 import {headers} from 'next/headers';
 
 import {
-  recommendServicePackages,
-  type RecommendServicePackagesInput,
-  type RecommendServicePackagesOutput,
-} from '@/ai/flows/recommend-service-packages';
-import {
   answerCustomerQuestions,
   type AnswerCustomerQuestionsInput,
   type AnswerCustomerQuestionsOutput,
 } from '@/ai/flows/answer-customer-questions';
+import type {
+  RecommendServicePackagesInput,
+  RecommendServicePackagesOutput,
+} from '@/ai/flows/recommend-service-packages';
 
 const CHATBOT_RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const CHATBOT_MAX_REQUESTS_PER_WINDOW = 6;
+const CHATBOT_MAX_REQUESTS_PER_WINDOW = 20;
 const CHATBOT_MAX_TRACKED_CLIENTS = 500;
 
 const chatbotRateLimitStore = new Map<string, number[]>();
@@ -53,12 +52,16 @@ function trimRateLimitStore() {
 }
 
 async function getChatbotClientKey() {
-  const headerStore = await headers();
-  const forwardedFor = headerStore.get('x-forwarded-for')?.split(',')[0]?.trim();
-  const realIp = headerStore.get('x-real-ip')?.trim();
-  const userAgent = headerStore.get('user-agent')?.trim() ?? 'unknown-agent';
+  try {
+    const headerStore = await headers();
+    const forwardedFor = headerStore.get('x-forwarded-for')?.split(',')[0]?.trim();
+    const realIp = headerStore.get('x-real-ip')?.trim();
+    const userAgent = headerStore.get('user-agent')?.trim() ?? 'unknown-agent';
 
-  return `${forwardedFor || realIp || 'unknown-ip'}:${userAgent}`;
+    return `${forwardedFor || realIp || 'unknown-ip'}:${userAgent}`;
+  } catch {
+    return `fallback-client:${Date.now().toString().slice(-6)}`;
+  }
 }
 
 function isChatbotRateLimited(clientKey: string) {
@@ -86,25 +89,43 @@ function isChatbotRateLimited(clientKey: string) {
 export async function getRecommendation(
   input: RecommendServicePackagesInput
 ): Promise<RecommendServicePackagesOutput> {
+  const {recommendServicePackages} = await import('@/ai/flows/recommend-service-packages');
   return await recommendServicePackages(input);
 }
 
 export async function getChatbotResponse(
   input: AnswerCustomerQuestionsInput
 ): Promise<AnswerCustomerQuestionsOutput> {
-  const clientKey = await getChatbotClientKey();
   const language = input.language === 'sv' ? 'sv' : 'en';
+  try {
+    const clientKey = await getChatbotClientKey();
 
-  if (isChatbotRateLimited(clientKey)) {
-    return {
-      answer:
-        language === 'sv'
-          ? 'Du skickar meddelanden for snabbt. Vanta en minut och forsok igen med en fraga om Vexa AI.'
-          : 'You are sending messages too quickly. Please wait a minute and try again with a Vexa AI question.',
-    };
+    if (isChatbotRateLimited(clientKey)) {
+      return {
+        answer:
+          language === 'sv'
+            ? 'Du skickar meddelanden for snabbt. Vanta en minut och forsok igen med en fraga om Vexa AI.'
+            : 'You are sending messages too quickly. Please wait a minute and try again with a Vexa AI question.',
+      };
+    }
+
+    return await answerCustomerQuestions({...input, sessionId: clientKey});
+  } catch (error) {
+    console.error('Chatbot request failed', error);
+    try {
+      return await answerCustomerQuestions({
+        ...input,
+        sessionId: 'fallback-session',
+      });
+    } catch {
+      return {
+        answer:
+          language === 'sv'
+            ? 'Tyvarr har jag problem att ansluta just nu. Forsok igen senare.'
+            : "Sorry, I'm having trouble connecting. Please try again later.",
+      };
+    }
   }
-
-  return await answerCustomerQuestions(input);
 }
 
 export async function sendContactEmail(

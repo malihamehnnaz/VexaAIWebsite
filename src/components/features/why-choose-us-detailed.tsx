@@ -13,45 +13,45 @@ export default function WhyChooseUsDetailed() {
     ? [
         {
           icon: <FaStar className="w-8 h-8 text-primary" />,
-          title: 'Expertis och kvalitet',
-          description: 'Vart team bestar av erfarna specialister med dokumenterad formaga att leverera skalbara och robusta losningar med hog kvalitet.',
+          title: 'Vi börjar med att lyssna',
+          description: 'Innan vi föreslår något tar vi oss tid att förstå hur din verksamhet fungerar, var utmaningarna finns och vad framgång faktiskt innebär för dig.',
         },
         {
           icon: <FaLightbulb className="w-8 h-8 text-primary" />,
-          title: 'Innovativa losningar',
-          description: 'Vi ligger i framkant och anvander de senaste framstegen inom AI och molnteknik for att losa komplexa affarsutmaningar.',
+          title: 'Ingen onödig komplexitet',
+          description: 'Den bästa lösningen är den enklaste som fungerar. Vi undviker överkonstruktion och fokuserar på det som verkligen gör skillnad i din vardag.',
         },
         {
           icon: <FaUsers className="w-8 h-8 text-primary" />,
-          title: 'Kundcentrerat arbetssatt',
-          description: 'Vi bygger langsiktiga partnerskap med vara kunder och arbetar tillsammans for att forsta behov och leverera skraddarsydda losningar.',
+          title: 'Vi arbetar med dig, inte bara för dig',
+          description: 'De bästa resultaten uppnås genom samarbete. Vi involverar ditt team genom hela projektet så att lösningen passar naturligt och dina medarbetare känner sig trygga med den.',
         },
         {
           icon: <FaShieldAlt className="w-8 h-8 text-primary" />,
-          title: 'Fortroende och transparens',
-          description: 'Vi arbetar med hog integritet, tydlig kommunikation och full transparens genom hela projektets livscykel.',
+          title: 'Vi stannar kvar efter leveransen',
+          description: 'Vårt arbete slutar inte vid lansering. Vi stödjer det vi bygger, lär oss av hur det används och ser till att det fortsätter leverera värde.',
         },
       ]
     : [
         {
           icon: <FaStar className="w-8 h-8 text-primary" />,
-          title: 'Expertise & Excellence',
-          description: 'Our team consists of industry veterans with a proven track record of delivering high-quality, scalable, and robust solutions.',
+          title: 'We start by listening',
+          description: 'Before we suggest anything, we take the time to understand how your business works, where the frustrations are, and what success actually looks like for you.',
         },
         {
           icon: <FaLightbulb className="w-8 h-8 text-primary" />,
-          title: 'Innovative Solutions',
-          description: 'We stay at the forefront of technology, leveraging the latest advancements in AI and cloud computing to solve complex business challenges.',
+          title: 'No unnecessary complexity',
+          description: 'The best solution is the simplest one that works. We avoid overengineering and focus on what will genuinely make a difference to your team.',
         },
         {
           icon: <FaUsers className="w-8 h-8 text-primary" />,
-          title: 'Client-Centric Approach',
-          description: 'We believe in building long-term partnerships with our clients, working collaboratively to understand their unique needs and deliver tailored solutions.',
+          title: 'We work with you, not just for you',
+          description: 'The best results come from collaboration. We involve your team throughout so the solution fits naturally and your people feel confident using it.',
         },
         {
           icon: <FaShieldAlt className="w-8 h-8 text-primary" />,
-          title: 'Trust & Transparency',
-          description: 'We operate with the utmost integrity, ensuring clear communication, and complete transparency throughout the entire project lifecycle.',
+          title: 'We stay after the build',
+          description: "Our work doesn't end at launch. We support what we build, learn from how it's used, and make sure it keeps delivering value.",
         },
       ];
 

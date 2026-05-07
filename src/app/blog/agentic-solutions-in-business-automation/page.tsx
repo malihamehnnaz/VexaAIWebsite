@@ -18,22 +18,22 @@ export default function BlogPostPage() {
   const blogCopy = siteCopy[language].blog;
   const content = language === 'sv'
     ? {
-        badges: ['AI-agenter', 'Affarsautomation'],
-        title: 'Nasta steg: sa automatiserar agentisk AI affaren',
-        lead: 'Vi har passerat enkel automation. Eran med agentisk AI ar har, dar intelligenta, autonoma system inte bara foljer instruktioner utan resonerar, planerar och utfor komplexa uppgifter for att na ett mal.',
-        intro: 'I flera ar har automation handlat om skript och fasta floden. Men vad hander nar processen inte ar linjar? Nar den kraver beslut, datainsamling fran flera kallor och anpassning till nya omstandigheter? Dar kommer agentiska losningar in som digitala medarbetare for era mest komplexa operativa behov.',
-        heading1: 'Vad ar AI-agenter?',
-        body1: 'Tank pa en AI-agent som ett autonomt system skapat for att na ett specifikt mal. Du ger den inte en steg-for-steg-plan, utan ett uppdrag. Till exempel kan du istallet for att programmera ett skript att hamta data och skicka den vidare be agenten att sammanfatta forsaljningen for senaste kvartalet med regional fordelning och viktiga drivkrafter. Agenten avgor sedan sjalv vilka kallor som ska anvandas och hur resultatet ska presenteras.',
-        heading2: 'Operational effektivitet pa riktigt',
-        body2: 'Agentisk AI ar en game changer for affarsautomation. Den kan hantera dynamiska processer i flera steg som tidigare varit for komplexa for traditionell automation. Exempel:',
+        badges: ['AI-agenter', 'Affärsautomation'],
+        title: 'Nästa steg: så automatiserar agentisk AI affären',
+        lead: 'Vi har passerat enkel automation. Eran med agentisk AI är här, där intelligenta, autonoma system inte bara följer instruktioner utan resonerar, planerar och utför komplexa uppgifter för att nå ett mål.',
+        intro: 'I flera år har automation handlat om skript och fasta flöden. Men vad händer när processen inte är linjär? När den kräver beslut, datainsamling från flera källor och anpassning till nya omständigheter? Där kommer agentiska lösningar in som digitala medarbetare för era mest komplexa operativa behov.',
+        heading1: 'Vad är AI-agenter?',
+        body1: 'Tänk på en AI-agent som ett autonomt system skapat för att nå ett specifikt mål. Du ger den inte en steg-för-steg-plan, utan ett uppdrag. Till exempel kan du istället för att programmera ett skript att hämta data och skicka den vidare be agenten att sammanfatta försäljningen för senaste kvartalet med regional fördelning och viktiga drivkrafter. Agenten avgör sedan själv vilka källor som ska användas och hur resultatet ska presenteras.',
+        heading2: 'Operativ effektivitet på riktigt',
+        body2: 'Agentisk AI är en game changer för affärsautomation. Den kan hantera dynamiska processer i flera steg som tidigare varit för komplexa för traditionell automation. Exempel:',
         bullets: [
-          '<strong>Optimering av leveranskedjan:</strong> En agent overvakar lagernivaer, leverantorsforseningar och efterfragan i realtid och kan automatiskt styra om leveranser och justera ordrar.',
-          '<strong>Personlig kundsupport:</strong> En agent hanterar ett kundarende fran start till mal, med tillgang till orderhistorik, kunskapskallor och bokning av uppfoljning utan manuell handpaverkan.',
-          '<strong>Automatiserad marknadsanalys:</strong> En agent kan fa uppdraget att kartlagga konkurrenslandskapet for en ny produkt och sedan samla information, analysera sajter och leverera en sammanfattande rapport.',
+          '<strong>Optimering av leveranskedjan:</strong> En agent övervakar lagernivåer, leverantörsförseningar och efterfrågan i realtid och kan automatiskt styra om leveranser och justera ordrar.',
+          '<strong>Personlig kundsupport:</strong> En agent hanterar ett kundärende från start till mål, med tillgång till orderhistorik, kunskapskällor och bokning av uppföljning utan manuell handpåverkan.',
+          '<strong>Automatiserad marknadsanalys:</strong> En agent kan få uppdraget att kartlägga konkurrenslandskapet för en ny produkt och sedan samla information, analysera sajter och leverera en sammanfattande rapport.',
         ],
-        heading3: 'Vexa AIs arbetssatt for agentiska losningar',
-        body3: 'Pa Vexa AI bygger vi inte bara chatbots utan autonoma arbetsstyrkor. Vi fokuserar pa robusta och tillforlitliga AI-agenter som integreras med era befintliga system. Tillsammans identifierar vi hogvardiga automationsomraden, definierar agenternas mal och kapacitet och lanserar losningar som ger matbar ROI.',
-        body4: 'Framtidens arbete handlar inte om att ersatta manniskor utan om att forstarka dem. Genom att lata AI-agenter ta hand om komplexa, repetitiva och dataintensiva uppgifter frigors tid for strategi, kreativitet och relationer. Valkommen till den digitala medarbetarens tidsalder.',
+        heading3: 'Vexa AIs arbetssätt för agentiska lösningar',
+        body3: 'På Vexa AI bygger vi inte bara chatbots utan autonoma arbetsstyrkor. Vi fokuserar på robusta och tillförlitliga AI-agenter som integreras med era befintliga system. Tillsammans identifierar vi högvärdiga automationsområden, definierar agenternas mål och kapacitet och lanserar lösningar som ger mätbar ROI.',
+        body4: 'Framtidens arbete handlar inte om att ersätta människor utan om att förstärka dem. Genom att låta AI-agenter ta hand om komplexa, repetitiva och dataintensiva uppgifter frigörs tid för strategi, kreativitet och relationer. Välkommen till den digitala medarbetarens tidsålder.',
       }
     : {
         badges: ['AI Agents', 'Business Automation'],

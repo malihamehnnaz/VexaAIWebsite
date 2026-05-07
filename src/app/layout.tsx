@@ -5,6 +5,7 @@ import { LanguageProvider } from '@/components/common/language-provider';
 import { patchBrokenServerStorage } from '@/lib/storage-polyfill';
 import SiteShell from '@/components/common/site-shell';
 import { ThemeProvider } from '@/components/common/theme-provider';
+import { FirebaseClientProvider } from '@/firebase';
 
 patchBrokenServerStorage();
 
@@ -45,10 +46,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <LanguageProvider>
-            <SiteShell>
-              {children}
-            </SiteShell>
-            <ClientOverlays />
+            <FirebaseClientProvider>
+              <SiteShell>
+                {children}
+              </SiteShell>
+              <ClientOverlays />
+            </FirebaseClientProvider>
           </LanguageProvider>
         </ThemeProvider>
       </body>

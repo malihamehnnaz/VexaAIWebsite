@@ -21,19 +21,19 @@ export default function BlogPostPage() {
   const blogCopy = siteCopy[language].blog;
   const content = language === 'sv'
     ? {
-        badges: ['Generativ AI', 'Affarsstrategi'],
-        title: 'Affarens framtid ar har, och den drivs av generativ AI',
-        lead: 'Forestall dig en varld dar ditt foretag inte bara reagerar pa kunders behov utan forutser dem. Dar innehallsskapande inte ar en flaskhals utan ett smidigt, automatiserat flode av kreativitet. Det ar inte science fiction, utan verkligheten som formas av generativ AI.',
-        intro: 'Generativ AI ar mer an ett modeord. Det ar en transformativ kraft som skriver om spelreglerna for affarslivet. Fran startups till globala koncerner anvander bolag tekniken for att skapa nya nivaer av effektivitet, personalisering och innovation. Pa Vexa AI ligger vi i framkant av den forandringen.',
+        badges: ['Generativ AI', 'Affärsstrategi'],
+        title: 'Affärens framtid är här, och den drivs av generativ AI',
+        lead: 'Föreställ dig en värld där ditt företag inte bara reagerar på kunders behov utan förutser dem. Där innehållsskapande inte är en flaskhals utan ett smidigt, automatiserat flöde av kreativitet. Det är inte science fiction, utan verkligheten som formas av generativ AI.',
+        intro: 'Generativ AI är mer än ett modeord. Det är en transformativ kraft som skriver om spelreglerna för affärslivet. Från startups till globala koncerner använder bolag tekniken för att skapa nya nivåer av effektivitet, personalisering och innovation. På Vexa AI ligger vi i framkant av den förändringen.',
         heading1: 'Hyperpersonalisering i stor skala',
-        body1: 'I flera ar har personalisering varit marknadsforingens heliga graal. Generativ AI gor det verkligt. Tänk dig att skapa miljontals unika marknadsbudskap, produktrekommendationer och anvandarupplevelser anpassade efter varje individ.',
+        body1: 'I flera år har personalisering varit marknadsföringens heliga graal. Generativ AI gör det verkligt. Tänk dig att skapa miljontals unika marknadsbudskap, produktrekommendationer och användarupplevelser anpassade efter varje individ.',
         heading2: 'Att automatisera den kreativa processen',
-        body2: 'Innehall ar kung, men innehallsproduktion kan ta mycket resurser. Generativ AI automatiserar skapandet av blogginlagg, inlagg i sociala medier, produkttexter och annonskopior. Det stannar inte vid text: AI kan nu skapa bilder, video och till och med musik, sa att kreativa team kan fokusera pa strategi.',
+        body2: 'Innehåll är kung, men innehållsproduktion kan ta mycket resurser. Generativ AI automatiserar skapandet av blogginlägg, inlägg i sociala medier, produkttexter och annonskopior. Det stannar inte vid text: AI kan nu skapa bilder, video och till och med musik, så att kreativa team kan fokusera på strategi.',
         heading3: 'Smartare produkter, smartare beslut',
-        body3: 'Generativ AI ar inte bara till for marknadsforing. Tekniken kan byggas in direkt i era produkter, skapa intelligenta applikationer som lar sig och anpassar sig samt rekommenderar atgarder utifran data.',
-        heading4: 'Vexa AI-fordelen',
-        body4: 'Affarens framtid ar intelligent, automatiserad och starkt personaliserad. Generativ AI ar motorn bakom den forandringen, och bolag som omfamnar den idag blir morgondagens ledare.',
-        body5: 'Pa Vexa AI erbjuder vi expertis och verktyg som hjalper er att integrera generativ AI i verksamheten. Oavsett om det handlar om en skraddarsydd chatbot, en motor for innehallsgenerering eller en hel AI-produkt har vi losningarna som hjalper er att lyckas.',
+        body3: 'Generativ AI är inte bara till för marknadsföring. Tekniken kan byggas in direkt i era produkter, skapa intelligenta applikationer som lär sig och anpassar sig samt rekommenderar åtgärder utifrån data.',
+        heading4: 'Vexa AI-fördelen',
+        body4: 'Affärens framtid är intelligent, automatiserad och starkt personaliserad. Generativ AI är motorn bakom den förändringen, och bolag som omfamnar den idag blir morgondagens ledare.',
+        body5: 'På Vexa AI erbjuder vi expertis och verktyg som hjälper er att integrera generativ AI i verksamheten. Oavsett om det handlar om en skräddarsydd chatbot, en motor för innehållsgenerering eller en hel AI-produkt har vi lösningarna som hjälper er att lyckas.',
       }
     : {
         badges: ['Generative AI', 'Business Strategy'],

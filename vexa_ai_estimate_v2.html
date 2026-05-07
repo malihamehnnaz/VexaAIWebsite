@@ -1,0 +1,143 @@
+
+<h2 class="sr-only">Vexa AI estimate template with dark color scheme</h2>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 1rem 0; font-family: var(--font-sans); }
+  .card { background: #0D1B2A; border-radius: var(--border-radius-lg); overflow: hidden; }
+  .hbar { background: #0a1520; padding: 20px 28px; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.5px solid #1a2e42; }
+  .co { display: flex; align-items: center; gap: 12px; }
+  .lc { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #00C9B1, #7B2FBE); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .cn { color: #E8E8E8; font-size: 18px; font-weight: 500; margin: 0 0 2px; }
+  .ct { color: #666; font-size: 11px; }
+  .rl { text-align: right; }
+  .rt { color: #00D4FF; font-size: 24px; font-weight: 500; margin: 0 0 6px; letter-spacing: 3px; }
+  .rm { color: #666; font-size: 11px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  .rm input { background: transparent; border: none; border-bottom: 0.5px solid #2a3f54; color: #aaa; font-size: 11px; text-align: right; width: 150px; padding: 1px 2px; outline: none; font-family: var(--font-sans); }
+  .rm input:focus { border-bottom-color: #00C9B1; color: #E8E8E8; }
+  .body { padding: 24px 28px; }
+  .from-box { background: #111f2e; border-radius: var(--border-radius-md); padding: 12px 14px; margin-bottom: 20px; border-left: 3px solid #00C9B1; }
+  .fl { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; color: #00C9B1; margin-bottom: 6px; }
+  .from-box p { font-size: 12px; color: #888; line-height: 1.7; }
+  .from-box p.nm { color: #E8E8E8; font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+  .th { display: grid; grid-template-columns: 1fr 70px 100px; gap: 8px; padding: 7px 12px; background: #111f2e; border-radius: var(--border-radius-md); margin-bottom: 4px; }
+  .th span { font-size: 10px; font-weight: 500; color: #00C9B1; text-transform: uppercase; letter-spacing: 0.8px; }
+  .th span:not(:first-child) { text-align: right; }
+  .li { display: grid; grid-template-columns: 1fr 70px 100px 24px; gap: 8px; padding: 9px 12px; border-bottom: 0.5px solid #1a2e42; align-items: center; }
+  .li:last-child { border-bottom: none; }
+  .li input { background: transparent; border: none; border-bottom: 0.5px solid transparent; color: #E8E8E8; font-size: 13px; width: 100%; padding: 1px 0; outline: none; font-family: var(--font-sans); }
+  .li input::placeholder { color: #3a4f62; }
+  .li input:focus { border-bottom-color: #2a3f54; }
+  .li input.r { text-align: right; }
+  .add-btn { background: none; border: 0.5px dashed #2a3f54; color: #666; font-size: 12px; padding: 7px 12px; border-radius: var(--border-radius-md); cursor: pointer; width: 100%; margin-top: 8px; font-family: var(--font-sans); }
+  .add-btn:hover { background: #111f2e; color: #aaa; }
+  .rm-btn { background: none; border: none; color: #3a4f62; cursor: pointer; font-size: 16px; padding: 0; line-height: 1; }
+  .rm-btn:hover { color: #E24B4A; }
+  .total-block { margin-top: 20px; display: flex; justify-content: flex-end; }
+  .tbox { width: 250px; background: #111f2e; border-radius: var(--border-radius-md); padding: 12px 14px; }
+  .tr { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 0.5px solid #1a2e42; }
+  .tr:last-child { border-bottom: none; }
+  .tr span { font-size: 12px; color: #888; }
+  .tr input { background: transparent; border: none; border-bottom: 0.5px solid transparent; color: #E8E8E8; font-size: 13px; text-align: right; width: 110px; outline: none; font-family: var(--font-sans); }
+  .tr input::placeholder { color: #3a4f62; }
+  .tr input:focus { border-bottom-color: #2a3f54; }
+  .tf { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: linear-gradient(135deg, #00C9B1 0%, #7B2FBE 100%); border-radius: var(--border-radius-md); margin-top: 10px; }
+  .tf span { font-size: 13px; color: #fff; font-weight: 500; }
+  .tf input { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 500; text-align: right; width: 140px; outline: none; font-family: var(--font-sans); }
+  .tf input::placeholder { color: rgba(255,255,255,0.4); }
+  .notice { margin-top: 20px; padding: 10px 14px; border: 0.5px solid #1a2e42; border-left: 3px solid #7B2FBE; border-radius: var(--border-radius-md); background: #111f2e; }
+  .notice p { font-size: 11px; color: #888; font-style: italic; }
+  .fbar { background: #0a1520; padding: 12px 28px; display: flex; justify-content: space-between; align-items: center; border-top: 0.5px solid #1a2e42; }
+  .fc { font-size: 11px; color: #555; }
+  .fc span { margin: 0 6px; color: #444; }
+  .print-btn { background: linear-gradient(135deg, #00C9B1, #7B2FBE); color: #fff; border: none; font-size: 12px; font-weight: 500; padding: 7px 16px; border-radius: var(--border-radius-md); cursor: pointer; font-family: var(--font-sans); }
+  .print-btn:hover { opacity: 0.9; }
+</style>
+
+<div class="wrap">
+  <div class="card">
+    <div class="hbar">
+      <div class="co">
+        <div class="lc">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <rect x="4" y="4" width="14" height="14" rx="2" stroke="#00D4FF" stroke-width="1.5"/>
+            <rect x="7.5" y="7.5" width="7" height="7" rx="1" stroke="#00D4FF" stroke-width="1.2"/>
+            <line x1="8" y1="4" x2="8" y2="2" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+            <line x1="14" y1="4" x2="14" y2="2" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+            <line x1="8" y1="18" x2="8" y2="20" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+            <line x1="14" y1="18" x2="14" y2="20" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+            <line x1="18" y1="8" x2="20" y2="8" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+            <line x1="18" y1="14" x2="20" y2="14" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+            <line x1="4" y1="8" x2="2" y2="8" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+            <line x1="4" y1="14" x2="2" y2="14" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <p class="cn">Vexa AI</p>
+          <p class="ct">Intelligent Systems Studio</p>
+        </div>
+      </div>
+      <div class="rl">
+        <p class="rt">ESTIMATE</p>
+        <div class="rm">
+          <div>No:&nbsp;<input value="VXA-EST-0001" /></div>
+          <div>Date:&nbsp;<input type="date" value="2026-05-06" /></div>
+          <div>Valid until:&nbsp;<input type="date" value="2026-06-06" /></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="from-box">
+        <p class="fl">From</p>
+        <p class="nm">Vexa AI</p>
+        <p>Rådhusesplanaden 6 F, 903 28 Umeå, Sweden<br>admin@vexaai.se &nbsp;·&nbsp; 0735777459</p>
+      </div>
+
+      <div class="th">
+        <span>Description</span>
+        <span>Qty</span>
+        <span>Amount</span>
+      </div>
+
+      <div id="items">
+        <div class="li"><input placeholder="Service or deliverable..." /><input class="r" placeholder="1" /><input class="r" placeholder="" /><button class="rm-btn" onclick="rem(this)" aria-label="Remove">×</button></div>
+        <div class="li"><input placeholder="Service or deliverable..." /><input class="r" placeholder="1" /><input class="r" placeholder="" /><button class="rm-btn" onclick="rem(this)" aria-label="Remove">×</button></div>
+        <div class="li"><input placeholder="Service or deliverable..." /><input class="r" placeholder="1" /><input class="r" placeholder="" /><button class="rm-btn" onclick="rem(this)" aria-label="Remove">×</button></div>
+      </div>
+
+      <button class="add-btn" onclick="add()"><i class="ti ti-plus" aria-hidden="true"></i> Add line item</button>
+
+      <div class="total-block">
+        <div class="tbox">
+          <div class="tr"><span>Subtotal</span><input placeholder="" /></div>
+          <div class="tr"><span>Tax / VAT</span><input placeholder="" /></div>
+          <div class="tf"><span>Total</span><input placeholder="" /></div>
+        </div>
+      </div>
+
+      <div class="notice">
+        <p>This is an estimate only and is not a confirmed invoice. Prices are subject to change upon final agreement.</p>
+      </div>
+    </div>
+
+    <div class="fbar">
+      <div class="fc">www.vexaai.se<span>·</span>admin@vexaai.se<span>·</span>+46 735 777 459</div>
+      <button class="print-btn" onclick="window.print()"><i class="ti ti-printer" aria-hidden="true"></i> Print / Save PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function add() {
+  const c = document.getElementById('items');
+  const d = document.createElement('div');
+  d.className = 'li';
+  d.innerHTML = '<input placeholder="Service or deliverable..." /><input class="r" placeholder="1" /><input class="r" placeholder="" /><button class="rm-btn" onclick="rem(this)" aria-label="Remove">×</button>';
+  c.appendChild(d);
+}
+function rem(btn) {
+  const rows = document.querySelectorAll('.li');
+  if (rows.length > 1) btn.closest('.li').remove();
+}
+</script>

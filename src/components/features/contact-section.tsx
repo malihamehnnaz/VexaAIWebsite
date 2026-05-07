@@ -24,23 +24,23 @@ export default function ContactSection() {
   const copy =
     language === 'sv'
       ? {
-          title: 'Lat oss bygga tillsammans',
-          description: 'Har ni ett projekt i atanke eller vill ni bara veta mer om vara tjanster? Vi vill garna hora fran er.',
+          title: 'Låt oss bygga tillsammans',
+          description: 'Har ni ett projekt i åtanke eller vill ni bara veta mer om våra tjänster? Vi vill gärna höra från er.',
           cta: 'Boka en demo',
           sentTitle: 'Meddelandet har skickats!',
-          sentDescription: 'Tack for att ni kontaktade oss. Vi aterkommer inom kort.',
+          sentDescription: 'Tack för att ni kontaktade oss. Vi återkommer inom kort.',
           name: 'Namn',
-          company: 'Foretag',
+          company: 'Företag',
           email: 'E-post',
           projectDescription: 'Projektbeskrivning',
           namePlaceholder: 'Anna Andersson',
-          companyPlaceholder: 'Ert foretag',
+          companyPlaceholder: 'Ert företag',
           emailPlaceholder: 'anna@example.com',
-          messagePlaceholder: 'Beratta om ert projekt...',
+          messagePlaceholder: 'Berätta om ert projekt...',
           submit: 'Skicka',
-          validationName: 'Namnet maste vara minst 2 tecken.',
+          validationName: 'Namnet måste vara minst 2 tecken.',
           validationEmail: 'Ange en giltig e-postadress.',
-          validationMessage: 'Meddelandet maste vara minst 10 tecken.',
+          validationMessage: 'Meddelandet måste vara minst 10 tecken.',
         }
       : {
           title: "Let's Build Together",

@@ -22,31 +22,31 @@ export default function BlogPage() {
     ? [
         {
           slug: 'the-rise-of-ai-copilots',
-          title: 'AI-copiloters framvaxt: en ny era av produktivitet',
-          excerpt: 'AI-copiloter forandrar hur vi arbetar. I den har artikeln utforskar vi fordelarna med AI-copiloter och hur de kan hjalpa er att bli mer produktiva.',
+          title: 'AI-copiloters framväxt: en ny era av produktivitet',
+          excerpt: 'AI-copiloter förändrar hur vi arbetar. I den här artikeln utforskar vi fördelarna med AI-copiloter och hur de kan hjälpa er att bli mer produktiva.',
           author: 'Alice Johnson',
           date: '2024-10-26',
           category: 'AI-strategi',
-          readTime: '6 min lasning',
+          readTime: '6 min läsning',
           image: 'https://images.unsplash.com/photo-1697577418970-95d99b5a55cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1200',
         },
         {
           slug: 'demystifying-rag-for-enterprise',
-          title: 'Att avmystifiera Retrieval-Augmented Generation (RAG) for foretag',
-          excerpt: 'RAG ar en kraftfull teknik for intelligenta chatbots och kunskapsassistenter. Lar dig hur det fungerar och hur det kan anvandas i din organisation.',
+          title: 'Att avmystifiera Retrieval-Augmented Generation (RAG) för företag',
+          excerpt: 'RAG är en kraftfull teknik för intelligenta chatbots och kunskapsassistenter. Lär dig hur det fungerar och hur det kan användas i din organisation.',
           author: 'Charlie Brown',
           date: '2024-10-20',
           category: 'Kunskapssystem',
-          readTime: '7 min lasning',
+          readTime: '7 min läsning',
         },
         {
           slug: 'cloud-migration-strategies',
-          title: 'Topp 5 strategier for en smidig molnmigrering',
-          excerpt: 'Molnmigrering kan vara komplext. I den har artikeln gar vi igenom fem strategier som hjalper er till en smidig overgang.',
+          title: 'Topp 5 strategier för en smidig molnmigrering',
+          excerpt: 'Molnmigrering kan vara komplext. I den här artikeln går vi igenom fem strategier som hjälper er till en smidig övergång.',
           author: 'Bob Williams',
           date: '2024-10-15',
           category: 'Molntransformation',
-          readTime: '5 min lasning',
+          readTime: '5 min läsning',
           image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1200',
         },
       ]
@@ -131,6 +131,7 @@ export default function BlogPage() {
                 <Image
                   src={featuredPost.image}
                   alt={featuredPost.title}
+                  priority
                   fill
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 />
@@ -141,7 +142,7 @@ export default function BlogPage() {
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           {otherPosts.map((post, index) => (
-            <BlogPostCard key={index} {...post} />
+            <BlogPostCard key={index} {...post} priority={index < 2} />
           ))}
         </div>
       </div>

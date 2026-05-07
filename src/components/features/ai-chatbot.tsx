@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect, type FormEvent } from 'react';
-import { Bot, User, Loader2, X, Send, Sparkles } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo, type FormEvent } from 'react';
+import { Bot, User, Loader2, X, Send, Sparkles, Zap, Building2, DollarSign, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getChatbotResponse } from '@/app/actions';
 import { cn } from '@/lib/utils';
@@ -20,14 +19,132 @@ import { siteCopy } from '@/lib/localization';
 type Message = {
   role: 'user' | 'assistant';
   content: string;
+  quote?: {
+    quoteId: string;
+    currency: 'SEK';
+    timeline: string;
+    cloudDeployment: string;
+    apiCallVolume: string;
+    subtotalSek: number;
+    contingencySek: number;
+    totalSek: number;
+    confidence: 'high' | 'medium' | 'low';
+    assumptions: string[];
+    items: Array<{
+      name: string;
+      description: string;
+      estimatedHours: number;
+      rateSek: number;
+      subtotalSek: number;
+    }>;
+    generatedAtIso: string;
+  };
   timestamp?: unknown;
+};
+
+type QuoteData = NonNullable<Message['quote']>;
+
+type BulletCard = {
+  title: string;
+  description: string;
+};
+
+type InitialCard = {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  labelSv: string;
+  description: string;
+  descriptionSv: string;
+  value: string;
+  valueSv: string;
+};
+
+const INITIAL_CARDS: InitialCard[] = [
+  {
+    icon: Zap,
+    label: 'Our Services',
+    labelSv: 'Vara tjanster',
+    description: 'AI, software, cloud & data',
+    descriptionSv: 'AI, mjukvara, moln och data',
+    value: 'Tell me about your services',
+    valueSv: 'Beratta om era tjanster',
+  },
+  {
+    icon: Building2,
+    label: 'About Vexa AI',
+    labelSv: 'Om Vexa AI',
+    description: 'Who we are & what we do',
+    descriptionSv: 'Vilka vi ar och vad vi gor',
+    value: 'Tell me about Vexa AI',
+    valueSv: 'Beratta om Vexa AI',
+  },
+  {
+    icon: DollarSign,
+    label: 'Get an Estimate',
+    labelSv: 'Fa en uppskattning',
+    description: 'Scoping & project pricing',
+    descriptionSv: 'Projektomfang och prissattning',
+    value: 'I want to get a project estimate',
+    valueSv: 'Jag vill ha en projektuppskattning',
+  },
+  {
+    icon: BookOpen,
+    label: 'Case Studies',
+    labelSv: 'Case-studier',
+    description: 'Real results from clients',
+    descriptionSv: 'Verkliga resultat fran kunder',
+    value: 'Show me your case studies',
+    valueSv: 'Visa era case-studier',
+  },
+];
+
+const parseBulletCards = (content: string): {
+  intro: string;
+  cards: BulletCard[];
+  outro: string;
+} => {
+  const segments = content
+    .split('•')
+    .map(segment => segment.trim())
+    .filter(Boolean);
+
+  if (segments.length === 0) {
+    return { intro: content.trim(), cards: [], outro: '' };
+  }
+
+  const cards: BulletCard[] = [];
+  const nonCardSegments: string[] = [];
+
+  for (const segment of segments) {
+    const dashMatch = segment.match(/^(.*?)\s+[–-]\s+(.*)$/);
+    if (dashMatch) {
+      cards.push({
+        title: dashMatch[1].trim(),
+        description: dashMatch[2].trim(),
+      });
+      continue;
+    }
+
+    nonCardSegments.push(segment);
+  }
+
+  // Only switch to card layout when we have a meaningful list.
+  if (cards.length < 3) {
+    return { intro: content.trim(), cards: [], outro: '' };
+  }
+
+  const intro = nonCardSegments.length > 0 ? nonCardSegments[0] : '';
+  const outro = nonCardSegments.length > 1 ? nonCardSegments.slice(1).join(' ') : '';
+  return { intro, cards, outro };
 };
 
 export default function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const [pendingSuggestions, setPendingSuggestions] = useState<string[]>([]);
+  const [pendingNextQuestion, setPendingNextQuestion] = useState<string | null>(null);
+  const scrollDivRef = useRef<HTMLDivElement>(null);
 
   const [isClient, setIsClient] = useState(false);
 
@@ -40,7 +157,6 @@ export default function AIChatbot() {
   const { user, isUserLoading } = useUser();
   const { language } = useLanguage();
   const copy = siteCopy[language].chatbot;
-  const examplePrompts = copy.prompts;
 
   const messagesRef = useMemoFirebase(() => {
     if (!firestore || !user || !isClient) return null;
@@ -61,9 +177,9 @@ export default function AIChatbot() {
   }, [user, isUserLoading, auth, isClient]);
 
   const scrollToBottom = () => {
-    if (scrollViewportRef.current) {
-        scrollViewportRef.current.scrollTo({
-        top: scrollViewportRef.current.scrollHeight,
+    if (scrollDivRef.current) {
+      scrollDivRef.current.scrollTo({
+        top: scrollDivRef.current.scrollHeight,
         behavior: 'smooth',
       });
     }
@@ -73,24 +189,135 @@ export default function AIChatbot() {
     if (isOpen) {
       setTimeout(scrollToBottom, 100);
     }
-  }, [messages, isOpen, isAiLoading]);
+  }, [messages, isOpen, isAiLoading, pendingSuggestions, pendingNextQuestion]);
+
+  const splitTrailingQuestion = (answer: string) => {
+    const match = answer.match(/(?:\n|^)([^?\n]{8,}\?)\s*$/);
+    if (!match) return { body: answer.trim(), nextQuestion: undefined };
+
+    const question = match[1].trim();
+    const body = answer.slice(0, answer.lastIndexOf(match[1])).trim();
+
+    if (!body) return { body: answer.trim(), nextQuestion: undefined };
+    return { body, nextQuestion: question };
+  };
+
+  const getLocalFallbackResponse = (message: string): {
+    answer: string;
+    quote?: QuoteData;
+    suggestions?: string[];
+    nextQuestion?: string;
+  } => {
+    const normalized = message.trim().toLowerCase();
+    const isGreeting = /^(hi|hello|hey|hej|tja|god morgon|good morning)\b/.test(normalized);
+    const isEstimateIntent = /(estimate|quote|pricing|cost|price|offert|uppskattning|pris)/.test(normalized);
+
+    if (isGreeting) {
+      return language === 'sv'
+        ? {
+            answer: 'Hej! Jag kan hjalpa dig med Vexa AI:s tjanster, losningar och projektuppskattningar.',
+            suggestions: ['Beratta om era tjanster', 'Jag vill ha en uppskattning', 'Visa case-studier'],
+            nextQuestion: 'Vad vill du bygga?'
+          }
+        : {
+            answer: 'Hi! I can help with Vexa AI services, solutions, and project estimates.',
+            suggestions: ['Tell me about your services', 'I want an estimate', 'Show case studies'],
+            nextQuestion: 'What are you planning to build?'
+          };
+    }
+
+    if (isEstimateIntent) {
+      return language === 'sv'
+        ? {
+            answer: 'Jag kan ge en snabb preliminar uppskattning. Dela mal, tidslinje och omfang sa tar vi fram den direkt.',
+            suggestions: ['Get estimate now', 'Share more details first'],
+            nextQuestion: 'Vill du ha uppskattningen nu eller dela mer detaljer?'
+          }
+        : {
+            answer: 'I can provide a quick preliminary estimate. Share your goal, timeline, and scope and I will generate it right away.',
+            suggestions: ['Get estimate now', 'Share more details first'],
+            nextQuestion: 'Do you want the estimate now or to share more details first?'
+          };
+    }
+
+    return language === 'sv'
+      ? {
+          answer: 'Jag har tillfalliga anslutningsproblem, men jag kan fortfarande hjalpa med Vexa AI-fragor om tjanster, case och uppskattningar.',
+          suggestions: ['Beratta om era tjanster', 'Jag vill ha en uppskattning', 'Kontaktinfo'],
+          nextQuestion: 'Vad vill du att jag hjalper dig med?'
+        }
+      : {
+          answer: 'I am having a temporary connection issue, but I can still help with Vexa AI topics like services, case studies, and estimates.',
+          suggestions: ['Tell me about your services', 'I want an estimate', 'Contact info'],
+          nextQuestion: 'What would you like help with?'
+        };
+  };
+
+  const getResponseWithRetry = async (
+    message: string,
+    retries = 1
+  ): Promise<{
+    answer: string;
+    quote?: QuoteData;
+    suggestions?: string[];
+    nextQuestion?: string;
+  }> => {
+    try {
+      return await getChatbotResponse({ question: message, language });
+    } catch (error) {
+      if (retries <= 0) {
+        return getLocalFallbackResponse(message);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 900));
+      return getResponseWithRetry(message, retries - 1);
+    }
+  };
 
   const handleSend = async (message: string) => {
-    if (!message.trim() || !messagesRef) return;
+    if (!message.trim()) return;
 
-    const userMessage: Message = { role: 'user', content: message, timestamp: serverTimestamp() };
-    addDoc(messagesRef, userMessage);
-    
+    setPendingSuggestions([]);
+    setPendingNextQuestion(null);
     setIsAiLoading(true);
 
     try {
-      const response = await getChatbotResponse({ question: message, language });
-      const assistantMessage: Message = { role: 'assistant', content: response.answer, timestamp: serverTimestamp() };
-      addDoc(messagesRef, assistantMessage);
+      if (messagesRef) {
+        const userMessage: Message = { role: 'user', content: message, timestamp: serverTimestamp() };
+        await addDoc(messagesRef, userMessage);
+      }
+
+      const response = await getResponseWithRetry(message, 1);
+      const split = splitTrailingQuestion(response.answer);
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: split.body,
+        ...(response.quote ? { quote: response.quote } : {}),
+        timestamp: serverTimestamp(),
+      };
+
+      if (messagesRef) {
+        await addDoc(messagesRef, assistantMessage);
+      }
+
+      const nextQuestion = response.nextQuestion?.trim() || split.nextQuestion;
+      if (nextQuestion) {
+        setPendingNextQuestion(nextQuestion);
+      }
+
+      if (response.suggestions?.length) {
+        setPendingSuggestions(response.suggestions.slice(0, 5));
+      }
     } catch (error) {
-      console.error("Error getting chatbot response:", error);
-      const errorMessage: Message = { role: 'assistant', content: copy.error, timestamp: serverTimestamp() };
-      addDoc(messagesRef, errorMessage);
+      console.error('Error getting chatbot response:', error);
+      const fallbackText = language === 'sv'
+        ? 'Jag har tillfalliga problem just nu. Forsok igen om en stund.'
+        : 'I am having a temporary issue right now. Please try again shortly.';
+
+      if (messagesRef) {
+        const errorMessage: Message = { role: 'assistant', content: fallbackText, timestamp: serverTimestamp() };
+        await addDoc(messagesRef, errorMessage);
+      }
     } finally {
       setIsAiLoading(false);
     }
@@ -104,6 +331,224 @@ export default function AIChatbot() {
 
   const initialMessage: Message[] = [{ role: 'assistant', content: copy.initialMessage }];
   const chatContent = (messages && messages.length > 0) ? messages : [];
+
+  const latestQuote = useMemo(() => {
+    for (let i = chatContent.length - 1; i >= 0; i -= 1) {
+      const candidate = chatContent[i]?.quote;
+      if (candidate) return candidate;
+    }
+    return null;
+  }, [chatContent]);
+
+  const formatSekForPdf = (value: number) =>
+    new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 0 }).format(value);
+
+  const escapeHtml = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const openQuotePrintView = (quote: QuoteData) => {
+    const quoteDate = new Date(quote.generatedAtIso);
+    const dateText = Number.isNaN(quoteDate.getTime())
+      ? quote.generatedAtIso
+      : quoteDate.toLocaleString(language === 'sv' ? 'sv-SE' : 'en-GB');
+    const dateInputValue = Number.isNaN(quoteDate.getTime())
+      ? ''
+      : quoteDate.toISOString().slice(0, 10);
+    const validUntil = Number.isNaN(quoteDate.getTime())
+      ? null
+      : new Date(quoteDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const validUntilValue = validUntil ? validUntil.toISOString().slice(0, 10) : '';
+
+    const assumptionsBlock = quote.assumptions.length
+      ? `<ul>${quote.assumptions.map(assumption => `<li>${escapeHtml(assumption)}</li>`).join('')}</ul>`
+      : '<p>No assumptions provided.</p>';
+
+    const itemsBlock = quote.items
+      .map(
+        item => `
+          <div class="li">
+            <div class="dcol">
+              <div class="dname">${escapeHtml(item.name)}</div>
+              <div class="ddesc">${escapeHtml(item.description || '-')}</div>
+            </div>
+            <div class="amt">${formatSekForPdf(item.subtotalSek)} SEK</div>
+          </div>`
+      )
+      .join('');
+
+    const vatSek = 0;
+
+    const html = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(quote.quoteId)} - Vexa AI Estimate</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: #f4f7fb; font-family: "Segoe UI", Arial, sans-serif; color: #e8e8e8; margin: 0; padding: 16px; }
+      .wrap { max-width: 680px; margin: 0 auto; }
+      .card { background: #0d1b2a; border-radius: 14px; overflow: hidden; }
+      .hbar { background: #0a1520; padding: 20px 28px; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #1a2e42; }
+      .co { display: flex; align-items: center; gap: 12px; }
+      .lc { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #00c9b1, #7b2fbe); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      .cn { color: #e8e8e8; font-size: 18px; font-weight: 600; margin: 0 0 2px; }
+      .ct { color: #7f93a8; font-size: 11px; }
+      .rl { text-align: right; }
+      .rt { color: #00d4ff; font-size: 24px; font-weight: 600; margin: 0 0 6px; letter-spacing: 3px; }
+      .rm { color: #8aa0b4; font-size: 11px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+      .rm div { min-width: 210px; text-align: right; }
+      .body { padding: 24px 28px; }
+      .from-box { background: #111f2e; border-radius: 10px; padding: 12px 14px; margin-bottom: 20px; border-left: 3px solid #00c9b1; }
+      .fl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #00c9b1; margin-bottom: 6px; }
+      .from-box p { font-size: 12px; color: #93a6b8; line-height: 1.7; }
+      .from-box p.nm { color: #e8e8e8; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+      .scope { margin: 0 0 16px; padding: 12px 14px; border: 1px solid #1a2e42; border-radius: 10px; background: #0f1d2b; }
+      .scope p { font-size: 12px; color: #a9bac9; line-height: 1.7; }
+      .scope p strong { color: #e8e8e8; }
+      .th { display: grid; grid-template-columns: 1fr 100px; gap: 8px; padding: 7px 12px; background: #111f2e; border-radius: 10px; margin-bottom: 4px; }
+      .th span { font-size: 10px; font-weight: 600; color: #00c9b1; text-transform: uppercase; letter-spacing: 0.8px; }
+      .th span:not(:first-child) { text-align: right; }
+      .li { display: grid; grid-template-columns: 1fr 100px; gap: 8px; padding: 9px 12px; border-bottom: 1px solid #1a2e42; align-items: center; }
+      .li:last-child { border-bottom: none; }
+      .dname { color: #e8e8e8; font-size: 13px; font-weight: 500; }
+      .ddesc { color: #8299ad; font-size: 11px; margin-top: 2px; }
+      .amt { color: #e8e8e8; font-size: 13px; text-align: right; }
+      .total-block { margin-top: 20px; display: flex; justify-content: flex-end; }
+      .tbox { width: 250px; background: #111f2e; border-radius: 10px; padding: 12px 14px; }
+      .tr { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #1a2e42; }
+      .tr:last-child { border-bottom: none; }
+      .tr span { font-size: 12px; color: #96a8ba; }
+      .tr b { font-size: 13px; color: #e8e8e8; font-weight: 600; }
+      .tf { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: linear-gradient(135deg, #00c9b1 0%, #7b2fbe 100%); border-radius: 10px; margin-top: 10px; }
+      .tf span { font-size: 13px; color: #fff; font-weight: 600; }
+      .notice { margin-top: 20px; padding: 10px 14px; border: 1px solid #1a2e42; border-left: 3px solid #7b2fbe; border-radius: 10px; background: #111f2e; }
+      .notice p { font-size: 11px; color: #9cb0c2; font-style: italic; line-height: 1.6; }
+      .notice ul { margin-top: 8px; padding-left: 16px; }
+      .notice li { font-size: 11px; color: #9cb0c2; margin: 4px 0; }
+      .fbar { background: #0a1520; padding: 12px 28px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1a2e42; gap: 8px; }
+      .fc { font-size: 11px; color: #6f8498; }
+      .fc span { margin: 0 6px; color: #4f677c; }
+      .print-btn { background: linear-gradient(135deg, #00c9b1, #7b2fbe); color: #fff; border: none; font-size: 12px; font-weight: 600; padding: 7px 16px; border-radius: 8px; cursor: pointer; }
+      @media print {
+        body { background: #fff; padding: 0; }
+        .wrap { max-width: none; }
+        .card { border-radius: 0; }
+        .print-btn { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="hbar">
+          <div class="co">
+            <div class="lc">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="4" width="14" height="14" rx="2" stroke="#00D4FF" stroke-width="1.5"/>
+                <rect x="7.5" y="7.5" width="7" height="7" rx="1" stroke="#00D4FF" stroke-width="1.2"/>
+                <line x1="8" y1="4" x2="8" y2="2" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+                <line x1="14" y1="4" x2="14" y2="2" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+                <line x1="8" y1="18" x2="8" y2="20" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+                <line x1="14" y1="18" x2="14" y2="20" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+                <line x1="18" y1="8" x2="20" y2="8" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+                <line x1="18" y1="14" x2="20" y2="14" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+                <line x1="4" y1="8" x2="2" y2="8" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+                <line x1="4" y1="14" x2="2" y2="14" stroke="#00D4FF" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <p class="cn">Vexa AI</p>
+              <p class="ct">Intelligent Systems Studio</p>
+            </div>
+          </div>
+          <div class="rl">
+            <p class="rt">ESTIMATE</p>
+            <div class="rm">
+              <div>No: ${escapeHtml(quote.quoteId)}</div>
+              <div>Date: ${escapeHtml(dateInputValue || dateText)}</div>
+              <div>Valid until: ${escapeHtml(validUntilValue || '-')}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="body">
+          <div class="from-box">
+            <p class="fl">From</p>
+            <p class="nm">Vexa AI</p>
+            <p>Radhusesplanaden 6 F, 903 28 Umea, Sweden<br/>admin@vexaai.se · +46 735 777 459</p>
+          </div>
+
+          <div class="scope">
+            <p><strong>Timeline:</strong> ${escapeHtml(quote.timeline)}</p>
+            <p><strong>Cloud deployment:</strong> ${escapeHtml(quote.cloudDeployment)}</p>
+            <p><strong>API call volume:</strong> ${escapeHtml(quote.apiCallVolume)}</p>
+            <p><strong>Confidence:</strong> ${escapeHtml(quote.confidence)}</p>
+          </div>
+
+          <div class="th">
+            <span>Description</span>
+            <span>Amount</span>
+          </div>
+
+          <div id="items">
+            ${itemsBlock}
+          </div>
+
+          <div class="total-block">
+            <div class="tbox">
+              <div class="tr"><span>Subtotal</span><b>${formatSekForPdf(quote.subtotalSek)} SEK</b></div>
+              <div class="tr"><span>Tax / VAT</span><b>${formatSekForPdf(vatSek)} SEK</b></div>
+              <div class="tr"><span>Contingency</span><b>${formatSekForPdf(quote.contingencySek)} SEK</b></div>
+              <div class="tf"><span>Total</span><span>${formatSekForPdf(quote.totalSek)} SEK</span></div>
+            </div>
+          </div>
+
+          <div class="notice">
+            <p>This is an estimate only and is not a confirmed invoice. Prices may change after final scope agreement.</p>
+            ${assumptionsBlock}
+          </div>
+        </div>
+
+        <div class="fbar">
+          <div class="fc">www.vexaai.se<span>·</span>admin@vexaai.se<span>·</span>+46 735 777 459</div>
+          <button class="print-btn" onclick="window.print()">Print / Save PDF</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+    const printWindow = window.open(blobUrl, '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      URL.revokeObjectURL(blobUrl);
+      return;
+    }
+    printWindow.focus();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    const normalized = suggestion.trim().toLowerCase();
+    const isDownloadAction = normalized === 'download pdf' || normalized === 'ladda ner pdf';
+
+    if (isDownloadAction) {
+      if (latestQuote) {
+        openQuotePrintView(latestQuote);
+      } else {
+        handleSend(suggestion);
+      }
+      return;
+    }
+
+    handleSend(suggestion);
+  };
 
   return (
     <>
@@ -130,19 +575,19 @@ export default function AIChatbot() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed bottom-28 right-8 z-50"
+            className="fixed bottom-24 left-3 right-3 z-50 md:bottom-28 md:left-auto md:right-8"
           >
-            <Card className="w-80 md:w-96 h-[32rem] flex flex-col shadow-2xl glass-card">
-              <CardHeader className="text-center">
+            <Card className="h-[32rem] w-full max-w-[calc(100vw-1.5rem)] md:w-96 md:max-w-none flex flex-col shadow-2xl glass-card">
+              <CardHeader className="shrink-0 py-3 px-4 text-center">
                 <CardTitle className="flex items-center justify-center gap-2">
                   <Sparkles className="h-5 w-5 text-primary" />
                   {copy.title}
                 </CardTitle>
                 <CardDescription>{copy.description}</CardDescription>
               </CardHeader>
-              <CardContent className="flex-grow overflow-hidden">
-                <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
-                  <div className="space-y-4">
+              <CardContent className="flex-1 min-h-0 p-0">
+                <div ref={scrollDivRef} className="h-full overflow-y-auto px-4 pb-2">
+                  <div className="space-y-3 py-2">
                     {isHistoryLoading ? (
                       <div className="flex justify-center items-center h-full">
                         <Loader2 className="mx-auto my-4 h-8 w-8 animate-spin text-primary" />
@@ -154,19 +599,54 @@ export default function AIChatbot() {
                           <ChatMessage key={index} message={message} />
                         ))}
                         {messages?.length === 0 && (
-                          <div className="flex flex-col gap-2 pt-4">
-                            {examplePrompts.map(prompt => (
-                              <Button key={prompt} variant="outline" size="sm" className="justify-start" onClick={() => handleSend(prompt)}>
-                                {prompt}
-                              </Button>
+                          <div className="grid grid-cols-2 gap-2 pt-4">
+                            {INITIAL_CARDS.map(card => (
+                              <button
+                                key={card.value}
+                                onClick={() => handleSend(language === 'sv' ? card.valueSv : card.value)}
+                                className="flex flex-col items-start gap-1 rounded-xl border border-border/60 bg-background/60 p-3 text-left text-xs hover:border-primary/50 hover:bg-primary/5 transition-all group"
+                              >
+                                <card.icon className="h-5 w-5 text-primary group-hover:text-primary/80 transition-colors" />
+                                <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                                  {language === 'sv' ? card.labelSv : card.label}
+                                </span>
+                                <span className="text-muted-foreground leading-tight">
+                                  {language === 'sv' ? card.descriptionSv : card.description}
+                                </span>
+                              </button>
                             ))}
                           </div>
                         )}
                       </>
                     )}
                     {isAiLoading && <LoadingBubble />}
+                    {!isAiLoading && pendingNextQuestion && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="rounded-lg border border-primary/30 bg-primary/5 p-3"
+                      >
+                        <p className="text-[11px] uppercase tracking-wide text-primary/80 font-semibold mb-1">
+                          {language === 'sv' ? 'Nasta fraga' : 'Next question'}
+                        </p>
+                        <p className="text-sm text-foreground break-words">{pendingNextQuestion}</p>
+                      </motion.div>
+                    )}
+                    {!isAiLoading && pendingSuggestions.length > 0 && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {pendingSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs text-foreground/80 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </ScrollArea>
+                </div>
               </CardContent>
               <CardFooter>
                 <form onSubmit={handleSubmit} className="flex w-full items-center space-x-2">
@@ -190,35 +670,95 @@ export default function AIChatbot() {
   );
 }
 
-const ChatMessage = ({ message }: { message: Message }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    className={cn('flex items-end gap-2', {
-      'justify-end': message.role === 'user',
-      'justify-start': message.role === 'assistant',
-    })}
-  >
-    {message.role === 'assistant' && (
-      <Avatar className="h-8 w-8 bg-secondary">
-        <AvatarFallback><Bot className="h-5 w-5 text-secondary-foreground" /></AvatarFallback>
-      </Avatar>
-    )}
-    <div
-      className={cn('max-w-xs rounded-lg px-4 py-2 text-sm md:text-base', {
-        'bg-primary text-primary-foreground': message.role === 'user',
-        'bg-secondary text-secondary-foreground': message.role === 'assistant',
-      })}
+const ChatMessage = ({ message }: { message: Message }) => {
+  const isUser = message.role === 'user';
+  const parsed = !isUser ? parseBulletCards(message.content) : null;
+  const hasHorizontalCards = Boolean(parsed && parsed.cards.length >= 3);
+  const hasQuote = Boolean(!isUser && message.quote);
+
+  const formatSek = (value: number) =>
+    new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 0 }).format(value);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}
     >
-      {message.content}
-    </div>
-      {message.role === 'user' && (
-      <Avatar className="h-8 w-8 bg-primary">
-        <AvatarFallback><User className="h-5 w-5 text-primary-foreground" /></AvatarFallback>
-      </Avatar>
-    )}
-  </motion.div>
-);
+      {!isUser && (
+        <Avatar className="h-7 w-7 shrink-0 bg-secondary">
+          <AvatarFallback><Bot className="h-4 w-4 text-secondary-foreground" /></AvatarFallback>
+        </Avatar>
+      )}
+      <div
+        className={cn(
+          'rounded-2xl px-3 py-2 text-sm leading-relaxed',
+          isUser
+            ? 'bg-primary text-primary-foreground rounded-br-sm'
+            : 'bg-secondary text-secondary-foreground rounded-bl-sm'
+        )}
+        style={{ maxWidth: hasHorizontalCards ? 'calc(100% - 2.25rem)' : '78%' }}
+      >
+        {hasQuote && message.quote && (
+          <div className="mb-3 rounded-xl border border-primary/20 bg-background/70 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-primary/80 font-semibold">Preliminary Estimate</p>
+            <p className="mt-1 text-xs text-muted-foreground">{message.quote.quoteId}</p>
+
+            <div className="mt-3 space-y-1 text-xs">
+              {message.quote.items.map((item) => (
+                <div key={item.name} className="rounded-md border border-border/60 bg-background/80 p-2">
+                  <p className="font-medium text-foreground">{item.name}</p>
+                  <p className="text-muted-foreground">{item.estimatedHours}h × {item.rateSek} SEK/h = {formatSek(item.subtotalSek)} SEK</p>
+                  {item.description && <p className="mt-1 text-muted-foreground">{item.description}</p>}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 space-y-1 border-t border-border/70 pt-2 text-xs">
+              <p className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatSek(message.quote.subtotalSek)} SEK</span></p>
+              <p className="flex justify-between"><span className="text-muted-foreground">Contingency</span><span>{formatSek(message.quote.contingencySek)} SEK</span></p>
+              <p className="flex justify-between font-semibold text-foreground"><span>Total</span><span>{formatSek(message.quote.totalSek)} SEK</span></p>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-1 text-xs text-muted-foreground">
+              <p><span className="text-foreground">Timeline:</span> {message.quote.timeline}</p>
+              <p><span className="text-foreground">Cloud:</span> {message.quote.cloudDeployment}</p>
+              <p><span className="text-foreground">API volume:</span> {message.quote.apiCallVolume}</p>
+              <p><span className="text-foreground">Confidence:</span> {message.quote.confidence}</p>
+            </div>
+          </div>
+        )}
+
+        {hasHorizontalCards && parsed ? (
+          <div className="space-y-2">
+            {parsed.intro && <p className="break-words whitespace-pre-line">{parsed.intro}</p>}
+            <div className="overflow-x-auto -mx-1 pb-1">
+              <div className="flex gap-2 px-1 w-max">
+                {parsed.cards.map(card => (
+                  <div
+                    key={card.title}
+                    className="w-44 shrink-0 rounded-lg border border-border/60 bg-background/70 p-2.5"
+                  >
+                    <p className="font-semibold text-foreground text-xs leading-snug">{card.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground leading-snug">{card.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {parsed.outro && <p className="break-words whitespace-pre-line">{parsed.outro}</p>}
+          </div>
+        ) : (
+          <p className="break-words whitespace-pre-line">{message.content}</p>
+        )}
+      </div>
+      {isUser && (
+        <Avatar className="h-7 w-7 shrink-0 bg-primary">
+          <AvatarFallback><User className="h-4 w-4 text-primary-foreground" /></AvatarFallback>
+        </Avatar>
+      )}
+    </motion.div>
+  );
+};
 
 const LoadingBubble = () => (
   <motion.div

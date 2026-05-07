@@ -18,22 +18,22 @@ export default function BlogPostPage() {
   const blogCopy = siteCopy[language].blog;
   const content = language === 'sv'
     ? {
-        badges: ['Molntjanster', 'Affarsstrategi'],
-        title: 'Ar ditt foretag redo for molnet?',
-        lead: 'Molnet ar inte langre en framtidsvision, utan grunden i modern affarsdrift. En flytt till molnet ger stora fordelar i skalbarhet, kostnadseffektivitet och innovation. Men ar verksamheten verkligen redo?',
-        intro: 'En lyckad molnmigrering ar mer an en teknisk forflyttning. Den kraver planering, tydlig strategi och en djup forstaelse for verksamhetens behov. Pa Vexa AI hjalper vi foretag genom den resan for att sakerstalla en smidig och framgangsrik overgång.',
-        heading1: 'Viktiga fordelar med molnmigrering',
-        body1: 'Att flytta till molnet kan skapa betydande fordelar. Ni betalar bara for de resurser ni anvander, minskar stora investeringar i fysisk infrastruktur och far en plattform som kan vaxa med verksamheten. Molnet forbattrar ocksa samarbete och erbjuder starka alternativ for disaster recovery.',
+        badges: ['Molntjänster', 'Affärsstrategi'],
+        title: 'Är ditt företag redo för molnet?',
+        lead: 'Molnet är inte längre en framtidsvision, utan grunden i modern affärsdrift. En flytt till molnet ger stora fördelar i skalbarhet, kostnadseffektivitet och innovation. Men är verksamheten verkligen redo?',
+        intro: 'En lyckad molnmigrering är mer än en teknisk förflyttning. Den kräver planering, tydlig strategi och en djup förståelse för verksamhetens behov. På Vexa AI hjälper vi företag genom den resan för att säkerställa en smidig och framgångsrik övergång.',
+        heading1: 'Viktiga fördelar med molnmigrering',
+        body1: 'Att flytta till molnet kan skapa betydande fördelar. Ni betalar bara för de resurser ni använder, minskar stora investeringar i fysisk infrastruktur och får en plattform som kan växa med verksamheten. Molnet förbättrar också samarbete och erbjuder starka alternativ för disaster recovery.',
         heading2: 'Att utveckla en molnstrategi',
-        body2: 'Innan migreringen bor ni utvardera er nuvarande IT-miljo och definiera tydliga mal. Vad vill ni uppna? Lagre kostnader, hogre flexibilitet eller battre prestanda? Strategin bor beskriva vilka applikationer som flyttas, vilken molnmodell som passar och om publik, privat eller hybrid moln ar bast utifran krav pa sakerhet och compliance.',
+        body2: 'Innan migreringen bör ni utvärdera er nuvarande IT-miljö och definiera tydliga mål. Vad vill ni uppnå? Lägre kostnader, högre flexibilitet eller bättre prestanda? Strategin bör beskriva vilka applikationer som flyttas, vilken molnmodell som passar och om publik, privat eller hybrid moln är bäst utifrån krav på säkerhet och compliance.',
         bullets: [
-          '<strong>Kartlagg arbetslaster:</strong> Alla applikationer ar inte redo for molnet. Identifiera vilka system som far mest varde av en migrering och vilka som behover moderniseras eller avvecklas.',
-          '<strong>Valj ratt leverantor:</strong> AWS, Google Cloud och Azure har olika styrkor. Valet ska utga fran era tekniska krav och er budget.',
-          '<strong>Planera for sakerhet:</strong> Sakerhet i molnet ar ett delat ansvar. Implementera tydlig accesskontroll, kryptering och overvaking for att skydda data.',
+          '<strong>Kartlägg arbetslaster:</strong> Alla applikationer är inte redo för molnet. Identifiera vilka system som får mest värde av en migrering och vilka som behöver moderniseras eller avvecklas.',
+          '<strong>Välj rätt leverantör:</strong> AWS, Google Cloud och Azure har olika styrkor. Valet ska utgå från era tekniska krav och er budget.',
+          '<strong>Planera för säkerhet:</strong> Säkerhet i molnet är ett delat ansvar. Implementera tydlig accesskontroll, kryptering och övervakning för att skydda data.',
         ],
         heading3: 'Vexa AIs molnresa',
-        body3: 'Pa Vexa AI forenklar vi det komplexa i molnmigrering. Vara experter arbetar med er for att skapa en skraddarsydd roadmap, fran initial analys till optimering efter flytten. Vi ser till att molnmiljon ar saker, kostnadseffektiv och helt i linje med era affarsmal.',
-        body4: 'Att ta steget till molnet ar centralt for att framtidssakra verksamheten. Med ratt partner och en stark strategi kan ni oppna en ny era av flexibilitet och innovation.',
+        body3: 'På Vexa AI förenklar vi det komplexa i molnmigrering. Våra experter arbetar med er för att skapa en skräddarsydd roadmap, från initial analys till optimering efter flytten. Vi ser till att molnmiljön är säker, kostnadseffektiv och helt i linje med era affärsmål.',
+        body4: 'Att ta steget till molnet är centralt för att framtidssäkra verksamheten. Med rätt partner och en stark strategi kan ni öppna en ny era av flexibilitet och innovation.',
       }
     : {
         badges: ['Cloud Services', 'Business Strategy'],

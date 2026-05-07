@@ -73,10 +73,10 @@ export type BlogPost = {
 };
 
 export const companyStats = [
-  { value: '40%', label: 'faster product delivery with AI-enabled workflows' },
-  { value: '99.95%', label: 'platform reliability for enterprise workloads' },
-  { value: '12 weeks', label: 'average pilot launch for copilots and chatbots' },
-  { value: '24/7', label: 'intelligent support and automation coverage' },
+  { value: '40%', label: 'less time spent on repetitive, manual work' },
+  { value: '99.95%', label: 'uptime for the solutions we build and support' },
+  { value: '12 weeks', label: 'from first conversation to a working solution' },
+  { value: '24/7', label: 'automated coverage so your team can focus on what matters' },
 ];
 
 export const clientLogos = ['Finova', 'HelixOps', 'Northstar Health', 'Atlas Retail', 'Quantum Legal', 'Pulse Energy'];
@@ -85,9 +85,9 @@ export const services: ServiceItem[] = [
   {
     slug: 'custom-software-development',
     title: 'Custom Software Development',
-    summary: 'Enterprise platforms, SaaS products, and internal systems engineered for reliability and growth.',
-    description: 'We design and build secure, scalable software that aligns with your operating model, compliance requirements, and customer experience goals.',
-    benefits: ['Architecture built for scale', 'Security-first delivery', 'Product thinking from discovery to rollout'],
+    summary: "Off-the-shelf tools don't always fit. We build software designed around how your business actually operates.",
+    description: "When existing platforms create more workarounds than solutions, it's time to build something that works the way your team does. We design software around your workflows — not the other way around.",
+    benefits: ['Built around how your team actually works', 'Grows with your business', 'From first conversation to launch and beyond'],
     technologies: ['Next.js', '.NET', 'Node.js', 'Python', 'PostgreSQL', 'GraphQL'],
     useCases: ['Operational command centers', 'B2B portals', 'Multi-tenant SaaS applications'],
     metric: 'Ship faster without compromising quality',
@@ -96,9 +96,9 @@ export const services: ServiceItem[] = [
   {
     slug: 'web-mobile-development',
     title: 'Web & Mobile App Development',
-    summary: 'Responsive digital products that feel premium, intuitive, and conversion-focused.',
-    description: 'From executive dashboards to customer-facing apps, we craft polished web and mobile experiences with modern front-end architecture and measurable UX improvements.',
-    benefits: ['Unified product experience across devices', 'Performance-first interfaces', 'Rapid iteration with design systems'],
+    summary: "Whether it's a customer-facing app or an internal dashboard, we build things that look great, work smoothly, and actually get used.",
+    description: "A great digital product isn't just about how it looks — it's about how naturally people use it. We build web and mobile experiences that your customers and team will actually want to open.",
+    benefits: ['Looks great and works intuitively', 'Consistent across every device', 'Designed around real users, not assumptions'],
     technologies: ['React', 'Next.js', 'React Native', 'Flutter', 'Tailwind CSS', 'Figma'],
     useCases: ['Customer self-service apps', 'Field workforce tools', 'Executive analytics dashboards'],
     metric: 'Modern interfaces that drive adoption',
@@ -107,9 +107,9 @@ export const services: ServiceItem[] = [
   {
     slug: 'ai-agents-rag-chatbots',
     title: 'AI Agents & RAG Chatbots',
-    summary: 'Context-aware assistants that combine retrieval, orchestration, and domain-specific reasoning.',
-    description: 'We build AI systems that ground responses in company knowledge, automate repetitive work, and escalate seamlessly when a human should step in.',
-    benefits: ['Context-aware answers with citations', 'Conversation memory and intent tracking', 'Escalation workflows for sales and support'],
+    summary: 'An assistant that knows your business inside out, handles repetitive requests, and knows when to bring in a real person.',
+    description: "We build AI assistants that answer questions based on your own knowledge, handle routine tasks automatically, and hand off to your team when the situation needs a human touch.",
+    benefits: ['Answers grounded in your actual knowledge', 'Handles routine requests without human effort', 'Knows when to hand off to a real person'],
     technologies: ['OpenAI', 'LangChain', 'Pinecone', 'FAISS', 'Genkit', 'Python'],
     useCases: ['Customer support copilots', 'Internal knowledge assistants', 'Proposal drafting and automation agents'],
     metric: 'Turn knowledge into always-on support',
@@ -118,9 +118,9 @@ export const services: ServiceItem[] = [
   {
     slug: 'cloud-migration-devops',
     title: 'Cloud Migration & DevOps',
-    summary: 'Cloud-native modernization across AWS, Azure, and GCP with automation built in.',
-    description: 'We migrate workloads, redesign infrastructure, and implement CI/CD and observability so your team can ship and scale with confidence.',
-    benefits: ['Lower operational risk', 'Elastic infrastructure', 'Improved deployment velocity'],
+    summary: "If your systems are slow, outdated, or hard to scale — we move them to modern infrastructure so your team can move faster.",
+    description: "Outdated infrastructure shouldn't hold your team back. We move your systems to modern cloud platforms, set up automated pipelines, and make sure your technology grows with your business.",
+    benefits: ['Systems that grow with your business', 'Your team ships faster with less friction', 'Less time firefighting, more time building'],
     technologies: ['AWS', 'Azure', 'Google Cloud', 'Docker', 'Kubernetes', 'Terraform'],
     useCases: ['Legacy platform modernization', 'Platform engineering', 'Disaster recovery improvements'],
     metric: 'Reduce cloud friction and improve resilience',
@@ -129,9 +129,9 @@ export const services: ServiceItem[] = [
   {
     slug: 'data-engineering-analytics',
     title: 'Data Engineering & Analytics',
-    summary: 'Decision-ready data platforms for reporting, AI, and operational intelligence.',
-    description: 'We design robust pipelines, governed data models, and analytics foundations that make enterprise data useful across business functions.',
-    benefits: ['Single source of truth', 'Reliable ETL and orchestration', 'Metrics aligned to business outcomes'],
+    summary: "You're sitting on more data than you think. We help you make sense of it and turn it into real decisions — not just spreadsheets.",
+    description: "Most businesses have data scattered across systems and reports that never quite connect. We bring it together in one place so your team can trust the numbers and act on them confidently.",
+    benefits: ['One place for all your business data', 'Reports your team will actually trust', 'Decisions based on facts, not gut feel'],
     technologies: ['dbt', 'Airflow', 'BigQuery', 'Snowflake', 'Power BI', 'Looker'],
     useCases: ['Revenue analytics', 'Executive KPI hubs', 'ML-ready data products'],
     metric: 'Build trust in every business decision',
@@ -140,9 +140,9 @@ export const services: ServiceItem[] = [
   {
     slug: 'enterprise-ai-copilot',
     title: 'Enterprise AI Copilot Development',
-    summary: 'Embedded AI copilots for operations, sales, knowledge work, and service delivery.',
-    description: 'We create role-specific copilots that integrate with your systems, summarize context, recommend actions, and automate multi-step workflows.',
-    benefits: ['Role-based copilots', 'Secure enterprise integrations', 'Workflow-aware automation'],
+    summary: "A smart assistant built for your team's specific role and workflow, so your people can focus on the work that needs a human touch.",
+    description: "We build AI copilots that understand the context of your team's daily work — surfacing the right information, suggesting next steps, and handling the repetitive parts so your people can focus on what actually matters.",
+    benefits: ["Tailored to your team's specific role", 'Handles the repetitive so people can focus', 'Works within the tools your team already uses'],
     technologies: ['Microsoft Graph', 'OpenAI', 'Vertex AI', 'OAuth', 'Vector stores', 'TypeScript'],
     useCases: ['Account manager copilots', 'Service desk assistants', 'Analyst copilots for reporting and research'],
     metric: 'Multiply team output with trustworthy AI',
@@ -307,10 +307,9 @@ export const companyTimeline = [
 ];
 
 export const companyValues = [
-  { title: 'Enterprise clarity', description: 'We simplify complex transformation programs into clear milestones, risks, and ROI.' },
-  { title: 'Engineering depth', description: 'Architecture, reliability, and security are built into every engagement from day one.' },
-  { title: 'AI with accountability', description: 'Every intelligent experience is designed with guardrails, traceability, and human escalation.' },
-  { title: 'Outcome obsession', description: 'We measure our work by adoption, speed, resilience, and business impact—not just delivery.' },
+  { title: 'Human-First', description: 'Technology should serve people, not replace them. Every solution we build is designed to give humans more room to do what they do best.' },
+  { title: 'Clarity', description: 'We cut through the noise — in how we communicate, how we work, and how we build. No unnecessary complexity, just the right solution done well.' },
+  { title: 'Impact', description: 'We measure success by what actually changes. Not the tools we deploy, but the difference they make in how your team works every day.' },
 ];
 
 export const companyContact: CompanyContact = {
@@ -324,14 +323,14 @@ export const teamMembers: TeamMember[] = [
   {
     name: 'Samara Sharin',
     role: 'Chief Executive Officer & Founder',
-    bio: 'Samara Sharin leads Vexa AI’s vision, growth, and strategic direction, shaping the company as a premium partner for enterprise AI, software, and digital transformation.',
+    bio: "Samara brings hands-on experience from running her own business, paired with a Master's in Business Development. She works closely with clients to understand where AI can make a real difference — translating business needs into the right solutions.",
     linkedin: 'https://www.linkedin.com/',
     initials: 'SS',
   },
   {
     name: 'Maliha Mehnaz',
     role: 'Chief Technology Officer & Consultant',
-    bio: 'Maliha Mehnaz leads Vexa AI’s technology strategy across enterprise AI, software engineering, cloud delivery, and consulting with a practical, execution-focused approach.',
+    bio: 'Maliha brings 8 years of deep tech experience and has delivered over 48 projects. She handles the technical side of every engagement — making sure what gets built is solid, scalable, and actually works.',
     linkedin: 'https://www.linkedin.com/',
     initials: 'MM',
   },
