@@ -319,6 +319,112 @@ const formatSolutionAnswer = (language: Language, solution: SolutionItem) => {
   return `${solution.title}: ${solution.summary} ${solution.solution} ${strings.solutionImpact} ${solution.impact}`;
 };
 
+const getQuickIntentResponse = (
+  language: Language,
+  question: string,
+  context: LanguageContext
+): { answer: string; suggestions?: string[]; nextQuestion?: string } | null => {
+  const normalized = normalizeQuestion(question);
+  const strings = getChatbotStrings(language);
+
+  const isServicesIntent = containsAny(
+    normalized,
+    language === 'sv'
+      ? ['beratta om era tjanster', 'berätta om era tjänster', 'era tjanster', 'era tjänster']
+      : ['tell me about your services', 'your services']
+  );
+
+  if (isServicesIntent) {
+    return {
+      answer: `${strings.servicesPrefix} ${context.services.map(service => service.title).join(', ')}.`,
+      suggestions:
+        language === 'sv'
+          ? ['Visa case-studier', 'Jag vill ha en uppskattning', 'Kontaktinfo']
+          : ['Show case studies', 'I want an estimate', 'Contact info'],
+      nextQuestion:
+        language === 'sv'
+          ? 'Vilken tjanst vill du utforska forst?'
+          : 'Which service would you like to explore first?',
+    };
+  }
+
+  const isCaseIntent = containsAny(
+    normalized,
+    language === 'sv'
+      ? ['visa case-studier', 'visa case', 'case-studier']
+      : ['show case studies', 'case studies']
+  );
+
+  if (isCaseIntent) {
+    const answer = context.caseStudies
+      .slice(0, 3)
+      .map(
+        study =>
+          `• ${study.title} (${study.sector})\n  ${study.overview}\n  ${strings.resultsPrefix} ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(' • ')}`
+      )
+      .join('\n\n');
+
+    return {
+      answer,
+      suggestions:
+        language === 'sv'
+          ? ['Jag vill ha en uppskattning', 'Beratta om era tjanster', 'Kontaktinfo']
+          : ['I want an estimate', 'Tell me about your services', 'Contact info'],
+      nextQuestion:
+        language === 'sv'
+          ? 'Vill du att jag tar fram en uppskattning baserat pa ditt mal?'
+          : 'Would you like me to prepare an estimate based on your goal?',
+    };
+  }
+
+  const isEstimateIntent = containsAny(
+    normalized,
+    language === 'sv'
+      ? ['jag vill ha en uppskattning', 'offert', 'prisforslag', 'prisförslag', 'estimate']
+      : ['i want an estimate', 'estimate', 'quote', 'pricing']
+  );
+
+  if (isEstimateIntent) {
+    return {
+      answer:
+        language === 'sv'
+          ? 'Perfekt. Jag kan ta fram en snabb preliminar uppskattning for dig.'
+          : 'Great. I can prepare a quick preliminary estimate for you.',
+      suggestions:
+        language === 'sv'
+          ? ['Cloud migration', 'AI-chatbot', 'Custom software', 'Data & analytics']
+          : ['Cloud migration', 'AI chatbot', 'Custom software', 'Data & analytics'],
+      nextQuestion:
+        language === 'sv'
+          ? 'Vad vill du bygga, och vilken tidslinje har ni?'
+          : 'What do you want to build, and what timeline do you have?',
+    };
+  }
+
+  const isContactIntent = containsAny(
+    normalized,
+    language === 'sv'
+      ? ['kontaktinfo', 'kontakt', 'e-post', 'telefon', 'adress']
+      : ['contact info', 'contact', 'email', 'phone', 'address']
+  );
+
+  if (isContactIntent) {
+    return {
+      answer: strings.contactReply(context.companyContact),
+      suggestions:
+        language === 'sv'
+          ? ['Beratta om era tjanster', 'Visa case-studier', 'Jag vill ha en uppskattning']
+          : ['Tell me about your services', 'Show case studies', 'I want an estimate'],
+      nextQuestion:
+        language === 'sv'
+          ? 'Vill du att jag rekommenderar en tjanst baserat pa ditt mal?'
+          : 'Would you like me to recommend a service based on your goal?',
+    };
+  }
+
+  return null;
+};
+
 const cleanSessionStore = () => {
   const now = Date.now();
   for (const [key, session] of salesSessionStore.entries()) {
@@ -907,6 +1013,16 @@ const answerCustomerQuestionsFlow = async (
 
   // Use client-supplied history if available (more reliable than server session)
   const clientHistory: ChatTurn[] = input.history ?? session.chatHistory;
+
+  // Deterministic handling for common quick-action prompts to avoid repetitive generic responses.
+  const quickIntentResponse = getQuickIntentResponse(language, question, context);
+  if (quickIntentResponse) {
+    session.chatHistory.push({ role: 'user', content: question });
+    session.chatHistory.push({ role: 'assistant', content: quickIntentResponse.answer });
+    if (session.chatHistory.length > 20) session.chatHistory = session.chatHistory.slice(-20);
+    salesSessionStore.set(sessionId, session);
+    return quickIntentResponse;
+  }
 
   // Try AI-driven conversation first
   const aiResponse = await tryGenerateAiConversationResponse(
