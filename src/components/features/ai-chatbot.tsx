@@ -145,6 +145,7 @@ export default function AIChatbot() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [pendingSuggestions, setPendingSuggestions] = useState<string[]>([]);
   const [pendingNextQuestion, setPendingNextQuestion] = useState<string | null>(null);
+  const [localHistory, setLocalHistory] = useState<ChatHistoryTurn[]>([]);
   const scrollDivRef = useRef<HTMLDivElement>(null);
 
   const [isClient, setIsClient] = useState(false);
@@ -170,6 +171,16 @@ export default function AIChatbot() {
   }, [messagesRef]);
 
   const { data: messages, isLoading: isHistoryLoading } = useCollection<Message>(messagesQuery);
+
+  useEffect(() => {
+    if (!messages || messages.length === 0) return;
+
+    const history = messages
+      .filter(turn => turn.role === 'user' || turn.role === 'assistant')
+      .map(turn => ({ role: turn.role, content: turn.content }));
+
+    setLocalHistory(history.slice(-20));
+  }, [messages]);
   
   useEffect(() => {
     if (!user && !isUserLoading && auth && isClient) {
@@ -254,6 +265,21 @@ export default function AIChatbot() {
         };
   };
 
+  const getDefaultSuggestions = () =>
+    language === 'sv'
+      ? [
+          'Beratta om era tjanster',
+          'Visa case-studier',
+          'Jag vill ha en uppskattning',
+          'Kontaktinfo',
+        ]
+      : [
+          'Tell me about your services',
+          'Show case studies',
+          'I want an estimate',
+          'Contact info',
+        ];
+
   const getResponseWithRetry = async (
     message: string,
     history: ChatHistoryTurn[],
@@ -279,6 +305,10 @@ export default function AIChatbot() {
   const handleSend = async (message: string) => {
     if (!message.trim()) return;
 
+    const userTurn: ChatHistoryTurn = { role: 'user', content: message };
+    const historyForRequest = [...localHistory, userTurn].slice(-20);
+    setLocalHistory(historyForRequest);
+
     setPendingSuggestions([]);
     setPendingNextQuestion(null);
     setIsAiLoading(true);
@@ -288,10 +318,6 @@ export default function AIChatbot() {
         const userMessage: Message = { role: 'user', content: message, timestamp: serverTimestamp() };
         await addDoc(messagesRef, userMessage);
       }
-
-      const historyForRequest: ChatHistoryTurn[] = (messages ?? [])
-        .filter(turn => turn.role === 'user' || turn.role === 'assistant')
-        .map(turn => ({ role: turn.role, content: turn.content }));
 
       const response = await getResponseWithRetry(message, historyForRequest, 1);
       const split = splitTrailingQuestion(response.answer);
@@ -306,14 +332,19 @@ export default function AIChatbot() {
         await addDoc(messagesRef, assistantMessage);
       }
 
+      const assistantTurn: ChatHistoryTurn = { role: 'assistant', content: split.body };
+      setLocalHistory(prev => [...prev, assistantTurn].slice(-20));
+
       const nextQuestion = response.nextQuestion?.trim() || split.nextQuestion;
       if (nextQuestion) {
         setPendingNextQuestion(nextQuestion);
       }
 
-      if (response.suggestions?.length) {
-        setPendingSuggestions(response.suggestions.slice(0, 5));
-      }
+      setPendingSuggestions(
+        response.suggestions?.length
+          ? response.suggestions.slice(0, 5)
+          : getDefaultSuggestions()
+      );
     } catch (error) {
       console.error('Error getting chatbot response:', error);
       const fallbackText = language === 'sv'
@@ -324,6 +355,9 @@ export default function AIChatbot() {
         const errorMessage: Message = { role: 'assistant', content: fallbackText, timestamp: serverTimestamp() };
         await addDoc(messagesRef, errorMessage);
       }
+
+      const fallbackTurn: ChatHistoryTurn = { role: 'assistant', content: fallbackText };
+      setLocalHistory(prev => [...prev, fallbackTurn].slice(-20));
     } finally {
       setIsAiLoading(false);
     }
@@ -560,6 +594,7 @@ export default function AIChatbot() {
     setInput('');
     setPendingSuggestions([]);
     setPendingNextQuestion(null);
+    setLocalHistory([]);
 
     if (!messagesRef || !firestore) {
       return;
