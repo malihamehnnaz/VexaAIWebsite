@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getChatbotResponse } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useAuth, useMemoFirebase } from '@/firebase';
-import { collection, serverTimestamp, query, orderBy, addDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, query, orderBy, addDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -550,6 +550,29 @@ export default function AIChatbot() {
     handleSend(suggestion);
   };
 
+  const handleRestartChat = async () => {
+    setInput('');
+    setPendingSuggestions([]);
+    setPendingNextQuestion(null);
+
+    if (!messagesRef || !firestore) {
+      return;
+    }
+
+    try {
+      const snapshot = await getDocs(messagesRef);
+      if (snapshot.empty) return;
+
+      const batch = writeBatch(firestore);
+      snapshot.docs.forEach((docSnapshot) => {
+        batch.delete(docSnapshot.ref);
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error('Failed to restart chat history', error);
+    }
+  };
+
   return (
     <>
       <div className="fixed bottom-8 right-8 z-50">
@@ -584,6 +607,18 @@ export default function AIChatbot() {
                   {copy.title}
                 </CardTitle>
                 <CardDescription>{copy.description}</CardDescription>
+                <div className="mt-2 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRestartChat}
+                    disabled={isAiLoading}
+                    className="h-8 px-3 text-xs"
+                  >
+                    {language === 'sv' ? 'Starta om chatten' : 'Restart chat'}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="flex-1 min-h-0 p-0">
                 <div ref={scrollDivRef} className="h-full overflow-y-auto px-4 pb-2">

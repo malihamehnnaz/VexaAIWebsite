@@ -34,7 +34,7 @@ const MAX_QUESTION_CHARS = 700;
 const MIN_SCOPE_MATCHES = 1;
 const SALES_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const MAX_SALES_SESSIONS = 500;
-const AZURE_OPENAI_MAX_TOKENS = 16384;
+const AZURE_OPENAI_MAX_TOKENS = 1200;
 const AZURE_OPENAI_API_VERSION_DEFAULT = '2024-12-01-preview';
 
 // Rate limiting & call protection
@@ -821,7 +821,10 @@ const tryGenerateAiConversationResponse = async (
 ): Promise<{ answer: string; quote?: QuotePayload; suggestions?: string[] } | null> => {
   const client = getAzureClient();
   const deployment = getAzureDeployment();
-  if (!client || !deployment) return null;
+  if (!client || !deployment) {
+    console.error('[chatbot] Azure OpenAI is not configured. Missing client or deployment name.');
+    return null;
+  }
 
   const systemPrompt = buildAssistantSystemPrompt(language, context);
 
@@ -835,12 +838,34 @@ const tryGenerateAiConversationResponse = async (
     // Add delay before API call to prevent rate limiting failures
     await delay(API_CALL_DELAY_MS);
 
-    const completion = await client.chat.completions.create({
-      model: deployment,
-      temperature: 0.5,
-      max_completion_tokens: AZURE_OPENAI_MAX_TOKENS,
-      messages,
-    });
+    let completion;
+    try {
+      completion = await client.chat.completions.create({
+        model: deployment,
+        temperature: 0.5,
+        max_completion_tokens: AZURE_OPENAI_MAX_TOKENS,
+        messages,
+      });
+    } catch (err: unknown) {
+      const e = err as { status?: number; message?: string; code?: string };
+      const messageText = (e?.message || '').toLowerCase();
+      const shouldRetryWithMaxTokens =
+        e?.status === 400 &&
+        (messageText.includes('max_completion_tokens') ||
+          messageText.includes('unknown parameter') ||
+          messageText.includes('unrecognized request argument'));
+
+      if (!shouldRetryWithMaxTokens) {
+        throw err;
+      }
+
+      completion = await client.chat.completions.create({
+        model: deployment,
+        temperature: 0.5,
+        max_tokens: AZURE_OPENAI_MAX_TOKENS,
+        messages,
+      });
+    }
 
     const raw = completion.choices?.[0]?.message?.content?.trim();
     if (!raw) {
