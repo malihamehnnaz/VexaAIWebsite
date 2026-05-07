@@ -1,14 +1,21 @@
-import { teamMembers } from '@/content/site-content';
+'use client';
+
+import { useLanguage } from '@/components/common/language-provider';
+import { getLocalizedTeamMembers, siteCopy } from '@/lib/localization';
 
 export default function TeamPreview() {
+  const { language } = useLanguage();
+  const copy = siteCopy[language].about;
+  const teamMembers = getLocalizedTeamMembers(language);
+
   return (
     <section className="py-14 md:py-16 bg-background/95">
       <div className="container mx-auto px-4">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">Leadership</p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground md:text-4xl">Meet our core team</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">{copy.leadership}</p>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground md:text-4xl">{copy.meetTeam}</h2>
           <p className="mt-3 text-base text-muted-foreground md:text-lg">
-            The leadership behind Vexa AI brings together business vision, technology execution, and operational discipline.
+            {copy.teamDescription}
           </p>
         </div>
 

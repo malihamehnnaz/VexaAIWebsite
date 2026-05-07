@@ -1,6 +1,10 @@
 
+"use client";
+
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { useLanguage } from '@/components/common/language-provider';
+import { siteCopy } from '@/lib/localization';
 
 interface SolutionSectionProps {
   id: string;
@@ -13,6 +17,9 @@ interface SolutionSectionProps {
 }
 
 export default function SolutionSection({ id, title, problem, solution, impact, image, imagePosition = 'left' }: SolutionSectionProps) {
+  const { language } = useLanguage();
+  const copy = siteCopy[language].solutionsPage;
+
   return (
     <section id={id} className="py-16">
       <div className={cn("container mx-auto px-4 grid md:grid-cols-2 gap-12 items-center", {
@@ -25,15 +32,15 @@ export default function SolutionSection({ id, title, problem, solution, impact, 
           
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-semibold text-primary mb-2">The Problem</h3>
+              <h3 className="text-xl font-semibold text-primary mb-2">{copy.problem}</h3>
               <p className="text-muted-foreground">{problem}</p>
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-primary mb-2">Our Solution</h3>
+              <h3 className="text-xl font-semibold text-primary mb-2">{copy.solution}</h3>
               <p className="text-muted-foreground">{solution}</p>
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-primary mb-2">The Impact</h3>
+              <h3 className="text-xl font-semibold text-primary mb-2">{copy.impact}</h3>
               <p className="text-muted-foreground">{impact}</p>
             </div>
           </div>
@@ -46,10 +53,10 @@ export default function SolutionSection({ id, title, problem, solution, impact, 
           ) : (
             <div className="flex min-h-[400px] items-end rounded-lg border border-white/10 bg-gradient-to-br from-primary/15 via-cyan-500/10 to-background p-8 shadow-lg">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">AI solution</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">{copy.aiSolution}</p>
                 <h3 className="mt-3 text-3xl font-bold text-foreground">{title}</h3>
                 <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-                  A focused solution card without supporting imagery, keeping the section clean and editorial.
+                  {copy.fallbackDescription}
                 </p>
               </div>
             </div>

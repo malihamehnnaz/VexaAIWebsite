@@ -2,48 +2,16 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BrainCircuit, CodeXml, Cloud, Bot, GitBranch, DatabaseZap, DraftingCompass } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-
-const services = [
-    {
-        title: 'Custom Software Development',
-        icon: CodeXml,
-        description: 'Scalable, robust, and tailored software solutions built with modern frameworks.',
-    },
-    {
-        title: 'Generative AI Solutions',
-        icon: Bot,
-        description: 'Deploy AI agents, chatbots, and content generators trained on your business data.',
-    },
-    {
-        title: 'Machine Learning & Automation',
-        icon: BrainCircuit,
-        description: 'Intelligent models that optimize processes and predict outcomes.',
-    },
-    {
-        title: 'Data Engineering & Analytics',
-        icon: DatabaseZap,
-        description: 'End-to-end data pipelines, dashboards, and insights for smarter decisions.',
-    },
-    {
-        title: 'Web & Mobile App Development',
-        icon: DraftingCompass,
-        description: 'Beautiful, high-performance digital products with responsive design.',
-    },
-    {
-        title: 'Cloud Deployment & Integration',
-        icon: Cloud,
-        description: 'Seamless deployment on AWS, Azure, or Google Cloud for maximum uptime and security.',
-    },
-    {
-        title: 'AI Consultation & Strategy',
-        icon: GitBranch,
-        description: 'Expert guidance to implement AI in your workflow effectively.',
-    },
-];
+import { useLanguage } from '@/components/common/language-provider';
+import { getLocalizedServices, siteCopy } from '@/lib/localization';
+import { iconMap } from '@/components/common/icon-map';
 
 export default function ServicesSection() {
+  const { language } = useLanguage();
+  const copy = siteCopy[language].home;
+  const services = getLocalizedServices(language);
+
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: (i: number) => ({
@@ -70,16 +38,18 @@ export default function ServicesSection() {
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="space-y-2">
             <h2 className="font-headline text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-primary">
-              Our Services
+              {copy.expertiseTitle}
             </h2>
             <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-              We provide a comprehensive suite of services to transform your business with cutting-edge technology.
+              {copy.expertiseDescription}
             </p>
           </div>
         </div>
         <div className="mx-auto mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {services.map((service, i) => (
-                <motion.div
+            {services.map((service, i) => {
+                const Icon = iconMap[service.icon] ?? iconMap.code;
+
+                return <motion.div
                   key={service.title}
                   custom={i}
                   variants={cardVariants}
@@ -90,16 +60,16 @@ export default function ServicesSection() {
                   <Card className="shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
                   <CardHeader className="flex flex-row items-center gap-4">
                       <div className="bg-primary/10 p-3 rounded-full">
-                          <service.icon className="h-6 w-6 text-primary" />
+                          <Icon className="h-6 w-6 text-primary" />
                       </div>
                       <CardTitle className="font-headline text-lg">{service.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="flex-grow">
-                      <CardDescription>{service.description}</CardDescription>
+                      <CardDescription>{service.summary}</CardDescription>
                   </CardContent>
                   </Card>
-                </motion.div>
-            ))}
+                </motion.div>;
+            })}
         </div>
       </div>
     </motion.section>

@@ -3,6 +3,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { useMemo } from 'react';
 import * as z from 'zod';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -12,18 +13,65 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
-import { companyContact } from '@/content/site-content';
-
-const formSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  company: z.string().optional(),
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-  projectDescription: z.string().min(10, { message: 'Message must be at least 10 characters.' }),
-});
+import { sendContactEmail } from '@/app/actions';
+import { useLanguage } from '@/components/common/language-provider';
+import { getLocalizedCompanyContact } from '@/lib/localization';
 
 export default function ContactSection() {
   const { toast } = useToast();
+  const { language } = useLanguage();
+  const companyContact = getLocalizedCompanyContact(language);
+  const copy =
+    language === 'sv'
+      ? {
+          title: 'Låt oss bygga tillsammans',
+          description: 'Har ni ett projekt i åtanke eller vill ni bara veta mer om våra tjänster? Vi vill gärna höra från er.',
+          cta: 'Boka en demo',
+          sentTitle: 'Meddelandet har skickats!',
+          sentDescription: 'Tack för att ni kontaktade oss. Vi återkommer inom kort.',
+          name: 'Namn',
+          company: 'Företag',
+          email: 'E-post',
+          projectDescription: 'Projektbeskrivning',
+          namePlaceholder: 'Anna Andersson',
+          companyPlaceholder: 'Ert företag',
+          emailPlaceholder: 'anna@example.com',
+          messagePlaceholder: 'Berätta om ert projekt...',
+          submit: 'Skicka',
+          validationName: 'Namnet måste vara minst 2 tecken.',
+          validationEmail: 'Ange en giltig e-postadress.',
+          validationMessage: 'Meddelandet måste vara minst 10 tecken.',
+        }
+      : {
+          title: "Let's Build Together",
+          description: "Have a project in mind or just want to learn more about our services? We'd love to hear from you.",
+          cta: 'Request a Demo',
+          sentTitle: 'Message Sent!',
+          sentDescription: 'Thank you for contacting us. We will get back to you shortly.',
+          name: 'Name',
+          company: 'Company',
+          email: 'Email',
+          projectDescription: 'Project Description',
+          namePlaceholder: 'John Doe',
+          companyPlaceholder: 'Your Company',
+          emailPlaceholder: 'john.doe@example.com',
+          messagePlaceholder: 'Tell us about your project...',
+          submit: 'Submit',
+          validationName: 'Name must be at least 2 characters.',
+          validationEmail: 'Please enter a valid email address.',
+          validationMessage: 'Message must be at least 10 characters.',
+        };
+  const formSchema = useMemo(
+    () =>
+      z.object({
+        name: z.string().min(2, { message: copy.validationName }),
+        company: z.string().optional(),
+        email: z.string().email({ message: copy.validationEmail }),
+        projectDescription: z.string().min(10, { message: copy.validationMessage }),
+      }),
+    [copy.validationEmail, copy.validationMessage, copy.validationName]
+  );
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -34,13 +82,23 @@ export default function ContactSection() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    toast({
-      title: 'Message Sent!',
-      description: 'Thank you for contacting us. We will get back to you shortly.',
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    const result = await sendContactEmail({
+      name: values.name,
+      company: values.company,
+      email: values.email,
+      message: values.projectDescription,
     });
-    form.reset();
+
+    toast({
+      title: result.success ? 'Message Sent' : 'Message not sent',
+      description: result.message,
+      variant: result.success ? 'default' : 'destructive',
+    });
+
+    if (result.success) {
+      form.reset();
+    }
   }
 
   return (
@@ -56,16 +114,11 @@ export default function ContactSection() {
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-24">
           <div className="space-y-6">
             <h2 className="font-headline text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-primary">
-              Let's Build Together
+              {copy.title}
             </h2>
             <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-              Have a project in mind or just want to learn more about our services? We'd love to hear from you.
+              {copy.description}
             </p>
-             <div className="flex flex-col sm:flex-row gap-4">
-                <Button asChild size="lg">
-                    <Link href="#">Request a Demo</Link>
-                </Button>
-            </div>
             <div className="space-y-4 pt-4">
                 <div className="flex items-center gap-4">
                     <Mail className="h-6 w-6 text-accent"/>
@@ -89,9 +142,9 @@ export default function ContactSection() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>{copy.name}</FormLabel>
                       <FormControl>
-                        <Input placeholder="John Doe" {...field} />
+                        <Input placeholder={copy.namePlaceholder} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -102,9 +155,9 @@ export default function ContactSection() {
                   name="company"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company</FormLabel>
+                      <FormLabel>{copy.company}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Your Company" {...field} />
+                        <Input placeholder={copy.companyPlaceholder} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -115,9 +168,9 @@ export default function ContactSection() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{copy.email}</FormLabel>
                       <FormControl>
-                        <Input placeholder="john.doe@example.com" {...field} />
+                        <Input placeholder={copy.emailPlaceholder} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -128,16 +181,16 @@ export default function ContactSection() {
                   name="projectDescription"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project Description</FormLabel>
+                      <FormLabel>{copy.projectDescription}</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Tell us about your project..." {...field} />
+                        <Textarea placeholder={copy.messagePlaceholder} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                  Submit
+                  {copy.submit}
                 </Button>
               </form>
             </Form>

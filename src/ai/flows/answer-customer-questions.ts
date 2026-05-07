@@ -10,47 +10,63 @@
  */
 
 import {createHash} from 'crypto';
-import OpenAI, {AzureOpenAI} from 'openai';
-import {
-  blogPosts,
-  caseStudies,
-  companyContact,
-  companyStats,
-  services,
-  solutions,
-  teamMembers,
+import {AzureOpenAI} from 'openai';
+import type {
+  BlogPost,
+  CaseStudyItem,
+  CompanyContact,
+  ServiceItem,
+  SolutionItem,
+  TeamMember,
 } from '@/content/site-content';
+import {
+  getLocalizedBlogPosts,
+  getLocalizedCaseStudies,
+  getLocalizedCompanyContact,
+  getLocalizedCompanyStats,
+  getLocalizedServices,
+  getLocalizedSolutions,
+  getLocalizedTeamMembers,
+  type Language,
+} from '@/lib/localization';
 
 const MAX_QUESTION_CHARS = 700;
-const MAX_RESPONSE_TOKENS = 220;
-const CACHE_TTL_MS = 10 * 60 * 1000;
 const MIN_SCOPE_MATCHES = 1;
-const MAX_CACHE_ENTRIES = 200;
+const SALES_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const MAX_SALES_SESSIONS = 500;
+const AZURE_OPENAI_MAX_TOKENS = 16384;
+const AZURE_OPENAI_API_VERSION_DEFAULT = '2024-12-01-preview';
 
-type CachedAnswer = {
-  answer: string;
-  expiresAt: number;
-};
+// Rate limiting & call protection
+const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const RATE_LIMIT_MAX_QUESTIONS = 8; // Allow 8 questions per 5 minutes
+const API_CALL_DELAY_MS = 500; // Delay before Azure calls to prevent rate limiting
 
-const answerCache = new Map<string, CachedAnswer>();
-let azureChatClient: AzureOpenAI | null = null;
-let openAICompatibleClient: OpenAI | null = null;
+// Pricing ranges from IT_Solutions_Knowledge_Base.md — used only inside <quote> blocks
+const PROJECT_PRICING_RANGES = [
+  { name: 'IT Audit', rangeLow: 3000, rangeHigh: 6000, description: 'Full IT audit and recommendations report.' },
+  { name: 'AI Workshop (half day)', rangeLow: 2000, rangeHigh: 8000, description: 'Hands-on AI workshop for your team.' },
+  { name: 'GDPR Compliance Project', rangeLow: 5000, rangeHigh: 25000, description: 'GDPR gap analysis, policy documentation, and remediation plan.' },
+  { name: 'Cloud Migration', rangeLow: 10000, rangeHigh: 40000, description: 'Cloud landing zone, migration, and CI/CD enablement.' },
+  { name: 'Microsoft Copilot Rollout', rangeLow: 5000, rangeHigh: 35000, description: 'Microsoft Copilot deployment, governance, and staff training.' },
+  { name: 'AI Chatbot / Automation Project', rangeLow: 5000, rangeHigh: 60000, description: 'Custom AI chatbot or business process automation.' },
+  { name: 'Custom Software Development', rangeLow: 5000, rangeHigh: 100000, description: 'Bespoke software, web, or mobile application.' },
+] as const;
 
-const STOP_WORDS = new Set([
-  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'do', 'for', 'from', 'how',
-  'i', 'in', 'is', 'it', 'me', 'my', 'of', 'on', 'or', 'the', 'to', 'us', 'we',
-  'what', 'when', 'where', 'who', 'why', 'you', 'your', 'about', 'tell', 'does',
-  'can', 'could', 'would', 'should', 'please'
-]);
+const MONTHLY_PACKAGES = [
+  { name: 'Starter — Get Organised', rangeMonthly: '1,000–8,000 SEK/month', target: 'Companies with 20–200 staff and no in-house IT', includes: 'Microsoft 365 / Google Workspace management, helpdesk support, cloud backup, monthly IT health report.' },
+  { name: 'Growth — Get Modern', rangeMonthly: '5,000–20,000 SEK/month', target: 'Companies with some IT wanting to grow digitally', includes: 'Everything in Starter + cloud infrastructure management, AI workshop + one automation project/quarter, GDPR compliance review, dedicated account manager.' },
+  { name: 'Transformation — Get Ahead', rangeMonthly: '10,000–40,000 SEK/month', target: 'Companies actively investing in digitalisation', includes: 'Everything in Growth + custom software or AI development, Microsoft Copilot rollout, full digital transformation roadmap, priority SLA support.' },
+] as const;
 
-const SCOPE_TERMS = [
-  'vexa', 'vexa ai', 'service', 'services', 'solution', 'solutions', 'contact',
-  'email', 'phone', 'address', 'location', 'office', 'headquarters', 'hq', 'team', 'leadership', 'ceo', 'cto',
-  'founder', 'finance', 'case study', 'case studies', 'cloud', 'devops',
-  'software', 'web', 'mobile', 'app', 'platform', 'saas', 'ai', 'chatbot',
-  'copilot', 'rag', 'agent', 'agents', 'automation', 'data', 'analytics',
-  'migration', 'custom software'
-];
+// What goes into the system prompt — descriptions only, no internal rates
+const PRICING_CATALOG_TEXT = PROJECT_PRICING_RANGES
+  .map(p => `- ${p.name}: ${p.description} (${p.rangeLow.toLocaleString()}–${p.rangeHigh.toLocaleString()} SEK)`)
+  .join('\n');
+
+const PACKAGES_TEXT = MONTHLY_PACKAGES
+  .map(p => `- ${p.name} (${p.rangeMonthly})\n  Best for: ${p.target}\n  Includes: ${p.includes}`)
+  .join('\n');
 
 type KnowledgeEntry = {
   title: string;
@@ -58,325 +74,455 @@ type KnowledgeEntry = {
   keywords: string[];
 };
 
+type LanguageContext = {
+  blogPosts: BlogPost[];
+  caseStudies: CaseStudyItem[];
+  companyContact: CompanyContact;
+  companyStats: { value: string; label: string }[];
+  services: ServiceItem[];
+  solutions: SolutionItem[];
+  teamMembers: TeamMember[];
+};
+
+export type QuoteLineItem = {
+  name: string;
+  description: string;
+  estimatedHours: number;
+  rateSek: number;
+  subtotalSek: number;
+};
+
+export type QuotePayload = {
+  quoteId: string;
+  currency: 'SEK';
+  timeline: string;
+  cloudDeployment: string;
+  apiCallVolume: string;
+  subtotalSek: number;
+  contingencySek: number;
+  totalSek: number;
+  confidence: 'high' | 'medium' | 'low';
+  assumptions: string[];
+  items: QuoteLineItem[];
+  generatedAtIso: string;
+};
+
+type ChatTurn = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+type SalesSession = {
+  goal?: string;
+  requestedServices: string[];
+  industry?: string;
+  companySize?: string;
+  timeline?: string;
+  cloudDeployment?: string;
+  apiCallVolume?: string;
+  notes: string[];
+  quoteOffered: boolean;
+  quoteGenerated: boolean;
+  questionsAsked: number;
+  updatedAt: number;
+  chatHistory: ChatTurn[];
+  // Rate limiting: timestamp of when rate limit window started
+  rateLimitWindowStart?: number;
+  // Count of questions in current rate limit window
+  questionsInWindow: number;
+};
+
+const salesSessionStore = new Map<string, SalesSession>();
+
+const STOP_WORDS = new Set([
+  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'can', 'could', 'do', 'does', 'for', 'from', 'how',
+  'i', 'in', 'is', 'it', 'me', 'my', 'of', 'on', 'or', 'please', 'should', 'tell', 'the', 'to', 'us', 'we',
+  'what', 'when', 'where', 'who', 'why', 'would', 'you', 'your', 'about',
+  'att', 'det', 'den', 'de', 'din', 'ditt', 'du', 'en', 'er', 'era', 'for', 'hur', 'i', 'med', 'ni', 'om',
+  'och', 'pa', 'som', 'vad', 'var', 'vem', 'vi'
+]);
+
+const LANGUAGE_SCOPE_TERMS: Record<Language, string[]> = {
+  en: [
+    'vexa', 'vexa ai', 'service', 'services', 'solution', 'solutions', 'contact',
+    'email', 'phone', 'address', 'location', 'office', 'headquarters', 'hq', 'team', 'leadership', 'ceo', 'cto',
+    'founder', 'finance', 'case study', 'case studies', 'cloud', 'devops',
+    'software', 'web', 'mobile', 'app', 'platform', 'saas', 'ai', 'chatbot',
+    'copilot', 'rag', 'agent', 'agents', 'automation', 'data', 'analytics',
+    'migration', 'custom software'
+  ],
+  sv: [
+    'vexa', 'vexa ai', 'tjanst', 'tjanster', 'losning', 'losningar', 'kontakt',
+    'e-post', 'telefon', 'adress', 'plats', 'kontor', 'team', 'ledning', 'vd', 'cto',
+    'grundare', 'ekonomi', 'case', 'moln', 'devops', 'migrering', 'mjukvara',
+    'webb', 'mobil', 'app', 'plattform', 'saas', 'ai', 'chatbot', 'copilot', 'rag',
+    'agent', 'agenter', 'automation', 'data', 'analys'
+  ],
+};
+
 export type AnswerCustomerQuestionsInput = {
   question: string;
+  language?: Language;
+  sessionId?: string;
+  history?: ChatTurn[];
 };
 
 export type AnswerCustomerQuestionsOutput = {
   answer: string;
+  quote?: QuotePayload;
+  suggestions?: string[];
+  nextQuestion?: string;
 };
 
 export async function answerCustomerQuestions(
   input: AnswerCustomerQuestionsInput
 ): Promise<AnswerCustomerQuestionsOutput> {
-  return answerCustomerQuestionsFlow(input);
+  try {
+    return await answerCustomerQuestionsFlow(input);
+  } catch (error) {
+    console.error('answerCustomerQuestions failed', error);
+
+    const language = resolveLanguage(input.language);
+    const question = input.question?.trim() ?? '';
+    const strings = getChatbotStrings(language);
+
+    if (!question) {
+      return {answer: strings.emptyQuestion};
+    }
+
+    const context = getLanguageContext(language);
+    return {answer: buildLocalAnswer(language, question, context)};
+  }
 }
 
-const buildKnowledgeBase = () => {
-  const serviceContext = services
-    .map(
-      service =>
-        `- ${service.title}: ${service.summary} ${service.description} Benefits: ${service.benefits.join(', ')}. Use cases: ${service.useCases.join(', ')}.`
-    )
-    .join('\n');
+const resolveLanguage = (language?: Language): Language => (language === 'sv' ? 'sv' : 'en');
 
-  const solutionContext = solutions
-    .map(
-      solution =>
-        `- ${solution.title}: ${solution.summary} Problem: ${solution.problem} Solution: ${solution.solution} Impact: ${solution.impact}. Highlights: ${solution.highlights.join(', ')}.`
-    )
-    .join('\n');
+const getLanguageContext = (language: Language): LanguageContext => ({
+  blogPosts: getLocalizedBlogPosts(language),
+  caseStudies: getLocalizedCaseStudies(language),
+  companyContact: getLocalizedCompanyContact(language),
+  companyStats: getLocalizedCompanyStats(language),
+  services: getLocalizedServices(language),
+  solutions: getLocalizedSolutions(language),
+  teamMembers: getLocalizedTeamMembers(language),
+});
 
-  const caseStudyContext = caseStudies
-    .map(
-      study =>
-        `- ${study.title} (${study.sector}): ${study.overview} Problem: ${study.problem} Solution: ${study.solution} Metrics: ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`
-    )
-    .join('\n');
+const getChatbotStrings = (language: Language) => ({
+  fallbackAnswer:
+    language === 'sv'
+      ? 'Jag kan bara svara på frågor om Vexa AI, inklusive våra tjänster, lösningar, case, team och kontaktuppgifter.'
+      : 'I can only answer questions about Vexa AI, including our services, solutions, case studies, team, and contact details.',
+  emptyQuestion:
+    language === 'sv' ? 'Skriv en fråga om Vexa AI.' : 'Please enter a question about Vexa AI.',
+  shortenQuestion: (maxChars: number) =>
+    language === 'sv'
+      ? `Korta ner ditt meddelande till under ${maxChars} tecken och håll det fokuserat på Vexa AI.`
+      : `Please shorten your message to under ${maxChars} characters and keep it focused on Vexa AI.`,
+  greeting:
+    language === 'sv'
+      ? 'Hej. Jag kan hjälpa till med Vexa AIs tjänster, lösningar, case, teaminformation och kontaktuppgifter.'
+      : 'Hello. I can help with Vexa AI services, solutions, case studies, team information, and contact details.',
+  whoAreYou:
+    language === 'sv'
+      ? 'Vexa AI är en studio för intelligenta system med fokus på AI-produkter, specialutvecklad mjukvara, molnleverans och dataplattformar.'
+      : 'Vexa AI is an intelligent systems studio focused on AI products, custom software, cloud delivery, and data platforms.',
+  servicesPrefix: language === 'sv' ? 'Vexa AI erbjuder' : 'Vexa AI offers',
+  solutionsPrefix: language === 'sv' ? 'Vexa AIs lösningar inkluderar' : 'Vexa AI solutions include',
+  teamPrefix: language === 'sv' ? 'Vexa AIs ledning inkluderar' : 'Vexa AI leadership includes',
+  resultsPrefix: language === 'sv' ? 'Viktiga resultat inkluderar' : 'Key results include',
+  serviceUseCases: language === 'sv' ? 'Vanliga användningsfall inkluderar' : 'Typical use cases include',
+  solutionImpact: language === 'sv' ? 'Affärseffekten är' : 'The business impact is',
+  contactReply: (contact: CompanyContact) =>
+    language === 'sv'
+      ? `Ni kan kontakta Vexa AI via ${contact.email}, ringa ${contact.phone} eller besöka ${contact.address}.`
+      : `You can contact Vexa AI at ${contact.email}, call ${contact.phone}, or visit ${contact.address}.`,
+  memberReply: (member: TeamMember) =>
+    language === 'sv'
+      ? `${member.name} är ${member.role} på Vexa AI. ${member.bio}`
+      : `${member.name} is ${member.role} at Vexa AI. ${member.bio}`,
+  rateLimitWarning:
+    language === 'sv'
+      ? 'Du ställer många frågor! Låt mig ta ett ögonblick för att förbättra mitt svar.'
+      : "You're asking questions quickly! Let me take a moment to provide better responses.",
+});
 
-  const teamContext = teamMembers
-    .slice(0, 5)
-    .map(member => `- ${member.name}: ${member.role}. ${member.bio}`)
-    .join('\n');
+const buildKnowledgeEntries = (language: Language, context: LanguageContext): KnowledgeEntry[] => {
+  const strings = getChatbotStrings(language);
 
-  const blogContext = blogPosts
-    .slice(0, 3)
-    .map(post => `- ${post.title}: ${post.excerpt}`)
-    .join('\n');
-
-  return `
-Vexa AI company facts:
-- Email: ${companyContact.email}
-- Phone: ${companyContact.phone}
-- Address: ${companyContact.address}
-- Key stats: ${companyStats.map(stat => `${stat.value} ${stat.label}`).join('; ')}
-
-Services:
-${serviceContext}
-
-Solutions:
-${solutionContext}
-
-Case studies:
-${caseStudyContext}
-
-Leadership and team:
-${teamContext}
-
-Blog and editorial topics:
-${blogContext}
-`.trim();
+  return [
+    {
+      title: 'contact',
+      content: strings.contactReply(context.companyContact),
+      keywords:
+        language === 'sv'
+          ? ['kontakt', 'e-post', 'telefon', 'adress', 'kontor', 'hor av dig', 'ringa']
+          : ['contact', 'email', 'phone', 'address', 'reach', 'call'],
+    },
+    ...context.services.map(service => ({
+      title: service.title,
+      content: `${service.title}: ${service.summary} ${service.description} ${language === 'sv' ? 'Viktiga fordelar inkluderar' : 'Key benefits include'} ${service.benefits.join(', ')}. ${language === 'sv' ? 'Vanliga anvandningsfall inkluderar' : 'Common use cases include'} ${service.useCases.join(', ')}.`,
+      keywords: [service.title, service.slug, ...service.technologies, ...service.useCases],
+    })),
+    ...context.solutions.map(solution => ({
+      title: solution.title,
+      content: `${solution.title}: ${solution.summary} ${solution.solution} ${language === 'sv' ? 'Affarseffekt' : 'Business impact'}: ${solution.impact}.`,
+      keywords: [solution.title, solution.slug, ...solution.highlights],
+    })),
+    ...context.caseStudies.map(study => ({
+      title: study.title,
+      content: `${study.title} ${language === 'sv' ? 'inom' : 'in'} ${study.sector}: ${study.overview} ${study.solution} ${language === 'sv' ? 'Resultat inkluderar' : 'Results include'} ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`,
+      keywords: [study.title, study.slug, study.sector, ...study.techStack],
+    })),
+    ...context.teamMembers.map(member => ({
+      title: member.name,
+      content: strings.memberReply(member),
+      keywords: [member.name, member.role, member.initials],
+    })),
+    ...context.blogPosts.map(post => ({
+      title: post.title,
+      content: `${post.title}: ${post.excerpt}`,
+      keywords: [post.title, post.slug, post.category, post.author],
+    })),
+  ];
 };
 
-const KNOWLEDGE_BASE = buildKnowledgeBase();
-
-const KNOWLEDGE_ENTRIES: KnowledgeEntry[] = [
-  {
-    title: 'contact',
-    content: `You can contact Vexa AI at ${companyContact.email}, call ${companyContact.phone}, or visit ${companyContact.address}.`,
-    keywords: ['contact', 'email', 'phone', 'address', 'reach', 'call'],
-  },
-  ...services.map(service => ({
-    title: service.title,
-    content: `${service.title}: ${service.summary} ${service.description} Key benefits include ${service.benefits.join(', ')}. Common use cases include ${service.useCases.join(', ')}.`,
-    keywords: [service.title, service.slug, ...service.technologies, ...service.useCases],
-  })),
-  ...solutions.map(solution => ({
-    title: solution.title,
-    content: `${solution.title}: ${solution.summary} ${solution.solution} Business impact: ${solution.impact}.`,
-    keywords: [solution.title, solution.slug, ...solution.highlights],
-  })),
-  ...caseStudies.map(study => ({
-    title: study.title,
-    content: `${study.title} in ${study.sector}: ${study.overview} ${study.solution} Results include ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`,
-    keywords: [study.title, study.slug, study.sector, ...study.techStack],
-  })),
-  ...teamMembers.map(member => ({
-    title: member.name,
-    content: `${member.name} is ${member.role} at Vexa AI. ${member.bio}`,
-    keywords: [member.name, member.role, member.initials],
-  })),
-  ...blogPosts.map(post => ({
-    title: post.title,
-    content: `${post.title}: ${post.excerpt}`,
-    keywords: [post.title, post.slug, post.category, post.author],
-  })),
-];
-
 const normalizeQuestion = (question: string) => question.trim().replace(/\s+/g, ' ').toLowerCase();
-
-const cacheKeyForQuestion = (question: string) =>
-  createHash('sha256').update(normalizeQuestion(question)).digest('hex');
 
 const tokenize = (value: string) =>
   value
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/[^\p{L}0-9\s]/gu, ' ')
     .split(/\s+/)
     .filter(token => token.length > 1 && !STOP_WORDS.has(token));
 
-const containsAny = (value: string, terms: string[]) =>
-  terms.some(term => value.includes(term));
+const containsAny = (value: string, terms: string[]) => terms.some(term => value.includes(term));
 
-const findServiceByKeywords = (terms: string[]) =>
-  services.find(service => {
+const findServiceByKeywords = (serviceItems: ServiceItem[], terms: string[]) =>
+  serviceItems.find(service => {
     const haystack = `${service.title} ${service.slug} ${service.summary} ${service.description}`.toLowerCase();
     return terms.some(term => haystack.includes(term));
   });
 
-const findSolutionByKeywords = (terms: string[]) =>
-  solutions.find(solution => {
+const findSolutionByKeywords = (solutionItems: SolutionItem[], terms: string[]) =>
+  solutionItems.find(solution => {
     const haystack = `${solution.title} ${solution.slug} ${solution.summary} ${solution.solution}`.toLowerCase();
     return terms.some(term => haystack.includes(term));
   });
 
-const formatServiceAnswer = (service: (typeof services)[number]) =>
-  `${service.title}: ${service.summary} ${service.description} Typical use cases include ${service.useCases.join(', ')}.`;
+const formatServiceAnswer = (language: Language, service: ServiceItem) => {
+  const strings = getChatbotStrings(language);
+  return `${service.title}: ${service.summary} ${service.description} ${strings.serviceUseCases} ${service.useCases.join(', ')}.`;
+};
 
-const formatSolutionAnswer = (solution: (typeof solutions)[number]) =>
-  `${solution.title}: ${solution.summary} ${solution.solution} The business impact is ${solution.impact}`;
+const formatSolutionAnswer = (language: Language, solution: SolutionItem) => {
+  const strings = getChatbotStrings(language);
+  return `${solution.title}: ${solution.summary} ${solution.solution} ${strings.solutionImpact} ${solution.impact}`;
+};
 
-const buildLocalAnswer = (question: string) => {
+const cleanSessionStore = () => {
+  const now = Date.now();
+  for (const [key, session] of salesSessionStore.entries()) {
+    if (now - session.updatedAt > SALES_SESSION_TTL_MS) {
+      salesSessionStore.delete(key);
+    }
+  }
+
+  while (salesSessionStore.size > MAX_SALES_SESSIONS) {
+    const oldestKey = salesSessionStore.keys().next().value;
+    if (!oldestKey) break;
+    salesSessionStore.delete(oldestKey);
+  }
+};
+
+const getSalesSession = (sessionId: string): SalesSession => {
+  cleanSessionStore();
+  const existing = salesSessionStore.get(sessionId);
+  if (existing) return existing;
+
+  const created: SalesSession = {
+    requestedServices: [],
+    notes: [],
+    quoteOffered: false,
+    quoteGenerated: false,
+    questionsAsked: 0,
+    questionsInWindow: 0,
+    updatedAt: Date.now(),
+    chatHistory: [],
+  };
+
+  salesSessionStore.set(sessionId, created);
+  return created;
+};
+
+const updateSessionFromMessage = (
+  session: SalesSession,
+  normalized: string,
+  context: LanguageContext
+) => {
+  if (!session.goal && normalized.length > 20 && /(want|need|build|create|improve|launch|automate|migrate|vill|behover|bygga|skapa|forbattra|lansera|automatisera|migrera)/i.test(normalized)) {
+    session.goal = normalized;
+  }
+
+  const matchingServices = context.services.filter(service => {
+    const haystack = `${service.title} ${service.slug} ${service.summary}`.toLowerCase();
+    return haystack.split(' ').some(token => token.length > 3 && normalized.includes(token));
+  });
+
+  for (const service of matchingServices) {
+    if (!session.requestedServices.includes(service.slug)) {
+      session.requestedServices.push(service.slug);
+    }
+  }
+
+  if (normalized.length > 30 && session.notes.length < 5) {
+    session.notes.push(normalized);
+  }
+};
+
+const buildLocalAnswer = (language: Language, question: string, context: LanguageContext) => {
   const normalized = normalizeQuestion(question);
   const questionTokens = new Set(tokenize(normalized));
-  const explicitScopeMatch = containsAny(normalized, SCOPE_TERMS);
+  const strings = getChatbotStrings(language);
+  const scopeTerms = LANGUAGE_SCOPE_TERMS[language];
+  const explicitScopeMatch = containsAny(normalized, scopeTerms);
 
   const scopeTokenMatches = [...questionTokens].filter(token =>
-    SCOPE_TERMS.some(term => term.includes(token) || token.includes(term))
+    scopeTerms.some(term => term.includes(token) || token.includes(term))
   ).length;
 
-  if (/^(hi|hello|hey|good morning|good afternoon|good evening)\b/.test(normalized)) {
-    return "Hello. I can help with Vexa AI services, solutions, case studies, team information, and contact details.";
+  const greetingRegex = language === 'sv'
+    ? /^(hej|hejsan|tjena|god morgon|god eftermiddag|god kvall)\b/
+    : /^(hi|hello|hey|good morning|good afternoon|good evening)\b/;
+
+  if (greetingRegex.test(normalized)) {
+    return strings.greeting;
   }
 
   if (!explicitScopeMatch && scopeTokenMatches < MIN_SCOPE_MATCHES) {
-    return fallbackAnswer;
+    return strings.fallbackAnswer;
   }
 
-  if (containsAny(normalized, ['who are you', 'what is vexa', 'what does vexa', 'tell me about vexa'])) {
-    return `Vexa AI is an intelligent systems studio focused on AI products, custom software, cloud delivery, and data platforms. Core areas include ${services.map(service => service.title).slice(0, 4).join(', ')}.`;
+  if (containsAny(normalized, language === 'sv' ? ['vem är ni', 'vad är vexa', 'berätta om vexa', 'vad gör vexa', 'vem ar ni', 'vad ar vexa', 'beratta om vexa', 'vad gor vexa'] : ['who are you', 'what is vexa', 'what does vexa', 'tell me about vexa'])) {
+    return `${strings.whoAreYou} ${language === 'sv' ? 'Kärnområden inkluderar' : 'Core areas include'} ${context.services.map(service => service.title).slice(0, 4).join(', ')}.`;
   }
 
-  if (containsAny(normalized, ['contact', 'email', 'phone', 'address', 'location', 'office', 'headquarters', 'hq', 'where are you', 'where is the office'])) {
-    return `You can contact Vexa AI at ${companyContact.email}, call ${companyContact.phone}, or visit ${companyContact.address}.`;
+  if (containsAny(normalized, language === 'sv' ? ['kontakt', 'e-post', 'telefon', 'adress', 'plats', 'kontor', 'var finns ni', 'var ligger kontoret'] : ['contact', 'email', 'phone', 'address', 'location', 'office', 'headquarters', 'hq', 'where are you', 'where is the office'])) {
+    return strings.contactReply(context.companyContact);
   }
 
-  if (containsAny(normalized, ['ceo', 'founder'])) {
-    const member = teamMembers.find(teamMember => /chief executive officer|founder/i.test(teamMember.role));
-    if (member) return `${member.name} is ${member.role} at Vexa AI. ${member.bio}`;
+  if (containsAny(normalized, language === 'sv' ? ['vd', 'grundare'] : ['ceo', 'founder'])) {
+    const member = context.teamMembers.find(teamMember => /chief executive officer|founder|vd|grundare/i.test(teamMember.role));
+    if (member) return strings.memberReply(member);
   }
 
-  if (containsAny(normalized, ['cto', 'technology officer'])) {
-    const member = teamMembers.find(teamMember => /chief technology officer/i.test(teamMember.role));
-    if (member) return `${member.name} is ${member.role} at Vexa AI. ${member.bio}`;
+  if (containsAny(normalized, language === 'sv' ? ['cto', 'teknikchef', 'teknikansvarig'] : ['cto', 'technology officer'])) {
+    const member = context.teamMembers.find(teamMember => /chief technology officer|cto|teknik/i.test(teamMember.role));
+    if (member) return strings.memberReply(member);
   }
 
-  if (containsAny(normalized, ['account manager', 'consultant', 'finance manager', 'finance'])) {
-    const member = teamMembers.find(teamMember => /account manager|consultant|finance manager/i.test(teamMember.role));
-    if (member) return `${member.name} is ${member.role} at Vexa AI. ${member.bio}`;
+  if (containsAny(normalized, language === 'sv' ? ['account manager', 'konsult', 'ekonomi', 'ekonomichef'] : ['account manager', 'consultant', 'finance manager', 'finance'])) {
+    const member = context.teamMembers.find(teamMember => /account manager|consultant|finance manager|ekonomi/i.test(teamMember.role));
+    if (member) return strings.memberReply(member);
   }
 
-  if (containsAny(normalized, ['team', 'leadership', 'who works', 'who is on your team'])) {
-    return `Vexa AI leadership includes ${teamMembers
+  if (containsAny(normalized, language === 'sv' ? ['team', 'ledning', 'vem jobbar hos er', 'vilka är i teamet', 'vilka ar i teamet'] : ['team', 'leadership', 'who works', 'who is on your team'])) {
+    return `${strings.teamPrefix} ${context.teamMembers
       .slice(0, 4)
       .map(member => `${member.name}, ${member.role}`)
       .join('; ')}.`;
   }
 
-  if (containsAny(normalized, ['services', 'what do you offer', 'what can you do'])) {
-    return `Vexa AI offers ${services.map(service => service.title).join(', ')}.`;
+  if (containsAny(normalized, language === 'sv' ? ['tjänster', 'tjanster', 'vad erbjuder ni', 'vad kan ni göra', 'vad kan ni gora'] : ['services', 'what do you offer', 'what can you do'])) {
+    return `${strings.servicesPrefix} ${context.services.map(service => service.title).join(', ')}.`;
   }
 
-  if (containsAny(normalized, ['cloud', 'devops', 'migration', 'azure', 'aws', 'gcp', 'kubernetes'])) {
-    const service = findServiceByKeywords(['cloud', 'devops', 'migration', 'azure', 'aws', 'gcp', 'kubernetes']);
-    if (service) return formatServiceAnswer(service);
+  if (containsAny(normalized, language === 'sv' ? ['moln', 'devops', 'migrering', 'azure', 'aws', 'gcp', 'kubernetes'] : ['cloud', 'devops', 'migration', 'azure', 'aws', 'gcp', 'kubernetes'])) {
+    const service = findServiceByKeywords(context.services, ['cloud', 'moln', 'devops', 'migration', 'migrering', 'azure', 'aws', 'gcp', 'kubernetes']);
+    if (service) return formatServiceAnswer(language, service);
   }
 
-  if (containsAny(normalized, ['software', 'custom software', 'web', 'mobile', 'app', 'platform', 'saas'])) {
-    const customSoftware = findServiceByKeywords(['custom software', 'software', 'platform', 'saas']);
-    const webMobile = findServiceByKeywords(['web', 'mobile', 'app']);
-    const parts = [customSoftware, webMobile].filter(Boolean).map(service => formatServiceAnswer(service!));
+  if (containsAny(normalized, language === 'sv' ? ['mjukvara', 'specialutvecklad mjukvara', 'webb', 'mobil', 'app', 'plattform', 'saas'] : ['software', 'custom software', 'web', 'mobile', 'app', 'platform', 'saas'])) {
+    const customSoftware = findServiceByKeywords(context.services, ['custom software', 'software', 'mjukvara', 'platform', 'plattform', 'saas']);
+    const webMobile = findServiceByKeywords(context.services, ['web', 'webb', 'mobile', 'mobil', 'app']);
+    const parts = [customSoftware, webMobile].filter(Boolean).map(service => formatServiceAnswer(language, service!));
     if (parts.length > 0) return parts.join(' ');
   }
 
-  if (containsAny(normalized, ['generative ai', 'gen ai', 'ai', 'chatbot', 'copilot', 'rag', 'agent', 'agents'])) {
-    const aiService = findServiceByKeywords(['ai agents', 'rag', 'chatbot', 'copilot', 'gen ai', 'ai']);
-    const copilotService = findServiceByKeywords(['enterprise ai copilot', 'copilot']);
-    const parts = [aiService, copilotService].filter(Boolean).map(service => formatServiceAnswer(service!));
+  if (containsAny(normalized, language === 'sv' ? ['generativ ai', 'ai', 'chatbot', 'copilot', 'rag', 'agent', 'agenter'] : ['generative ai', 'gen ai', 'ai', 'chatbot', 'copilot', 'rag', 'agent', 'agents'])) {
+    const aiService = findServiceByKeywords(context.services, ['ai agents', 'rag', 'chatbot', 'copilot', 'gen ai', 'generativ ai', 'ai', 'agent', 'agenter']);
+    const copilotService = findServiceByKeywords(context.services, ['enterprise ai copilot', 'copilot']);
+    const parts = [aiService, copilotService].filter(Boolean).map(service => formatServiceAnswer(language, service!));
     if (parts.length > 0) return parts.join(' ');
   }
 
-  if (containsAny(normalized, ['data', 'analytics', 'reporting', 'dashboard', 'pipeline'])) {
-    const service = findServiceByKeywords(['data', 'analytics', 'reporting', 'dashboard', 'pipeline']);
-    if (service) return formatServiceAnswer(service);
+  if (containsAny(normalized, language === 'sv' ? ['data', 'analys', 'rapportering', 'dashboard', 'pipeline'] : ['data', 'analytics', 'reporting', 'dashboard', 'pipeline'])) {
+    const service = findServiceByKeywords(context.services, ['data', 'analytics', 'analys', 'reporting', 'dashboard', 'pipeline']);
+    if (service) return formatServiceAnswer(language, service);
   }
 
-  if (containsAny(normalized, ['solutions', 'use cases'])) {
-    return `Vexa AI solutions include ${solutions.slice(0, 5).map(solution => solution.title).join(', ')}.`;
+  if (containsAny(normalized, language === 'sv' ? ['lösningar', 'losningar', 'användningsfall', 'anvandningsfall'] : ['solutions', 'use cases'])) {
+    return `${strings.solutionsPrefix} ${context.solutions.slice(0, 5).map(solution => solution.title).join(', ')}.`;
   }
 
-  if (containsAny(normalized, ['case study', 'case studies', 'results', 'experience', 'clients'])) {
-    return caseStudies
-      .map(study => `${study.title}: ${study.overview} Key results include ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`)
-      .join(' ');
+  if (containsAny(normalized, language === 'sv' ? ['case', 'resultat', 'erfarenhet', 'kunder'] : ['case study', 'case studies', 'results', 'experience', 'clients'])) {
+    return context.caseStudies
+      .map(study => `• **${study.title}** (${study.sector})\n  ${study.overview}\n  ${strings.resultsPrefix} ${study.metrics.map(metric => `${metric.label} ${metric.value}`).join(' • ')}`)
+      .join('\n\n');
   }
 
-  if (containsAny(normalized, ['retail', 'healthcare', 'financial', 'finance operations'])) {
-    const matchingStudy = caseStudies.find(study => normalized.includes(study.sector.toLowerCase().split('&')[0].trim()) || normalized.includes(study.slug.replace(/-/g, ' ')));
+  if (containsAny(normalized, language === 'sv' ? ['retail', 'handel', 'sjukvard', 'finans', 'finance operations'] : ['retail', 'healthcare', 'financial', 'finance operations'])) {
+    const matchingStudy = context.caseStudies.find(study => normalized.includes(study.sector.toLowerCase().split('&')[0].trim()) || normalized.includes(study.slug.replace(/-/g, ' ')));
     if (matchingStudy) {
-      return `${matchingStudy.title}: ${matchingStudy.overview} ${matchingStudy.solution} Results include ${matchingStudy.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`;
+      return `${matchingStudy.title}: ${matchingStudy.overview} ${matchingStudy.solution} ${strings.resultsPrefix} ${matchingStudy.metrics.map(metric => `${metric.label} ${metric.value}`).join(', ')}.`;
     }
   }
 
-  const directSolution = findSolutionByKeywords(tokenize(normalized));
+  const directSolution = findSolutionByKeywords(context.solutions, tokenize(normalized));
   if (directSolution) {
-    return formatSolutionAnswer(directSolution);
+    return formatSolutionAnswer(language, directSolution);
   }
 
-  const rankedEntries = KNOWLEDGE_ENTRIES.map(entry => {
-    const haystack = `${entry.title} ${entry.content} ${entry.keywords.join(' ')}`.toLowerCase();
-    let score = 0;
+  const rankedEntries = buildKnowledgeEntries(language, context)
+    .map(entry => {
+      const haystack = `${entry.title} ${entry.content} ${entry.keywords.join(' ')}`.toLowerCase();
+      let score = 0;
 
-    for (const keyword of entry.keywords) {
-      const normalizedKeyword = keyword.toLowerCase();
-      if (normalized.includes(normalizedKeyword)) {
-        score += normalizedKeyword.split(/\s+/).length > 1 ? 5 : 3;
+      for (const keyword of entry.keywords) {
+        const normalizedKeyword = keyword.toLowerCase();
+        if (normalized.includes(normalizedKeyword)) {
+          score += normalizedKeyword.split(/\s+/).length > 1 ? 5 : 3;
+        }
       }
-    }
 
-    for (const token of questionTokens) {
-      if (haystack.includes(token)) score += 1;
-    }
+      for (const token of questionTokens) {
+        if (haystack.includes(token)) score += 1;
+      }
 
-    return {entry, score};
-  })
+      return {entry, score};
+    })
     .filter(item => item.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 2);
 
   if (rankedEntries.length === 0) {
-    return fallbackAnswer;
+    return strings.fallbackAnswer;
   }
 
   return rankedEntries[0].entry.content;
 };
 
-const getCachedAnswer = (question: string) => {
-  const entry = answerCache.get(cacheKeyForQuestion(question));
+let azureChatClient: AzureOpenAI | null = null;
 
-  if (!entry) return null;
-  if (entry.expiresAt <= Date.now()) {
-    answerCache.delete(cacheKeyForQuestion(question));
-    return null;
-  }
+const getAzureDeployment = () =>
+  process.env.AZURE_OPENAI_DEPLOYMENT?.trim() || process.env.AZURE_OPENAI_MODEL?.trim();
 
-  return entry.answer;
-};
+const getAzureClient = () => {
+  const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.trim();
+  const apiKey = process.env.AZURE_OPENAI_API_KEY?.trim();
+  const apiVersion =
+    process.env.AZURE_OPENAI_API_VERSION?.trim() || AZURE_OPENAI_API_VERSION_DEFAULT;
 
-const setCachedAnswer = (question: string, answer: string) => {
-  for (const [key, value] of answerCache.entries()) {
-    if (value.expiresAt <= Date.now()) {
-      answerCache.delete(key);
-    }
-  }
-
-  answerCache.set(cacheKeyForQuestion(question), {
-    answer,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  });
-
-  while (answerCache.size > MAX_CACHE_ENTRIES) {
-    const oldestKey = answerCache.keys().next().value;
-    if (!oldestKey) break;
-    answerCache.delete(oldestKey);
-  }
-};
-
-const getOpenAICompatibleClient = () => {
-  const baseURL = process.env.OPENAI_BASE_URL ?? process.env.AZURE_OPENAI_BASE_URL;
-  const apiKey = process.env.OPENAI_API_KEY ?? process.env.AZURE_OPENAI_API_KEY;
-
-  if (!baseURL || !apiKey) {
-    return null;
-  }
-
-  if (!openAICompatibleClient) {
-    openAICompatibleClient = new OpenAI({
-      baseURL,
-      apiKey,
-    });
-  }
-
-  return openAICompatibleClient;
-};
-
-const getAzureChatClient = () => {
-  const openAICompatibleBaseURL = process.env.OPENAI_BASE_URL ?? process.env.AZURE_OPENAI_BASE_URL;
-  const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-  const apiKey = process.env.AZURE_OPENAI_API_KEY;
-  const apiVersion = process.env.AZURE_OPENAI_API_VERSION ?? '2024-12-01-preview';
-
-  if (openAICompatibleBaseURL || !endpoint || !apiKey) {
+  if (!endpoint || !apiKey) {
     return null;
   }
 
@@ -395,116 +541,368 @@ const getAzureChatClient = () => {
   return azureChatClient;
 };
 
-const fallbackAnswer =
-  "I can only answer questions about Vexa AI, including our services, solutions, case studies, team, and contact details.";
+// Check and enforce rate limiting
+const checkRateLimit = (session: SalesSession, language: Language): { allowed: boolean; message?: string } => {
+  const now = Date.now();
+  const windowStart = session.rateLimitWindowStart ?? now;
+  const windowElapsed = now - windowStart;
+
+  // If outside window, reset
+  if (windowElapsed > RATE_LIMIT_WINDOW_MS) {
+    session.rateLimitWindowStart = now;
+    session.questionsInWindow = 0;
+  }
+
+  session.questionsInWindow += 1;
+
+  if (session.questionsInWindow > RATE_LIMIT_MAX_QUESTIONS) {
+    const strings = getChatbotStrings(language);
+    return {
+      allowed: false,
+      message: strings.rateLimitWarning,
+    };
+  }
+
+  return { allowed: true };
+};
+
+// Delay helper for API calls
+const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+const buildAssistantSystemPrompt = (language: Language, context: LanguageContext): string => {
+  const lang = language === 'sv' ? 'Swedish' : 'English';
+  const services = context.services.map(s => `- ${s.title} (slug: ${s.slug}): ${s.summary}. Typical use cases: ${s.useCases.join(', ')}.`).join('\n');
+  const solutions = context.solutions.map(s => `- ${s.title}: ${s.summary}`).join('\n');
+  const caseStudies = context.caseStudies.map(s => 
+    `• ${s.title} (${s.sector})\n  Overview: ${s.overview}\n  ${s.solution ? `Solution: ${s.solution}\n  ` : ''}Results: ${s.metrics.map(m => `${m.label} ${m.value}`).join(' • ')}`
+  ).join('\n\n');
+  const team = context.teamMembers.slice(0, 6).map(m => `- ${m.name}: ${m.role}. ${m.bio}`).join('\n');
+  const contact = `Email: ${context.companyContact.email}, Phone: ${context.companyContact.phone}, Address: ${context.companyContact.address}`;
+
+  const guardrailsText = language === 'sv'
+    ? `
+--- GUARDRAILS & SCOPE ---
+Du är en expert för Vexa AI:s tjänster endast. Du diskuterar ENDAST:
+- Vexa AI:s tjänster: molnmigrering, cybersäkerhet, GDPR, custom mjukvara, webbutveckling, AI-chatbots, automering, data & analys, IT-support, Microsoft 365, Copilot
+- Vexa AI:s paket (Starter, Growth, Transformation), case studies och priser
+- IT-strategi och digitalisering relaterad till dessa tjänster
+- Relevant kontaktinfo
+
+Du gör INTE följande:
+- Svar på frågor helt utanför IT/teknik/digital (t.ex. sport, mat, politik, underhållning)
+- Ge detaljerad teknisk hjälp för tredje parts tjänster
+- Diskutera andra företags tjänster (du kan kort jämföra när relevant för försäljning)
+- Låtsas ha information du inte har
+- Nämna timpris, antal timmar per projekt eller prisuppdelningar i konversationen — dessa visas endast i en formell offert
+
+Om någon frågar något utanför scope: Var vänlig och notera att du är specialiserad på Vexa AI:s tjänster, 
+och omdirigera till vad Vexa kan hjälpa med. Du får vara lite flexibel för närliggande IT/teknik-frågor 
+men stanna fokuserad på försäljning av Vexa:s tjänster.`
+    : `
+--- GUARDRAILS & SCOPE ---
+You are an expert for Vexa AI services only. You discuss ONLY:
+- Vexa AI services: cloud migration, cybersecurity, GDPR, custom software, web development, AI chatbots, automation, data & analytics, IT helpdesk, Microsoft 365 / Google Workspace, Microsoft Copilot
+- Vexa AI monthly packages (Starter, Growth, Transformation), case studies, and pricing
+- IT strategy and digitalization related to these services
+- Relevant contact information
+
+You do NOT:
+- Answer questions completely outside IT/tech/digital (e.g., sports, food, politics, entertainment)
+- Provide detailed technical help for third-party services
+- Discuss other companies' services (you can briefly compare when relevant for sales)
+- Pretend to have information you don't have
+- Mention hourly rates, hours per project, or pricing breakdowns in conversation — these appear only inside a formal estimate/quote
+
+If someone asks something outside scope: Politely note that you specialize in Vexa AI services 
+and redirect to what Vexa can help with. You may be slightly flexible for related IT/tech questions 
+but stay focused on selling Vexa services.`;
+
+  return `You are Alex, a knowledgeable assistant at Vexa AI. You help visitors understand our services, gather project requirements, and prepare estimates.
+
+Your conversational style:
+- Warm, concise, and genuinely helpful — like a smart colleague, not a salesperson
+- Ask only ONE question at a time. Never dump multiple questions at once.
+- After the visitor answers, acknowledge their answer briefly before asking the next question.
+- Proactively suggest relevant services or case studies when they fit.
+- CRITICAL: Read the full conversation history before responding. Never re-ask anything already answered.
+- CRITICAL: Read the full conversation history before responding. Never re-ask anything already answered.
+- When you have gathered: (1) what they want to build, and (2) the service type — ask: "Would you like me to prepare an estimate now, or share more details first?" and set the <suggestions> block to exactly: "Get estimate now|Share more details first".
+- Only generate a <quote> block after the visitor confirms (e.g. "yes", "get estimate now", "go ahead"). Never generate one without confirmation.
+- After confirmation, generate the <quote> block immediately in your next response — no more questions.
+- Always respond in ${lang}.
+
+${guardrailsText}
+
+--- RESPONSE FORMATTING ---
+Format responses professionally by type:
+
+Global rules (strict):
+- Keep the main response concise: max 6 bullets OR 2 short paragraphs.
+- Do not include extra sections the user did not ask for.
+- If user asks about services, do not append case studies unless explicitly requested.
+
+**Services & Solutions**: Use bullet lists with brief descriptions. Example:
+• Cloud Migration – Move your systems to the cloud securely
+• Custom Software – Tailored solutions for your business needs
+
+**Case Studies**: Format with clear hierarchy:
+• Company Name (Industry)
+  Challenge: Brief description
+  Solution: What we delivered
+  Results: 3-5 key metrics
+
+**Pricing/Estimates**: Present as structured blocks with clear line items
+• Service Name: Project total (e.g. 10,000 – 25,000 SEK)
+
+**Team Info**: List with roles and brief context
+• Name – Role: Brief bio
+
+**Contact**: Use simple key-value format
+Email: example@vexa.ai
+Phone: +46 (0)XX XXX XX XX
+Address: City, Country
+
+**General Responses**: Keep professional but warm. Use:
+- Short paragraphs (2-3 sentences max)
+- Numbered lists for steps
+- Bullet points for options
+- Clear emphasis on key points
+- Professional language but conversational tone
+
+NEVER use casual language like "btw", "lol", or emoji. Always be professional while staying friendly.
+
+Vexa AI info:
+${contact}
+
+Services:
+${services}
+
+Solutions:
+${solutions}
+
+Case studies:
+${caseStudies}
+
+Team:
+${team}
+
+--- TARGET CLIENT PROFILE ---
+- Company size: 20–200 employees
+- Location: Sweden
+- Industries: Manufacturing, logistics, professional services, healthcare
+- Pain points: GDPR worries, outdated systems, manual processes, AI curiosity
+- Elevator pitch: "We help Swedish businesses with 20–200 staff modernise their IT and adopt AI — without the cost and complexity of a big consultancy. You get senior expertise, fast delivery, and real results."
+- Key differentiators: Senior attention (clients talk to people doing the work), fast delivery, AI-first thinking, practical focus on ROI, competitive pricing
+
+--- SERVICE CATALOGUE (use when discussing what Vexa offers) ---
+Priority services to lead with:
+- Infrastructure & Cloud: Cloud migration (AWS/Azure/GCP), backup & disaster recovery, server setup
+- Cybersecurity: GDPR compliance consulting, security audits, firewall & endpoint protection
+- Software & Development: Custom software, web & mobile apps, API integrations, ERP/CRM (Microsoft Dynamics, SAP, Salesforce)
+- IT Support & Managed Services: Helpdesk, Microsoft 365 / Google Workspace, remote monitoring, device management
+- Consulting & Strategy: IT audits, digital transformation consulting, IT project management
+- Data & Analytics: BI dashboards, database design, data migration
+- AI Services (High Demand 2026): AI strategy & roadmap, AI chatbots, business process automation, Microsoft Copilot rollout, LLM integrations, document intelligence, predictive analytics
+
+--- MONTHLY PACKAGES ---
+${PACKAGES_TEXT}
+
+--- PROJECT PRICING (for internal quote generation only — do not quote these in chat unless asked directly about price) ---
+${PRICING_CATALOG_TEXT}
+
+Quote rules:
+- Use the LOW end of the range for a focused/simple scope; HIGH end for large or complex projects.
+- Start every sales conversation by understanding the client's pain point — not by pitching packages.
+- Contingency: 10% of subtotal (round to nearest 500 SEK).
+- Set rateSek to 0 and estimatedHours to 0 in all items — never reveal rate or hours.
+- When a visitor asks about pricing generally, mention the project ranges or package tiers naturally.
+- Sweden-specific opportunities to highlight: GDPR compliance (high demand), Microsoft Copilot rollout, Tillväxtverket grants, BankID integration.
+
+--- QUOTE FORMAT ---
+When generating a quote, write your conversational message first, then append:
+<quote>
+{
+  "quoteId": "VXA-XXXXXXXX",
+  "currency": "SEK",
+  "timeline": "...",
+  "cloudDeployment": "...",
+  "apiCallVolume": "...",
+  "subtotalSek": 0,
+  "contingencySek": 0,
+  "totalSek": 0,
+  "confidence": "high|medium|low",
+  "assumptions": ["..."],
+  "items": [{"name": "...", "description": "...", "estimatedHours": 0, "rateSek": 0, "subtotalSek": 0}],
+  "generatedAtIso": "..."
+}
+</quote>
+
+--- SUGGESTIONS FORMAT ---
+After EVERY response (even short ones), append a <suggestions> block on a new line.
+List 3–5 short clickable labels (max 6 words each) that make sense as the visitor's likely next input. Separate with |.
+<suggestions>Option one|Option two|Option three</suggestions>
+
+--- NEXT QUESTION FORMAT ---
+After EVERY response, append exactly one follow-up question in this tag:
+<next_question>Your single best next question?</next_question>
+
+Rules:
+- Exactly one question.
+- Max 14 words.
+- It must advance the sales flow.
+- Do not place this question in the main response body.
+
+Stage-appropriate suggestions:
+- Greeting / first message: offer main topics (e.g. "Tell me about your services|I want a quote|Show case studies|Contact info")
+- Gathering requirements: offer specific choices for the current question (e.g. timeline options, deployment targets, service types)
+- After generating a quote: "Download PDF|Contact the team|Refine scope|Start over"
+- Never repeat an option the visitor already selected.
+
+Important: Never fabricate facts not in the knowledge base above.`;
+};
+
+const parseQuoteFromAiResponse = (raw: string, language: Language): { answer: string; quote?: QuotePayload; suggestions?: string[]; nextQuestion?: string } => {
+  // Extract <suggestions> tag first (present in most responses)
+  let cleaned = raw;
+  let suggestions: string[] | undefined;
+  let nextQuestion: string | undefined;
+
+  const nextQuestionMatch = cleaned.match(/<next_question>([\s\S]*?)<\/next_question>/);
+  if (nextQuestionMatch) {
+    nextQuestion = nextQuestionMatch[1].trim();
+    cleaned = cleaned.replace(/<next_question>[\s\S]*?<\/next_question>/, '').trim();
+  }
+
+  const suggestionsMatch = cleaned.match(/<suggestions>([\s\S]*?)<\/suggestions>/);
+  if (suggestionsMatch) {
+    suggestions = suggestionsMatch[1].split('|').map(s => s.trim()).filter(Boolean);
+    cleaned = cleaned.replace(/<suggestions>[\s\S]*?<\/suggestions>/, '').trim();
+  }
+
+  // Override suggestions when the AI is asking the estimate-readiness question
+  const estimateReadinessPattern = language === 'sv'
+    ? /vill du att jag (förbereder?|tar fram) (en offert|ett prisförslag|en uppskattning) nu|dela (mer detaljer|fler detaljer) först/i
+    : /prepare an estimate now|share more details first|would you like me to prepare/i;
+  if (estimateReadinessPattern.test(cleaned)) {
+    suggestions = language === 'sv'
+      ? ['Få offert nu', 'Dela mer detaljer först']
+      : ['Get estimate now', 'Share more details first'];
+  }
+
+  // Extract <quote> block if present
+  const quoteMatch = cleaned.match(/<quote>\s*([\s\S]*?)\s*<\/quote>/);
+  if (!quoteMatch) return { answer: cleaned, suggestions, nextQuestion };
+
+  const answer = cleaned.replace(/<quote>[\s\S]*?<\/quote>/, '').trim();
+  try {
+    const parsed = JSON.parse(quoteMatch[1].trim()) as QuotePayload;
+    if (!parsed.quoteId) parsed.quoteId = `VXA-${Date.now().toString().slice(-8)}`;
+    if (!parsed.generatedAtIso) parsed.generatedAtIso = new Date().toISOString();
+    parsed.currency = 'SEK';
+
+    // If AI didn't provide suggestions after a quote, use default follow-up options
+    if (!suggestions) {
+      suggestions = language === 'sv'
+        ? ['Ladda ner PDF', 'Kontakta teamet', 'Förfina omfång', 'Börja om']
+        : ['Download PDF', 'Contact the team', 'Refine scope', 'Start over'];
+    }
+
+    return { answer, quote: parsed, suggestions, nextQuestion };
+  } catch {
+    return { answer: cleaned.replace(/<quote>[\s\S]*?<\/quote>/, '').trim(), suggestions, nextQuestion };
+  }
+};
+
+const tryGenerateAiConversationResponse = async (
+  language: Language,
+  question: string,
+  context: LanguageContext,
+  history: ChatTurn[]
+): Promise<{ answer: string; quote?: QuotePayload; suggestions?: string[] } | null> => {
+  const client = getAzureClient();
+  const deployment = getAzureDeployment();
+  if (!client || !deployment) return null;
+
+  const systemPrompt = buildAssistantSystemPrompt(language, context);
+
+  const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+    { role: 'system', content: systemPrompt },
+    ...history.map(turn => ({ role: turn.role, content: turn.content })),
+    { role: 'user', content: question },
+  ];
+
+  try {
+    // Add delay before API call to prevent rate limiting failures
+    await delay(API_CALL_DELAY_MS);
+
+    const completion = await client.chat.completions.create({
+      model: deployment,
+      temperature: 0.5,
+      max_completion_tokens: AZURE_OPENAI_MAX_TOKENS,
+      messages,
+    });
+
+    const raw = completion.choices?.[0]?.message?.content?.trim();
+    if (!raw) {
+      console.error('[chatbot] Azure returned empty response for deployment:', deployment);
+      return null;
+    }
+    return parseQuoteFromAiResponse(raw, language);
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string; code?: string };
+    console.error('[chatbot] Azure OpenAI call failed — status:', e?.status, 'code:', e?.code, 'message:', e?.message);
+    return null;
+  }
+};
 
 const answerCustomerQuestionsFlow = async (
   input: AnswerCustomerQuestionsInput
 ): Promise<AnswerCustomerQuestionsOutput> => {
+  const language = resolveLanguage(input.language);
   const question = input.question.trim();
+  const strings = getChatbotStrings(language);
 
-  if (!question) {
-    return {
-      answer: 'Please enter a question about Vexa AI.',
-    };
+  if (!question) return { answer: strings.emptyQuestion };
+  if (question.length > MAX_QUESTION_CHARS) return { answer: strings.shortenQuestion(MAX_QUESTION_CHARS) };
+
+  const context = getLanguageContext(language);
+  const sessionId =
+    input.sessionId ??
+    `guest-${createHash('sha256').update(`${language}:${question}`).digest('hex')}`;
+
+  const session = getSalesSession(sessionId);
+  session.updatedAt = Date.now();
+  updateSessionFromMessage(session, normalizeQuestion(question), context);
+
+  // Check rate limiting — if over limit, add a silent delay instead of showing a warning
+  const rateLimitCheck = checkRateLimit(session, language);
+  if (!rateLimitCheck.allowed) {
+    await delay(2500);
   }
 
-  if (question.length > MAX_QUESTION_CHARS) {
-    return {
-      answer: `Please shorten your message to under ${MAX_QUESTION_CHARS} characters and keep it focused on Vexa AI.`,
-    };
+  // Use client-supplied history if available (more reliable than server session)
+  const clientHistory: ChatTurn[] = input.history ?? session.chatHistory;
+
+  // Try AI-driven conversation first
+  const aiResponse = await tryGenerateAiConversationResponse(
+    language,
+    question,
+    context,
+    clientHistory
+  );
+
+  // Update history in session
+  session.chatHistory.push({ role: 'user', content: question });
+
+  if (aiResponse) {
+    session.chatHistory.push({ role: 'assistant', content: aiResponse.answer });
+    // Keep history bounded to last 20 turns
+    if (session.chatHistory.length > 20) session.chatHistory = session.chatHistory.slice(-20);
+    salesSessionStore.set(sessionId, session);
+    return aiResponse;
   }
 
-  const cachedAnswer = getCachedAnswer(question);
-  if (cachedAnswer) {
-    return {answer: cachedAnswer};
-  }
-
-  const openAICompatibleModel = process.env.OPENAI_MODEL ?? process.env.AZURE_OPENAI_MODEL;
-  const openAICompatibleClient = getOpenAICompatibleClient();
-
-  if (openAICompatibleClient && openAICompatibleModel) {
-    try {
-      const completion = await openAICompatibleClient.chat.completions.create({
-        model: openAICompatibleModel,
-        temperature: 0.2,
-        max_completion_tokens: MAX_RESPONSE_TOKENS,
-        messages: [
-          {
-            role: 'system',
-            content: `You are Vexa AI's website assistant.
-
-Rules:
-- Answer only with information grounded in the Vexa AI knowledge base below.
-- Do not answer general questions outside Vexa AI.
-- If the question cannot be answered directly from the knowledge base, reply exactly with: ${fallbackAnswer}
-- Keep responses concise, professional, and factual.
-- Do not invent pricing, capabilities, customer names, or policies that are not present in the knowledge base.
-- Do not provide coding help, medical advice, legal advice, or broad educational answers unrelated to Vexa AI.
-
-Vexa AI knowledge base:
-${KNOWLEDGE_BASE}`,
-          },
-          {
-            role: 'user',
-            content: question,
-          },
-        ],
-      });
-
-      const answer = completion.choices?.[0]?.message?.content?.trim() || buildLocalAnswer(question);
-      setCachedAnswer(question, answer);
-
-      return {answer};
-    } catch {
-      // Fall through to Azure classic or local fallback.
-    }
-  }
-
-  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
-  const client = getAzureChatClient();
-
-  if (!client || !deployment) {
-    const localAnswer = buildLocalAnswer(question);
-    setCachedAnswer(question, localAnswer);
-    return {answer: localAnswer};
-  }
-
-  try {
-    const completion = await client.chat.completions.create({
-      model: deployment,
-      temperature: 0.2,
-      max_completion_tokens: MAX_RESPONSE_TOKENS,
-      messages: [
-        {
-          role: 'system',
-          content: `You are Vexa AI's website assistant.
-
-Rules:
-- Answer only with information grounded in the Vexa AI knowledge base below.
-- Do not answer general questions outside Vexa AI.
-- If the question cannot be answered directly from the knowledge base, reply exactly with: ${fallbackAnswer}
-- Keep responses concise, professional, and factual.
-- Do not invent pricing, capabilities, customer names, or policies that are not present in the knowledge base.
-- Do not provide coding help, medical advice, legal advice, or broad educational answers unrelated to Vexa AI.
-
-Vexa AI knowledge base:
-${KNOWLEDGE_BASE}`,
-        },
-        {
-          role: 'user',
-          content: question,
-        },
-      ],
-    });
-
-    const answer = completion.choices?.[0]?.message?.content?.trim() || buildLocalAnswer(question);
-    setCachedAnswer(question, answer);
-
-    return {answer};
-  } catch {
-    const localAnswer = buildLocalAnswer(question);
-    setCachedAnswer(question, localAnswer);
-    return {answer: localAnswer};
-  }
+  // Azure unavailable — fall back to local rule-based answer
+  const localAnswer = buildLocalAnswer(language, question, context);
+  return { answer: localAnswer };
 };

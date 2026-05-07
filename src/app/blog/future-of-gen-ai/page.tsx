@@ -1,7 +1,11 @@
+'use client';
+
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { useLanguage } from '@/components/common/language-provider';
+import { getLocale, siteCopy } from '@/lib/localization';
 
 const heroImage = PlaceHolderImages.find(p => p.id === 'blog-post-1');
 const inlineImage1 = PlaceHolderImages.find(p => p.id === 'blog-inline-1');
@@ -12,6 +16,41 @@ const hasImageUrl = <T extends {imageUrl?: string}>(image: T | undefined): image
 
 
 export default function BlogPostPage() {
+  const { language } = useLanguage();
+  const locale = getLocale(language);
+  const blogCopy = siteCopy[language].blog;
+  const content = language === 'sv'
+    ? {
+        badges: ['Generativ AI', 'Affärsstrategi'],
+        title: 'Affärens framtid är här, och den drivs av generativ AI',
+        lead: 'Föreställ dig en värld där ditt företag inte bara reagerar på kunders behov utan förutser dem. Där innehållsskapande inte är en flaskhals utan ett smidigt, automatiserat flöde av kreativitet. Det är inte science fiction, utan verkligheten som formas av generativ AI.',
+        intro: 'Generativ AI är mer än ett modeord. Det är en transformativ kraft som skriver om spelreglerna för affärslivet. Från startups till globala koncerner använder bolag tekniken för att skapa nya nivåer av effektivitet, personalisering och innovation. På Vexa AI ligger vi i framkant av den förändringen.',
+        heading1: 'Hyperpersonalisering i stor skala',
+        body1: 'I flera år har personalisering varit marknadsföringens heliga graal. Generativ AI gör det verkligt. Tänk dig att skapa miljontals unika marknadsbudskap, produktrekommendationer och användarupplevelser anpassade efter varje individ.',
+        heading2: 'Att automatisera den kreativa processen',
+        body2: 'Innehåll är kung, men innehållsproduktion kan ta mycket resurser. Generativ AI automatiserar skapandet av blogginlägg, inlägg i sociala medier, produkttexter och annonskopior. Det stannar inte vid text: AI kan nu skapa bilder, video och till och med musik, så att kreativa team kan fokusera på strategi.',
+        heading3: 'Smartare produkter, smartare beslut',
+        body3: 'Generativ AI är inte bara till för marknadsföring. Tekniken kan byggas in direkt i era produkter, skapa intelligenta applikationer som lär sig och anpassar sig samt rekommenderar åtgärder utifrån data.',
+        heading4: 'Vexa AI-fördelen',
+        body4: 'Affärens framtid är intelligent, automatiserad och starkt personaliserad. Generativ AI är motorn bakom den förändringen, och bolag som omfamnar den idag blir morgondagens ledare.',
+        body5: 'På Vexa AI erbjuder vi expertis och verktyg som hjälper er att integrera generativ AI i verksamheten. Oavsett om det handlar om en skräddarsydd chatbot, en motor för innehållsgenerering eller en hel AI-produkt har vi lösningarna som hjälper er att lyckas.',
+      }
+    : {
+        badges: ['Generative AI', 'Business Strategy'],
+        title: "The Future of Business is Here, and It's Powered by Generative AI",
+        lead: 'Imagine a world where your business does not just respond to customer needs but anticipates them. A world where content creation is not a bottleneck but a seamless, automated flow of creativity. This is not science fiction; it is the reality being shaped by Generative AI.',
+        intro: 'Generative AI is more than a buzzword; it is a transformative force rewriting the rules of business. From startups to global enterprises, companies are using it to unlock new levels of efficiency, personalization, and innovation. At Vexa AI, we are at the forefront of that shift.',
+        heading1: 'Hyper-Personalization at Scale',
+        body1: 'For years, personalization has been the holy grail of marketing. Generative AI makes it real. Imagine creating millions of unique marketing messages, product recommendations, and user experiences tailored to each individual.',
+        heading2: 'Automating the Creative Process',
+        body2: 'Content is king, but producing it can drain resources. Generative AI changes the game by automating blog posts, social media updates, product descriptions, ad copy, images, video, and more, freeing creative teams to focus on strategy.',
+        heading3: 'Smarter Products, Smarter Decisions',
+        body3: 'Generative AI is not just for marketing and content. It can be embedded into products to create intelligent applications that learn, adapt, surface insights, and recommend actions.',
+        heading4: 'The Vexa AI Advantage',
+        body4: 'The future of business is intelligent, automated, and highly personalized. Generative AI is the engine driving that change, and the companies that embrace it today will lead tomorrow.',
+        body5: 'At Vexa AI, we provide the expertise and tools to help you integrate Generative AI into your business. Whether it is a custom chatbot, a content generation engine, or a fully AI-powered application, we have the solutions to help you thrive.',
+      };
+
   return (
     <article className="w-full">
       <header className="relative h-[60vh] min-h-[400px] w-full flex items-end justify-center text-center text-white">
@@ -29,19 +68,20 @@ export default function BlogPostPage() {
         <div className="relative z-10 container px-4 md:px-6 pb-12">
           <div className="flex flex-col items-center space-y-4">
             <div className="flex gap-2">
-                <Badge variant="secondary">Generative AI</Badge>
-                <Badge variant="secondary">Business Strategy</Badge>
+                {content.badges.map((badge) => (
+                  <Badge key={badge} variant="secondary">{badge}</Badge>
+                ))}
             </div>
             <h1 className="font-headline text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
-              The Future of Business is Here, and It's Powered by Generative AI
+              {content.title}
             </h1>
             <div className="flex items-center gap-4 pt-4">
                 <Avatar>
                     <AvatarFallback>VAI</AvatarFallback>
                 </Avatar>
                 <div>
-                    <p className="font-semibold">By The VexaAI Team</p>
-                    <p className="text-sm text-gray-300">Published on {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p className="font-semibold">{blogCopy.byTeam}</p>
+                  <p className="text-sm text-gray-300">{blogCopy.publishedOn} {new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 </div>
             </div>
           </div>
@@ -51,10 +91,10 @@ export default function BlogPostPage() {
       <div className="container mx-auto max-w-4xl py-16 md:py-24 px-4 md:px-6">
         <div className="prose prose-lg dark:prose-invert mx-auto">
           <p className="lead">
-            Imagine a world where your business doesn't just respond to customer needs but anticipates them. A world where content creation isn't a bottleneck but a seamless, automated flow of creativity. This isn't science fiction; it's the reality being shaped by Generative AI.
+            {content.lead}
           </p>
           <p>
-            Generative AI is more than just a buzzword; it's a revolutionary force that is fundamentally rewriting the rules of business. From startups to global enterprises, companies are harnessing its power to unlock unprecedented levels of efficiency, personalization, and innovation. At VexaAI, we're at the forefront of this transformation, and we're here to show you what's possible.
+            {content.intro}
           </p>
 
           {hasImageUrl(inlineImage1) && (
@@ -71,14 +111,14 @@ export default function BlogPostPage() {
            
           )}
           
-          <h2>Hyper-Personalization at Scale</h2>
+          <h2>{content.heading1}</h2>
           <p>
-            For years, personalization has been the holy grail of marketing. Generative AI makes it a reality. Imagine creating millions of unique marketing messages, product recommendations, and user experiences, each tailored to an individual's preferences and behavior. This isn't just about inserting a name into an email; it's about crafting a unique journey for every single customer, boosting engagement and loyalty to new heights.
+            {content.body1}
           </p>
           
-          <h2>Automating the Creative Process</h2>
+          <h2>{content.heading2}</h2>
           <p>
-            Content is king, but its creation can be a major resource drain. Generative AI is changing the game by automating the creation of everything from blog posts and social media updates to product descriptions and ad copy. But it doesn't stop at text. AI can now generate stunning images, professional-quality video, and even original music, freeing up your creative teams to focus on strategy and high-level concepts.
+            {content.body2}
           </p>
 
            {hasImageUrl(inlineImage2) && (
@@ -94,17 +134,17 @@ export default function BlogPostPage() {
             </div>
           )}
 
-          <h2>Smarter Products, Smarter Decisions</h2>
+          <h2>{content.heading3}</h2>
           <p>
-            Generative AI is not just for marketing and content. It can be embedded directly into your products, creating intelligent applications that learn and adapt. Think of software that writes its own code to fix bugs, or analytics tools that don't just present data but also generate natural-language insights and recommend actions. By integrating AI at the core of your operations, you can drive efficiency and make smarter, data-driven decisions across the board.
+            {content.body3}
           </p>
           
-          <h2>The VexaAI Advantage</h2>
+          <h2>{content.heading4}</h2>
           <p>
-            The future of business is intelligent, automated, and highly personalized. Generative AI is the engine driving this change, and the companies that embrace it today will be the leaders of tomorrow. Are you ready to join the revolution?
+            {content.body4}
           </p>
           <p>
-            At VexaAI, we provide the expertise and tools to help you integrate Generative AI into your business. Whether it's building a custom chatbot, deploying a content generation engine, or developing a full-fledged AI-powered application, we have the solutions to help you thrive in this new era.
+            {content.body5}
           </p>
         </div>
       </div>

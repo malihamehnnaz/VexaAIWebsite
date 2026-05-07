@@ -7,7 +7,7 @@ import Logo from '@/components/common/logo';
 
 function Loader() {
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-background/85 backdrop-blur-xl">
+    <div className="pointer-events-none fixed inset-0 z-[120] flex items-center justify-center bg-background/85 backdrop-blur-xl">
       <div className="relative flex flex-col items-center gap-6">
         <motion.div
           className="absolute h-40 w-40 rounded-full bg-primary/15 blur-3xl"

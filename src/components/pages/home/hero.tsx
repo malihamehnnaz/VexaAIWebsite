@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Reveal from '@/components/common/reveal';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import { siteCopy } from '@/lib/localization';
+import { useLanguage } from '@/components/common/language-provider';
 
 const heroImages = {
   primary: 'https://images.unsplash.com/photo-1697577418970-95d99b5a55cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1400',
@@ -14,6 +16,9 @@ const heroImages = {
 };
 
 const Hero = () => {
+  const { language } = useLanguage();
+  const copy = siteCopy[language].home;
+
   return (
     <section className="relative overflow-hidden pt-24 pb-12 md:pt-28 md:pb-14">
       <div className="absolute inset-0 -z-20 bg-hero-gradient" />
@@ -35,32 +40,32 @@ const Hero = () => {
           <Reveal>
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/60 px-4 py-2 text-sm text-foreground/80 shadow-lg shadow-primary/5 backdrop-blur-md">
               <Sparkles className="h-4 w-4 text-primary" />
-              AI systems, product engineering, and cloud delivery
+              {copy.heroBadge}
             </div>
           </Reveal>
           <Reveal>
             <h1 className="mt-5 text-5xl font-bold leading-[1.02] tracking-tighter text-foreground md:text-7xl">
-              Build AI products that feel
+              {copy.heroTitle}
               <span className="block bg-gradient-to-r from-cyan-400 via-primary to-rose-400 bg-clip-text text-transparent">
-                fast, elegant, and alive.
+                {copy.heroTitleAccent}
               </span>
             </h1>
           </Reveal>
           <Reveal>
             <p className="mt-5 max-w-2xl text-lg text-foreground/70 lg:mx-0 mx-auto">
-              Vexa AI designs intelligent customer experiences, enterprise copilots, and production-grade software that turn complex operations into clear momentum.
+              {copy.heroDescription}
             </p>
           </Reveal>
           <Reveal>
             <div className="mt-6 flex flex-col items-center gap-4 sm:flex-row lg:justify-start">
               <Button asChild size="lg" className="group min-w-44">
                 <Link href="/contact">
-                  Start Your Project <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  {copy.startProject} <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="min-w-44 border-primary/20 bg-background/50 backdrop-blur-sm">
                 <Link href="/solutions">
-                  See Solutions
+                  {copy.seeSolutions}
                 </Link>
               </Button>
             </div>
@@ -70,18 +75,18 @@ const Hero = () => {
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-background/55 p-4 text-left shadow-xl backdrop-blur-md">
                 <Cpu className="h-5 w-5 text-cyan-400" />
-                <p className="mt-3 text-sm font-semibold">AI-native delivery</p>
-                <p className="mt-1 text-sm text-muted-foreground">From model orchestration to polished UX.</p>
+                <p className="mt-3 text-sm font-semibold">{copy.card1Title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{copy.card1Body}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-background/55 p-4 text-left shadow-xl backdrop-blur-md">
                 <Bot className="h-5 w-5 text-primary" />
-                <p className="mt-3 text-sm font-semibold">Assistants that work</p>
-                <p className="mt-1 text-sm text-muted-foreground">Grounded, branded, and production ready.</p>
+                <p className="mt-3 text-sm font-semibold">{copy.card2Title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{copy.card2Body}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-background/55 p-4 text-left shadow-xl backdrop-blur-md">
                 <Sparkles className="h-5 w-5 text-rose-400" />
-                <p className="mt-3 text-sm font-semibold">Premium interfaces</p>
-                <p className="mt-1 text-sm text-muted-foreground">Motion, clarity, and conversion-focused design.</p>
+                <p className="mt-3 text-sm font-semibold">{copy.card3Title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{copy.card3Body}</p>
               </div>
             </div>
           </Reveal>
@@ -124,12 +129,12 @@ const Hero = () => {
             >
               <Image
                 src={heroImages.secondary}
-                alt="Cloud systems visualization"
+                alt={copy.cloudFoundations}
                 width={320}
                 height={220}
                 className="h-28 w-full rounded-xl object-cover"
               />
-              <p className="mt-3 text-sm font-medium text-white">Cloud + data foundations</p>
+              <p className="mt-3 text-sm font-medium text-white">{copy.cloudFoundations}</p>
             </motion.div>
 
             <motion.div
@@ -139,12 +144,12 @@ const Hero = () => {
             >
               <Image
                 src={heroImages.tertiary}
-                alt="Retrieval augmented chatbot visualization"
+                alt={copy.liveCopilots}
                 width={320}
                 height={220}
                 className="h-28 w-full rounded-xl object-cover"
               />
-              <p className="mt-3 text-sm font-medium text-white">Live copilots and RAG chatbots</p>
+              <p className="mt-3 text-sm font-medium text-white">{copy.liveCopilots}</p>
             </motion.div>
           </div>
         </motion.div>
