@@ -43,6 +43,7 @@ type Message = {
 };
 
 type QuoteData = NonNullable<Message['quote']>;
+type ChatHistoryTurn = Pick<Message, 'role' | 'content'>;
 
 type BulletCard = {
   title: string;
@@ -255,6 +256,7 @@ export default function AIChatbot() {
 
   const getResponseWithRetry = async (
     message: string,
+    history: ChatHistoryTurn[],
     retries = 1
   ): Promise<{
     answer: string;
@@ -263,14 +265,14 @@ export default function AIChatbot() {
     nextQuestion?: string;
   }> => {
     try {
-      return await getChatbotResponse({ question: message, language });
+      return await getChatbotResponse({ question: message, language, history });
     } catch (error) {
       if (retries <= 0) {
         return getLocalFallbackResponse(message);
       }
 
       await new Promise(resolve => setTimeout(resolve, 900));
-      return getResponseWithRetry(message, retries - 1);
+      return getResponseWithRetry(message, history, retries - 1);
     }
   };
 
@@ -287,7 +289,11 @@ export default function AIChatbot() {
         await addDoc(messagesRef, userMessage);
       }
 
-      const response = await getResponseWithRetry(message, 1);
+      const historyForRequest: ChatHistoryTurn[] = (messages ?? [])
+        .filter(turn => turn.role === 'user' || turn.role === 'assistant')
+        .map(turn => ({ role: turn.role, content: turn.content }));
+
+      const response = await getResponseWithRetry(message, historyForRequest, 1);
       const split = splitTrailingQuestion(response.answer);
       const assistantMessage: Message = {
         role: 'assistant',
