@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
+import { rateLimit } from '@/lib/rate-limit';
 
 const COOKIE_NAME = 'admin-panel-auth';
 const COOKIE_MAX_AGE = 60 * 60; // 1 hour
-
-// Brute-force protection: max 5 attempts per IP per 15 minutes
-const WINDOW_MS = 15 * 60 * 1000;
-const MAX_ATTEMPTS = 5;
-const attemptStore = new Map<string, number[]>();
 
 async function getIp(): Promise<string> {
   try {
@@ -18,27 +14,12 @@ async function getIp(): Promise<string> {
   }
 }
 
-function isLoginRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const recent = (attemptStore.get(ip) ?? []).filter(t => now - t < WINDOW_MS);
-  if (recent.length >= MAX_ATTEMPTS) {
-    attemptStore.set(ip, recent);
-    return true;
-  }
-  recent.push(now);
-  attemptStore.set(ip, recent);
-  // Evict oldest if store grows too large
-  if (attemptStore.size > 500) {
-    const oldest = attemptStore.keys().next().value;
-    if (oldest) attemptStore.delete(oldest);
-  }
-  return false;
-}
-
 export async function POST(request: Request) {
   const ip = await getIp();
 
-  if (isLoginRateLimited(ip)) {
+  // 5 attempts per 15 minutes — persists across cold starts when Upstash is configured
+  const allowed = await rateLimit(ip, 'admin-login', 5, '15 m');
+  if (!allowed) {
     return NextResponse.json(
       { success: false, message: 'Too many attempts. Try again in 15 minutes.' },
       { status: 429 }

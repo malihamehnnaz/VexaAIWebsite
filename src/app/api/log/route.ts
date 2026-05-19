@@ -2,27 +2,10 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { sanitizeText } from '@/lib/sanitize';
+import { rateLimit } from '@/lib/rate-limit';
 
 const DB_CONTENT_LIMIT = 4000;
 const DB_SHORT_LIMIT = 500;
-
-// Rate limit: 60 log calls per minute per IP
-const WINDOW_MS = 60_000;
-const MAX_CALLS = 60;
-const callStore = new Map<string, number[]>();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const recent = (callStore.get(ip) ?? []).filter(t => now - t < WINDOW_MS);
-  if (recent.length >= MAX_CALLS) { callStore.set(ip, recent); return true; }
-  recent.push(now);
-  callStore.set(ip, recent);
-  if (callStore.size > 1000) {
-    const oldest = callStore.keys().next().value;
-    if (oldest) callStore.delete(oldest);
-  }
-  return false;
-}
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -56,7 +39,7 @@ export async function POST(request: Request) {
   if (origin && host && !origin.includes(host.split(':')[0])) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-  if (isRateLimited(ip)) {
+  if (!await rateLimit(ip, 'log', 60, '1 m')) {
     return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
   }
 

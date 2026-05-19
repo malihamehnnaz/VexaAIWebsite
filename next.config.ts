@@ -1,17 +1,37 @@
 import type {NextConfig} from 'next';
 
+const isDev = process.env.NODE_ENV === 'development';
+
+// Content-Security-Policy
+// script-src: 'unsafe-inline' required for Next.js hydration chunks.
+//             'unsafe-eval' only added in dev for webpack HMR.
+// connect-src: all Supabase calls go through /api/* (server-side), so no
+//              direct browser→Supabase connections are needed.
+const csp = [
+  "default-src 'self'",
+  isDev
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    : "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://placehold.co https://images.unsplash.com https://picsum.photos https://videos.pexels.com",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "frame-src 'none'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  ...(!isDev ? ["upgrade-insecure-requests"] : []),
+].join('; ');
+
 const securityHeaders = [
-  // Prevent clickjacking
-  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-  // Prevent MIME sniffing
+  { key: 'Content-Security-Policy', value: csp },
+  // frame-ancestors in CSP supersedes this, but keep for older browsers
+  { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
-  // Limit referrer info sent cross-origin
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  // Disable browser features not needed
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
-  // HSTS — only served over HTTPS in production
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-  // Block XSS in older browsers
   { key: 'X-XSS-Protection', value: '1; mode=block' },
 ];
 
@@ -27,12 +47,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Apply security headers to all routes
         source: '/(.*)',
         headers: securityHeaders,
       },
       {
-        // Extra cache control on admin routes — never cache
+        // Admin pages — never cache, never index
         source: '/admin(.*)',
         headers: [
           ...securityHeaders,
@@ -41,7 +60,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Admin API routes — same no-cache + noindex
+        // Admin API routes
         source: '/api/admin(.*)',
         headers: [
           ...securityHeaders,

@@ -22,19 +22,7 @@ import {
   MAX_COMPANY_CHARS,
   MAX_CONTACT_MESSAGE_CHARS,
 } from '@/lib/sanitize';
-
-// ── Rate limiting (in-memory, resets on cold start) ───────────────────────────
-
-const CHATBOT_WINDOW_MS = 60 * 1000;
-const CHATBOT_MAX_PER_WINDOW = 20;
-
-const CONTACT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
-const CONTACT_MAX_PER_WINDOW = 3;           // max 3 form submissions per 10 min per IP
-
-const MAX_TRACKED_CLIENTS = 1000;
-
-const chatbotStore = new Map<string, number[]>();
-const contactStore = new Map<string, number[]>();
+import { rateLimit } from '@/lib/rate-limit';
 
 export type SendContactEmailInput = {
   name: string;
@@ -61,12 +49,6 @@ function getOwnerReplyToEmail() {
 
 function getContactRecipientEmail() {
   return process.env.RESEND_TO_EMAIL?.trim() || 'malihamehnazcse@gmail.com';
-}
-
-function trimStore(store: Map<string, number[]>) {
-  if (store.size <= MAX_TRACKED_CLIENTS) return;
-  const oldest = store.keys().next().value;
-  if (oldest) store.delete(oldest);
 }
 
 async function getClientIp(): Promise<string> {
@@ -96,27 +78,6 @@ async function getClientKey(): Promise<string> {
   }
 }
 
-function isRateLimited(
-  store: Map<string, number[]>,
-  key: string,
-  windowMs: number,
-  max: number
-): boolean {
-  const now = Date.now();
-  const recent = (store.get(key) ?? []).filter(t => now - t < windowMs);
-
-  if (recent.length >= max) {
-    store.set(key, recent);
-    trimStore(store);
-    return true;
-  }
-
-  recent.push(now);
-  store.set(key, recent);
-  trimStore(store);
-  return false;
-}
-
 // ── Public actions ────────────────────────────────────────────────────────────
 
 export async function getRecommendation(
@@ -131,9 +92,9 @@ export async function getChatbotResponse(
 ): Promise<AnswerCustomerQuestionsOutput> {
   const language = input.language === 'sv' ? 'sv' : 'en';
 
-  // 1. Rate limit
+  // 1. Rate limit — 20 messages per minute per IP+UA, persists across cold starts with Upstash
   const clientKey = await getClientKey();
-  if (isRateLimited(chatbotStore, clientKey, CHATBOT_WINDOW_MS, CHATBOT_MAX_PER_WINDOW)) {
+  if (!await rateLimit(clientKey, 'chatbot', 20, '1 m')) {
     return {
       answer:
         language === 'sv'
@@ -210,9 +171,9 @@ export async function sendContactEmail(
     return { success: false, message: 'Please check your inputs and try again.' };
   }
 
-  // 2. Rate limit contact form per IP
+  // 2. Rate limit contact form — 3 submissions per 10 minutes per IP
   const ip = await getClientIp();
-  if (isRateLimited(contactStore, ip, CONTACT_WINDOW_MS, CONTACT_MAX_PER_WINDOW)) {
+  if (!await rateLimit(ip, 'contact', 3, '10 m')) {
     return {
       success: false,
       message: 'Too many submissions. Please wait a few minutes before trying again.',
