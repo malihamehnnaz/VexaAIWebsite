@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { verifySessionToken } from '@/lib/session';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -11,7 +12,8 @@ function getSupabase() {
 
 export async function GET() {
   const cookieStore = await cookies();
-  if (cookieStore.get('admin-panel-auth')?.value !== '1') {
+  const token = cookieStore.get('admin-panel-auth')?.value ?? '';
+  if (!token || !await verifySessionToken(token)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

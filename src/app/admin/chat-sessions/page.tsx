@@ -139,9 +139,7 @@ const parseDate = (value: string | null | undefined): Date | null => {
 
 export default function AdminChatSessionsPage() {
   const router = useRouter();
-  const [isClient, setIsClient] = useState(false);
-  const [hasAdminAuth, setHasAdminAuth] = useState(false);
-
+  // Auth is enforced by middleware — page only renders for authenticated users.
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tableErrors, setTableErrors] = useState<Record<string, string>>({});
@@ -166,21 +164,6 @@ export default function AdminChatSessionsPage() {
   const [secondsLeft, setSecondsLeft] = useState(INACTIVITY_TIMEOUT);
   const secondsRef = useRef(INACTIVITY_TIMEOUT);
   const loggingOut = useRef(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isClient) return;
-    fetch('/api/admin-check').then(res => {
-      if (res.ok) {
-        setHasAdminAuth(true);
-      } else {
-        router.replace('/admin');
-      }
-    }).catch(() => router.replace('/admin'));
-  }, [isClient, router]);
 
   const runDiag = useCallback(async () => {
     setDiagLoading(true);
@@ -222,9 +205,7 @@ export default function AdminChatSessionsPage() {
     }
   }, [router]);
 
-  useEffect(() => {
-    if (hasAdminAuth) loadData();
-  }, [hasAdminAuth, loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   // ── Logout ────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
@@ -236,25 +217,17 @@ export default function AdminChatSessionsPage() {
 
   // ── Inactivity countdown ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!hasAdminAuth) return;
     secondsRef.current = INACTIVITY_TIMEOUT;
-    setSecondsLeft(INACTIVITY_TIMEOUT);
-
     const tick = setInterval(() => {
       secondsRef.current -= 1;
       setSecondsLeft(secondsRef.current);
-      if (secondsRef.current <= 0) {
-        clearInterval(tick);
-        logout();
-      }
+      if (secondsRef.current <= 0) { clearInterval(tick); logout(); }
     }, 1000);
-
     return () => clearInterval(tick);
-  }, [hasAdminAuth, logout]);
+  }, [logout]);
 
   // ── Activity listeners — reset timer on any interaction ───────────────────
   useEffect(() => {
-    if (!hasAdminAuth) return;
     const reset = () => {
       secondsRef.current = INACTIVITY_TIMEOUT;
       setSecondsLeft(INACTIVITY_TIMEOUT);
@@ -262,7 +235,7 @@ export default function AdminChatSessionsPage() {
     const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'] as const;
     events.forEach(e => window.addEventListener(e, reset, { passive: true }));
     return () => events.forEach(e => window.removeEventListener(e, reset));
-  }, [hasAdminAuth]);
+  }, []);
 
   const isWarning = secondsLeft <= WARNING_THRESHOLD;
   const timerLabel = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`;
@@ -318,16 +291,6 @@ export default function AdminChatSessionsPage() {
     () => sessions.find(s => s.sessionId === selectedSessionId) ?? null,
     [sessions, selectedSessionId]
   );
-
-  if (!isClient || !hasAdminAuth) {
-    return (
-      <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
-        <div className="rounded-xl border border-border/70 bg-muted/80 p-6 text-sm text-muted-foreground">
-          {!hasAdminAuth ? 'Redirecting to admin login…' : 'Loading…'}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto space-y-8 py-10 px-4 sm:px-6 lg:px-8">

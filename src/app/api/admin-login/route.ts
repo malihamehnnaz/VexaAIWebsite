@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { rateLimit } from '@/lib/rate-limit';
+import { createSessionToken } from '@/lib/session';
 
 const COOKIE_NAME = 'admin-panel-auth';
-const COOKIE_MAX_AGE = 60 * 60; // 1 hour
+const COOKIE_MAX_AGE = 60 * 60; // 1 hour hard cap; client enforces 3-min inactivity
 
 async function getIp(): Promise<string> {
   try {
@@ -18,8 +19,7 @@ export async function POST(request: Request) {
   const ip = await getIp();
 
   // 5 attempts per 15 minutes — persists across cold starts when Upstash is configured
-  const allowed = await rateLimit(ip, 'admin-login', 5, '15 m');
-  if (!allowed) {
+  if (!await rateLimit(ip, 'admin-login', 5, '15 m')) {
     return NextResponse.json(
       { success: false, message: 'Too many attempts. Try again in 15 minutes.' },
       { status: 429 }
@@ -44,10 +44,12 @@ export async function POST(request: Request) {
     );
   }
 
+  const token = await createSessionToken();
+
   const response = NextResponse.json({ success: true, message: 'Authenticated' });
   response.cookies.set({
     name: COOKIE_NAME,
-    value: '1',
+    value: token,
     path: '/',
     maxAge: COOKIE_MAX_AGE,
     httpOnly: true,

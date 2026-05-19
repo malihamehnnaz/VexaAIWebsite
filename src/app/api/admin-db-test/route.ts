@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { verifySessionToken } from '@/lib/session';
 
 const TABLES = ['chat_sessions', 'chat_messages', 'contact_submissions', 'agent_logs', 'traffic_events', 'error_logs'] as const;
 
 export async function GET() {
   const cookieStore = await cookies();
-  if (cookieStore.get('admin-panel-auth')?.value !== '1') {
+  const token = cookieStore.get('admin-panel-auth')?.value ?? '';
+  if (!token || !await verifySessionToken(token)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
