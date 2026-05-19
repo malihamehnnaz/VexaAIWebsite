@@ -26,12 +26,16 @@ service cloud.firestore {
      * @deny (create) - User with UID 'user456' cannot create a profile for user 'user123'.
      * @principle Enforces document ownership for user profiles.
      */
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email != null && request.auth.token.email.toLowerCase() == 'admin@vexaai.se';
+    }
+
     match /users/{userId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
 
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isAdmin();
       allow list: if false; // User listing is not allowed.
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
       allow update: if isOwner(userId) && request.resource.data.uid == resource.data.uid && resource != null;
@@ -51,11 +55,48 @@ service cloud.firestore {
         return request.auth != null && request.auth.uid == userId;
       }
 
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId);
       allow update: if isOwner(userId) && resource != null;
       allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Contact submissions collected from the public contact form.
+     * - Anyone (including unauthenticated users) can create a submission.
+     * - Only admin may read/list individual submissions.
+     */
+    match /contact_submissions/{submissionId} {
+      allow create: if true; // allow public create from contact form
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /agent_logs/{logId} {
+      allow create: if true; // allow client-side AI event logging
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /traffic_events/{eventId} {
+      allow create: if true; // allow client-side traffic logging
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /error_logs/{errorId} {
+      allow create: if true; // allow client-side error logging
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
     }
   }
 }

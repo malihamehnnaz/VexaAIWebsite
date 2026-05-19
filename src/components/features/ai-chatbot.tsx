@@ -9,7 +9,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getChatbotResponse } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useAuth, useMemoFirebase } from '@/firebase';
-import { collection, serverTimestamp, query, orderBy, addDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { logFirestoreEvent, buildClientLogMeta } from '@/firebase/logging';
+import { logChatMessage, logSupabaseEvent } from '@/lib/supabase-logger';
+import { collection, serverTimestamp, query, orderBy, addDoc, getDocs, writeBatch, doc, setDoc } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,11 +25,13 @@ type Message = {
     quoteId: string;
     currency: 'SEK';
     timeline: string;
+    teamSize: string;
     cloudDeployment: string;
     apiCallVolume: string;
     subtotalSek: number;
     contingencySek: number;
     totalSek: number;
+    priceRange?: string;
     confidence: 'high' | 'medium' | 'low';
     assumptions: string[];
     items: Array<{
@@ -40,6 +44,13 @@ type Message = {
     generatedAtIso: string;
   };
   timestamp?: unknown;
+  sessionId?: string;
+  userId?: string | null;
+  pagePath?: string;
+  route?: string;
+  userAgent?: string | null;
+  eventType?: string;
+  source?: string;
 };
 
 type QuoteData = NonNullable<Message['quote']>;
@@ -99,6 +110,234 @@ const INITIAL_CARDS: InitialCard[] = [
   },
 ];
 
+type WizardStep = 'project_type' | 'team_size' | 'timeline' | null;
+
+type WizardState = {
+  step: WizardStep;
+  projectType?: string;
+  teamSize?: string;
+  timeline?: string;
+};
+
+const WIZARD_CONFIG = {
+  en: {
+    triggers: new Set([
+      'i want to get a project estimate',
+      'i want an estimate',
+      'get an estimate',
+      'get estimate now',
+      'i want a quote',
+    ]),
+    project_type: {
+      q: 'What type of project are you looking for?',
+      opts: ['AI Chatbot / Automation', 'Cloud Migration', 'Custom Software', 'Web / Mobile App', 'Data & Analytics', 'Other'],
+    },
+    team_size: {
+      q: 'How many people will use or be affected by it?',
+      opts: ['1–5 people', '6–20 people', '21–50 people', '50+ people'],
+    },
+    timeline: {
+      q: "What's your preferred timeline?",
+      opts: ['As soon as possible', '1–3 months', '3–6 months', '6+ months'],
+    },
+    preparing: 'Thanks! Preparing your estimate now...',
+    errorMsg: 'I had trouble generating the estimate. Please try again.',
+    buildPrompt: (projectType: string, teamSize: string, timeline: string) =>
+      `Generate a project estimate with these confirmed details:\n- Project type: ${projectType}\n- People/team size: ${teamSize}\n- Timeline: ${timeline}\n\nAll required information is confirmed. Generate a complete <quote> block with line items immediately.`,
+    defaultSuggestions: ['Download PDF', 'Contact the team', 'Refine scope', 'Start over'],
+  },
+  sv: {
+    triggers: new Set([
+      'jag vill ha en projektuppskattning',
+      'jag vill ha en uppskattning',
+      'fa en uppskattning',
+      'fa offert nu',
+      'jag vill ha offert',
+    ]),
+    project_type: {
+      q: 'Vilken typ av projekt söker du?',
+      opts: ['AI-chatbot / Automation', 'Molnmigrering', 'Specialutvecklad mjukvara', 'Webb / Mobilapp', 'Data & Analys', 'Annat'],
+    },
+    team_size: {
+      q: 'Hur många personer kommer använda eller påverkas av det?',
+      opts: ['1–5 personer', '6–20 personer', '21–50 personer', '50+ personer'],
+    },
+    timeline: {
+      q: 'Vad är din önskade tidslinje?',
+      opts: ['Så snart som möjligt', '1–3 månader', '3–6 månader', '6+ månader'],
+    },
+    preparing: 'Tack! Förbereder din uppskattning nu...',
+    errorMsg: 'Jag hade problem att generera uppskattningen. Försök igen.',
+    buildPrompt: (projectType: string, teamSize: string, timeline: string) =>
+      `Generera en projektuppskattning med dessa bekräftade uppgifter:\n- Projekttyp: ${projectType}\n- Antal personer: ${teamSize}\n- Tidslinje: ${timeline}\n\nAll nödvändig information är bekräftad. Generera ett fullständigt <quote>-block med poster direkt.`,
+    defaultSuggestions: ['Ladda ner PDF', 'Kontakta teamet', 'Ändra omfång', 'Börja om'],
+  },
+};
+
+// ── Local estimate generator (no AI required) ────────────────────────────────
+
+const ESTIMATE_CATALOG = {
+  'AI Chatbot / Automation': {
+    rangeLow: 5000, rangeHigh: 60000,
+    items: [
+      { name: 'Discovery & Requirements', weight: 0.12 },
+      { name: 'AI Model Integration & Training', weight: 0.28 },
+      { name: 'Backend & API Development', weight: 0.22 },
+      { name: 'Frontend / UI Implementation', weight: 0.18 },
+      { name: 'Testing & Quality Assurance', weight: 0.10 },
+      { name: 'Deployment & Documentation', weight: 0.10 },
+    ],
+    assumptions: [
+      'Assumes cloud-hosted deployment (Azure / AWS / GCP)',
+      'Third-party AI API costs not included',
+      'Standard integrations with existing systems',
+    ],
+  },
+  'Cloud Migration': {
+    rangeLow: 10000, rangeHigh: 40000,
+    items: [
+      { name: 'Cloud Architecture Design', weight: 0.15 },
+      { name: 'Environment Setup & Configuration', weight: 0.20 },
+      { name: 'Data Migration & Validation', weight: 0.25 },
+      { name: 'Application Migration', weight: 0.25 },
+      { name: 'Security Testing & Validation', weight: 0.10 },
+      { name: 'Training & Handover', weight: 0.05 },
+    ],
+    assumptions: [
+      'Migration to a single cloud provider',
+      'Cloud infrastructure running costs not included',
+      'Existing on-premise data is accessible and documented',
+    ],
+  },
+  'Custom Software': {
+    rangeLow: 5000, rangeHigh: 100000,
+    items: [
+      { name: 'Discovery & UX Design', weight: 0.12 },
+      { name: 'Backend Development', weight: 0.28 },
+      { name: 'Frontend Development', weight: 0.22 },
+      { name: 'Database Design & Integrations', weight: 0.15 },
+      { name: 'Testing & Quality Assurance', weight: 0.13 },
+      { name: 'Deployment & Launch Support', weight: 0.10 },
+    ],
+    assumptions: [
+      'Covers core feature set as scoped',
+      'Third-party service subscriptions not included',
+      'Client provides timely feedback and approvals',
+    ],
+  },
+  'Web / Mobile App': {
+    rangeLow: 5000, rangeHigh: 100000,
+    items: [
+      { name: 'UX / UI Design', weight: 0.18 },
+      { name: 'Frontend Development', weight: 0.28 },
+      { name: 'Backend & API Development', weight: 0.25 },
+      { name: 'Database Design', weight: 0.10 },
+      { name: 'Testing & QA', weight: 0.12 },
+      { name: 'Deployment & App Store Submission', weight: 0.07 },
+    ],
+    assumptions: [
+      'Covers MVP feature set',
+      'App store fees not included',
+      'Branding / design assets provided or scoped separately',
+    ],
+  },
+  'Data & Analytics': {
+    rangeLow: 5000, rangeHigh: 40000,
+    items: [
+      { name: 'Data Audit & Strategy', weight: 0.15 },
+      { name: 'Data Pipeline Development', weight: 0.28 },
+      { name: 'Dashboard & Reporting', weight: 0.28 },
+      { name: 'Data Quality & Validation', weight: 0.15 },
+      { name: 'Training & Documentation', weight: 0.14 },
+    ],
+    assumptions: [
+      'Assumes access to existing data sources',
+      'BI tool licensing costs not included',
+      'Standard integrations with existing databases',
+    ],
+  },
+  'Other': {
+    rangeLow: 5000, rangeHigh: 50000,
+    items: [
+      { name: 'Discovery & Planning', weight: 0.20 },
+      { name: 'Development & Implementation', weight: 0.50 },
+      { name: 'Testing & Quality Assurance', weight: 0.15 },
+      { name: 'Deployment & Training', weight: 0.15 },
+    ],
+    assumptions: [
+      'Based on typical project scope',
+      'Final pricing subject to detailed requirements',
+      'Scope can be refined after initial discovery session',
+    ],
+  },
+} as const;
+
+// Position along the price range per team-size band (0 = low end, 1 = high end)
+const TEAM_SIZE_POSITIONS: Record<string, number> = {
+  '1–5 people': 0.15, '6–20 people': 0.35, '21–50 people': 0.60, '50+ people': 0.80,
+  '1–5 personer': 0.15, '6–20 personer': 0.35, '21–50 personer': 0.60, '50+ personer': 0.80,
+};
+
+const PROJECT_TYPE_MAP: Record<string, keyof typeof ESTIMATE_CATALOG> = {
+  'ai chatbot / automation': 'AI Chatbot / Automation',
+  'ai-chatbot / automation': 'AI Chatbot / Automation',
+  'cloud migration': 'Cloud Migration',
+  'molnmigrering': 'Cloud Migration',
+  'custom software': 'Custom Software',
+  'specialutvecklad mjukvara': 'Custom Software',
+  'web / mobile app': 'Web / Mobile App',
+  'webb / mobilapp': 'Web / Mobile App',
+  'data & analytics': 'Data & Analytics',
+  'data & analys': 'Data & Analytics',
+  'other': 'Other',
+  'annat': 'Other',
+};
+
+const generateLocalEstimate = (projectType: string, teamSize: string, timeline: string): QuoteData => {
+  const catalogKey = PROJECT_TYPE_MAP[projectType.toLowerCase()] ?? 'Other';
+  const catalog = ESTIMATE_CATALOG[catalogKey];
+  const position = TEAM_SIZE_POSITIONS[teamSize] ?? 0.35;
+
+  // Position along range then apply 2/3 scale (matching server-side adjustQuoteForLowerRange)
+  const reference = Math.round(
+    (catalog.rangeLow + position * (catalog.rangeHigh - catalog.rangeLow)) * (2 / 3) / 100
+  ) * 100;
+
+  const items = (catalog.items as readonly { name: string; weight: number }[]).map(({ name, weight }) => ({
+    name,
+    description: '',
+    estimatedHours: 0,
+    rateSek: 0,
+    subtotalSek: Math.round(reference * weight / 100) * 100,
+  }));
+
+  const subtotalSek = items.reduce((sum, item) => sum + item.subtotalSek, 0);
+  const contingencySek = Math.round(subtotalSek * 0.1 / 500) * 500;
+  const totalSek = subtotalSek + contingencySek;
+  const low = Math.round(totalSek * 0.85 / 500) * 500;
+  const high = Math.round(totalSek * 1.15 / 500) * 500;
+
+  return {
+    quoteId: `VXA-${Date.now().toString().slice(-8)}`,
+    currency: 'SEK',
+    timeline,
+    teamSize,
+    cloudDeployment: 'TBD',
+    apiCallVolume: 'N/A',
+    subtotalSek,
+    contingencySek,
+    totalSek,
+    priceRange: `${low.toLocaleString('sv-SE')}–${high.toLocaleString('sv-SE')} SEK`,
+    confidence: 'medium',
+    assumptions: [
+      ...(catalog.assumptions as readonly string[]),
+      'Estimate based on standard scope — refine after detailed requirements session',
+    ],
+    items,
+    generatedAtIso: new Date().toISOString(),
+  };
+};
+
 const parseBulletCards = (content: string): {
   intro: string;
   cards: BulletCard[];
@@ -139,6 +378,49 @@ const parseBulletCards = (content: string): {
   return { intro, cards, outro };
 };
 
+// ── localStorage persistence ────────────────────────────────────────────────
+
+const CHAT_STORAGE_KEY = 'vexa_chat_v1';
+const CHAT_TTL_MS = 10 * 24 * 60 * 60 * 1000; // 10 days
+
+type StoredChat = {
+  messages: Omit<Message, 'timestamp'>[];
+  quote: QuoteData | null;
+  savedAt: number;
+};
+
+function loadStoredChat(): StoredChat | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return null;
+    const stored = JSON.parse(raw) as StoredChat;
+    if (Date.now() - stored.savedAt > CHAT_TTL_MS) {
+      localStorage.removeItem(CHAT_STORAGE_KEY);
+      return null;
+    }
+    return stored;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredChat(messages: Message[], quote: QuoteData | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    // Strip non-serialisable Firestore timestamps before saving
+    const clean = messages.map(({ timestamp: _ts, ...rest }) => rest);
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ messages: clean, quote, savedAt: Date.now() } satisfies StoredChat));
+  } catch {
+    // Storage full or disabled — silently skip
+  }
+}
+
+function clearStoredChat(): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch { /* ignore */ }
+}
+
 export default function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -146,9 +428,15 @@ export default function AIChatbot() {
   const [pendingSuggestions, setPendingSuggestions] = useState<string[]>([]);
   const [pendingNextQuestion, setPendingNextQuestion] = useState<string | null>(null);
   const [localHistory, setLocalHistory] = useState<ChatHistoryTurn[]>([]);
+  const [pagePath, setPagePath] = useState('');
+  const [userAgent, setUserAgent] = useState('');
   const scrollDivRef = useRef<HTMLDivElement>(null);
 
   const [isClient, setIsClient] = useState(false);
+  const [wizard, setWizard] = useState<WizardState>({ step: null });
+  const [localLatestQuote, setLocalLatestQuote] = useState<QuoteData | null>(null);
+  // Full Message objects for local display (includes quotes); separate from localHistory which is ChatHistoryTurn[] for AI calls
+  const [displayMessages, setDisplayMessages] = useState<Message[]>([]);
 
   useEffect(() => {
     setIsClient(true);
@@ -160,9 +448,32 @@ export default function AIChatbot() {
   const { language } = useLanguage();
   const copy = siteCopy[language].chatbot;
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setPagePath(window.location.pathname);
+    setUserAgent(window.navigator.userAgent);
+
+    if (firestore) {
+      logFirestoreEvent(firestore, 'traffic_events', {
+        ...buildClientLogMeta(user?.id, window.location.pathname, 'chat_page_view', window.navigator.userAgent),
+        eventType: 'page_view',
+        source: 'chatbot',
+      });
+    }
+
+    logSupabaseEvent('traffic_events', {
+      sessionId: user?.id ?? null,
+      eventType: 'page_view',
+      source: 'chatbot',
+      pagePath: window.location.pathname,
+      route: 'chat_page_view',
+      userAgent: window.navigator.userAgent,
+    });
+  }, [firestore, user?.id]);
+
   const messagesRef = useMemoFirebase(() => {
     if (!firestore || !user || !isClient) return null;
-    return collection(firestore, `users/${user.uid}/chat_messages`);
+    return collection(firestore, `users/${user.id}/chat_messages`);
   }, [firestore, user, isClient]);
 
   const messagesQuery = useMemoFirebase(() => {
@@ -172,15 +483,34 @@ export default function AIChatbot() {
 
   const { data: messages, isLoading: isHistoryLoading } = useCollection<Message>(messagesQuery);
 
+  // Restore chat from localStorage on client mount (runs once)
+  useEffect(() => {
+    if (!isClient) return;
+    const stored = loadStoredChat();
+    if (stored && stored.messages.length > 0) {
+      setDisplayMessages(stored.messages as Message[]);
+      setLocalHistory(stored.messages.map(m => ({ role: m.role, content: m.content })).slice(-20));
+      if (stored.quote) setLocalLatestQuote(stored.quote);
+    }
+  }, [isClient]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync Firestore messages → local state when localStorage is empty (e.g. existing user, cleared storage)
   useEffect(() => {
     if (!messages || messages.length === 0) return;
+    if (displayMessages.length > 0) return; // local storage already populated
+    setDisplayMessages(messages.slice(-20));
+    setLocalHistory(messages.map(m => ({ role: m.role, content: m.content })).slice(-20));
+    const lastWithQuote = [...messages].reverse().find(m => m.role === 'assistant' && m.quote);
+    if (lastWithQuote?.quote) setLocalLatestQuote(lastWithQuote.quote as QuoteData);
+  }, [messages]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const history = messages
-      .filter(turn => turn.role === 'user' || turn.role === 'assistant')
-      .map(turn => ({ role: turn.role, content: turn.content }));
-
-    setLocalHistory(history.slice(-20));
-  }, [messages]);
+  // Persist to localStorage whenever messages or quote change
+  useEffect(() => {
+    if (!isClient) return;
+    if (displayMessages.length > 0 || localLatestQuote) {
+      saveStoredChat(displayMessages, localLatestQuote);
+    }
+  }, [isClient, displayMessages, localLatestQuote]);
   
   useEffect(() => {
     if (!user && !isUserLoading && auth && isClient) {
@@ -311,13 +641,105 @@ export default function AIChatbot() {
 
     setPendingSuggestions([]);
     setPendingNextQuestion(null);
-    setIsAiLoading(true);
+
+    const sessionId = user?.id ?? `guest-${Date.now().toString().slice(-8)}`;
+    const messageMetadata = {
+      sessionId,
+      userId: user?.id ?? null,
+      pagePath: pagePath || '/chat',
+      route: 'chatbot_message',
+      userAgent: userAgent || null,
+      eventType: 'chat_message',
+      source: 'chatbot',
+    };
+
+    // Helper: persist an assistant message to Firestore + Supabase + both history states without calling AI
+    const pushBotMessage = async (content: string, quote?: QuoteData) => {
+      const botMsg: Message = {
+        role: 'assistant',
+        content,
+        ...(quote ? { quote } : {}),
+        timestamp: serverTimestamp(),
+        ...messageMetadata,
+      };
+      if (messagesRef) await addDoc(messagesRef, botMsg);
+      logChatMessage({
+        sessionId,
+        role: 'assistant',
+        content,
+        quote: quote ?? undefined,
+        pagePath: pagePath || '/chat',
+        route: 'chatbot_message',
+        source: 'chatbot',
+        language,
+        userAgent: userAgent || undefined,
+      });
+      setLocalHistory(prev => [...prev, { role: 'assistant' as const, content }].slice(-20));
+      setDisplayMessages(prev => [...prev, botMsg].slice(-20));
+    };
 
     try {
-      if (messagesRef) {
-        const userMessage: Message = { role: 'user', content: message, timestamp: serverTimestamp() };
-        await addDoc(messagesRef, userMessage);
+      if (firestore && user) {
+        const userDocRef = doc(firestore, 'users', user.id);
+        await setDoc(userDocRef, { uid: user.id, updatedAt: serverTimestamp() }, { merge: true });
       }
+      const userMsg: Message = { role: 'user', content: message, timestamp: serverTimestamp(), ...messageMetadata };
+      if (messagesRef) await addDoc(messagesRef, userMsg);
+      logChatMessage({
+        sessionId,
+        role: 'user',
+        content: message,
+        pagePath: pagePath || '/chat',
+        route: 'chatbot_message',
+        source: 'chatbot',
+        language,
+        userAgent: userAgent || undefined,
+      });
+      setDisplayMessages(prev => [...prev, userMsg].slice(-20));
+
+      const cfg = WIZARD_CONFIG[language];
+
+      // ── WIZARD: active step ──────────────────────────────────────────────────
+      if (wizard.step === 'project_type') {
+        setWizard(prev => ({ ...prev, projectType: message, step: 'team_size' }));
+        setPendingSuggestions(cfg.team_size.opts as string[]);
+        await pushBotMessage(cfg.team_size.q);
+        return;
+      }
+
+      if (wizard.step === 'team_size') {
+        setWizard(prev => ({ ...prev, teamSize: message, step: 'timeline' }));
+        setPendingSuggestions(cfg.timeline.opts as string[]);
+        await pushBotMessage(cfg.timeline.q);
+        return;
+      }
+
+      if (wizard.step === 'timeline') {
+        const { projectType, teamSize } = wizard;
+        setWizard({ step: null });
+
+        const quote = generateLocalEstimate(projectType!, teamSize!, message);
+        setLocalLatestQuote(quote);
+
+        const intro = language === 'sv'
+          ? `Här är din preliminära uppskattning för ${projectType} för ${teamSize} med ${message} tidslinje.`
+          : `Here's your preliminary estimate for ${projectType} for ${teamSize} over ${message}.`;
+
+        await pushBotMessage(intro, quote);
+        setPendingSuggestions(cfg.defaultSuggestions as string[]);
+        return;
+      }
+
+      // ── WIZARD: trigger ──────────────────────────────────────────────────────
+      if (cfg.triggers.has(message.trim().toLowerCase())) {
+        setWizard({ step: 'project_type' });
+        setPendingSuggestions(cfg.project_type.opts as string[]);
+        await pushBotMessage(cfg.project_type.q);
+        return;
+      }
+
+      // ── NORMAL AI FLOW ───────────────────────────────────────────────────────
+      setIsAiLoading(true);
 
       const response = await getResponseWithRetry(message, historyForRequest, 1);
       const split = splitTrailingQuestion(response.answer);
@@ -326,14 +748,62 @@ export default function AIChatbot() {
         content: split.body,
         ...(response.quote ? { quote: response.quote } : {}),
         timestamp: serverTimestamp(),
+        ...messageMetadata,
       };
 
       if (messagesRef) {
         await addDoc(messagesRef, assistantMessage);
       }
 
+      logChatMessage({
+        sessionId,
+        role: 'assistant',
+        content: split.body,
+        quote: response.quote ?? undefined,
+        pagePath: pagePath || '/chat',
+        route: 'chatbot_message',
+        source: 'chatbot',
+        language,
+        userAgent: userAgent || undefined,
+      });
+
+      if (firestore) {
+        await logFirestoreEvent(firestore, 'agent_logs', {
+          ...buildClientLogMeta(user?.id, pagePath || '/chat', 'chat_response', userAgent || 'unknown', sessionId),
+          eventType: 'chat_response',
+          source: 'chatbot',
+          language,
+          prompt: message,
+          response: split.body,
+          quote: response.quote ?? null,
+        });
+      }
+
+      logSupabaseEvent('agent_logs', {
+        sessionId,
+        eventType: 'chat_response',
+        source: 'chatbot',
+        pagePath: pagePath || '/chat',
+        route: 'chat_response',
+        language,
+        prompt: message,
+        response: split.body,
+        quote: response.quote ?? undefined,
+        userAgent: userAgent || undefined,
+      });
+
+      if (response.quote) setLocalLatestQuote(response.quote as QuoteData);
+
       const assistantTurn: ChatHistoryTurn = { role: 'assistant', content: split.body };
       setLocalHistory(prev => [...prev, assistantTurn].slice(-20));
+      const assistantDisplayMsg: Message = {
+        role: 'assistant',
+        content: split.body,
+        ...(response.quote ? { quote: response.quote } : {}),
+        timestamp: serverTimestamp(),
+        ...messageMetadata,
+      };
+      setDisplayMessages(prev => [...prev, assistantDisplayMsg].slice(-20));
 
       const nextQuestion = response.nextQuestion?.trim() || split.nextQuestion;
       if (nextQuestion) {
@@ -352,12 +822,50 @@ export default function AIChatbot() {
         : 'I am having a temporary issue right now. Please try again shortly.';
 
       if (messagesRef) {
-        const errorMessage: Message = { role: 'assistant', content: fallbackText, timestamp: serverTimestamp() };
-        await addDoc(messagesRef, errorMessage);
+        await addDoc(messagesRef, {
+          role: 'assistant',
+          content: fallbackText,
+          timestamp: serverTimestamp(),
+          ...messageMetadata,
+          eventType: 'chat_error',
+        });
       }
 
-      const fallbackTurn: ChatHistoryTurn = { role: 'assistant', content: fallbackText };
-      setLocalHistory(prev => [...prev, fallbackTurn].slice(-20));
+      logChatMessage({
+        sessionId,
+        role: 'assistant',
+        content: fallbackText,
+        pagePath: pagePath || '/chat',
+        route: 'chatbot_message',
+        eventType: 'chat_error',
+        source: 'chatbot',
+        language,
+        userAgent: userAgent || undefined,
+      });
+
+      if (firestore) {
+        await logFirestoreEvent(firestore, 'agent_logs', {
+          ...buildClientLogMeta(user?.id, pagePath || '/chat', 'chat_error', userAgent || 'unknown', sessionId),
+          eventType: 'chat_error',
+          source: 'chatbot',
+          message: (error as Error)?.message ?? 'Chatbot error',
+          prompt: message,
+        });
+      }
+
+      logSupabaseEvent('error_logs', {
+        sessionId,
+        eventType: 'chat_error',
+        source: 'chatbot',
+        pagePath: pagePath || '/chat',
+        route: 'chat_error',
+        message: (error as Error)?.message ?? 'Chatbot error',
+        details: { prompt: message },
+        userAgent: userAgent || undefined,
+      });
+
+      setLocalHistory(prev => [...prev, { role: 'assistant' as const, content: fallbackText }].slice(-20));
+      setDisplayMessages(prev => [...prev, { role: 'assistant' as const, content: fallbackText, timestamp: serverTimestamp(), ...messageMetadata }].slice(-20));
     } finally {
       setIsAiLoading(false);
     }
@@ -369,16 +877,20 @@ export default function AIChatbot() {
     setInput('');
   };
 
+  // displayMessages is the source of truth for display; fall back to Firestore only when both are empty
+  const chatContent: Array<Message | ChatHistoryTurn> = displayMessages.length > 0 ? displayMessages : (messages ?? []);
   const initialMessage: Message[] = [{ role: 'assistant', content: copy.initialMessage }];
-  const chatContent = (messages && messages.length > 0) ? messages : [];
 
+  // Show download button only when the most recent bot message contains a quote
   const latestQuote = useMemo(() => {
-    for (let i = chatContent.length - 1; i >= 0; i -= 1) {
-      const candidate = chatContent[i]?.quote;
-      if (candidate) return candidate;
+    for (let i = displayMessages.length - 1; i >= 0; i--) {
+      const msg = displayMessages[i];
+      if (msg.role === 'assistant') {
+        return (msg as Message).quote ?? null;
+      }
     }
     return null;
-  }, [chatContent]);
+  }, [displayMessages]);
 
   const formatSekForPdf = (value: number) =>
     new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 0 }).format(value);
@@ -429,7 +941,7 @@ export default function AIChatbot() {
     <meta charset="utf-8" />
     <title>${escapeHtml(quote.quoteId)} - Vexa AI Estimate</title>
     <style>
-      * { box-sizing: border-box; margin: 0; padding: 0; }
+      * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       body { background: #f4f7fb; font-family: "Segoe UI", Arial, sans-serif; color: #e8e8e8; margin: 0; padding: 16px; }
       .wrap { max-width: 680px; margin: 0 auto; }
       .card { background: #0d1b2a; border-radius: 14px; overflow: hidden; }
@@ -475,9 +987,9 @@ export default function AIChatbot() {
       .fc span { margin: 0 6px; color: #4f677c; }
       .print-btn { background: linear-gradient(135deg, #00c9b1, #7b2fbe); color: #fff; border: none; font-size: 12px; font-weight: 600; padding: 7px 16px; border-radius: 8px; cursor: pointer; }
       @media print {
-        body { background: #fff; padding: 0; }
+        body { background: #0d1b2a; color: #e8e8e8; padding: 0; }
         .wrap { max-width: none; }
-        .card { border-radius: 0; }
+        .card { border-radius: 0; background: #0d1b2a; }
         .print-btn { display: none; }
       }
     </style>
@@ -525,9 +1037,11 @@ export default function AIChatbot() {
 
           <div class="scope">
             <p><strong>Timeline:</strong> ${escapeHtml(quote.timeline)}</p>
+            <p><strong>People covered:</strong> ${escapeHtml(quote.teamSize)}</p>
             <p><strong>Cloud deployment:</strong> ${escapeHtml(quote.cloudDeployment)}</p>
             <p><strong>API call volume:</strong> ${escapeHtml(quote.apiCallVolume)}</p>
             <p><strong>Confidence:</strong> ${escapeHtml(quote.confidence)}</p>
+            ${quote.priceRange ? `<p><strong>Estimated total range:</strong> ${escapeHtml(quote.priceRange)}</p>` : ''}
           </div>
 
           <div class="th">
@@ -544,7 +1058,7 @@ export default function AIChatbot() {
               <div class="tr"><span>Subtotal</span><b>${formatSekForPdf(quote.subtotalSek)} SEK</b></div>
               <div class="tr"><span>Tax / VAT</span><b>${formatSekForPdf(vatSek)} SEK</b></div>
               <div class="tr"><span>Contingency</span><b>${formatSekForPdf(quote.contingencySek)} SEK</b></div>
-              <div class="tf"><span>Total</span><span>${formatSekForPdf(quote.totalSek)} SEK</span></div>
+              ${quote.priceRange ? `<div class="tr"><span>Estimated total range</span><span>${escapeHtml(quote.priceRange)}</span></div>` : `<div class="tf"><span>Total</span><span>${formatSekForPdf(quote.totalSek)} SEK</span></div>`}
             </div>
           </div>
 
@@ -576,14 +1090,14 @@ export default function AIChatbot() {
 
   const handleSuggestionClick = (suggestion: string) => {
     const normalized = suggestion.trim().toLowerCase();
-    const isDownloadAction = normalized === 'download pdf' || normalized === 'ladda ner pdf';
 
-    if (isDownloadAction) {
-      if (latestQuote) {
-        openQuotePrintView(latestQuote);
-      } else {
-        handleSend(suggestion);
-      }
+    if (normalized === 'download pdf' || normalized === 'ladda ner pdf') {
+      if (latestQuote) openQuotePrintView(latestQuote);
+      return;
+    }
+
+    if (normalized === 'start over' || normalized === 'börja om' || normalized === 'borja om') {
+      handleRestartChat();
       return;
     }
 
@@ -595,6 +1109,10 @@ export default function AIChatbot() {
     setPendingSuggestions([]);
     setPendingNextQuestion(null);
     setLocalHistory([]);
+    setDisplayMessages([]);
+    setWizard({ step: null });
+    setLocalLatestQuote(null);
+    clearStoredChat();
 
     if (!messagesRef || !firestore) {
       return;
@@ -674,7 +1192,7 @@ export default function AIChatbot() {
                         {chatContent.map((message, index) => (
                           <ChatMessage key={index} message={message} />
                         ))}
-                        {messages?.length === 0 && (
+                        {localHistory.length === 0 && (
                           <div className="grid grid-cols-2 gap-2 pt-4">
                             {INITIAL_CARDS.map(card => (
                               <button
@@ -719,6 +1237,13 @@ export default function AIChatbot() {
                             {suggestion}
                           </button>
                         ))}
+                      </div>
+                    )}
+                    {!isAiLoading && latestQuote && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button type="button" variant="secondary" size="sm" onClick={() => openQuotePrintView(latestQuote)}>
+                          Download PDF
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -779,6 +1304,9 @@ const ChatMessage = ({ message }: { message: Message }) => {
           <div className="mb-3 rounded-xl border border-primary/20 bg-background/70 p-3">
             <p className="text-[11px] uppercase tracking-wide text-primary/80 font-semibold">Preliminary Estimate</p>
             <p className="mt-1 text-xs text-muted-foreground">{message.quote.quoteId}</p>
+            {message.quote.priceRange && (
+              <p className="mt-2 text-sm font-semibold text-foreground">Estimated total range: {message.quote.priceRange}</p>
+            )}
 
             <div className="mt-3 space-y-1 text-xs">
               {message.quote.items.map((item) => (
@@ -793,11 +1321,16 @@ const ChatMessage = ({ message }: { message: Message }) => {
             <div className="mt-3 space-y-1 border-t border-border/70 pt-2 text-xs">
               <p className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatSek(message.quote.subtotalSek)} SEK</span></p>
               <p className="flex justify-between"><span className="text-muted-foreground">Contingency</span><span>{formatSek(message.quote.contingencySek)} SEK</span></p>
-              <p className="flex justify-between font-semibold text-foreground"><span>Total</span><span>{formatSek(message.quote.totalSek)} SEK</span></p>
+              {message.quote.priceRange ? (
+                <p className="flex justify-between font-semibold text-foreground"><span>Estimated total range</span><span>{message.quote.priceRange}</span></p>
+              ) : (
+                <p className="flex justify-between font-semibold text-foreground"><span>Total</span><span>{formatSek(message.quote.totalSek)} SEK</span></p>
+              )}
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-1 text-xs text-muted-foreground">
               <p><span className="text-foreground">Timeline:</span> {message.quote.timeline}</p>
+              <p><span className="text-foreground">People:</span> {message.quote.teamSize}</p>
               <p><span className="text-foreground">Cloud:</span> {message.quote.cloudDeployment}</p>
               <p><span className="text-foreground">API volume:</span> {message.quote.apiCallVolume}</p>
               <p><span className="text-foreground">Confidence:</span> {message.quote.confidence}</p>

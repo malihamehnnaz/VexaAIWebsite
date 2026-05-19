@@ -19,18 +19,30 @@ export default function TeamPreview() {
           </p>
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {teamMembers.slice(0, 3).map((member) => (
+        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+          {teamMembers.slice(0, 2).map((member) => (
             <div
               key={member.name}
-              className="rounded-3xl border border-white/10 bg-gradient-to-br from-background to-muted/30 p-6 shadow-lg shadow-primary/5"
+              className="flex flex-col rounded-3xl border border-white/10 bg-gradient-to-br from-background to-muted/30 p-6 shadow-lg shadow-primary/5"
             >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-lg font-semibold text-primary">
-                {member.initials}
+              <div className="flex items-center gap-4">
+                <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-full bg-primary/5">
+                  {member.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={member.image} alt={`${member.name} photo`} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-primary">{member.initials}</div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">{member.name}</h3>
+                  <p className="mt-1 text-sm font-medium text-primary">{member.role}</p>
+                </div>
               </div>
-              <h3 className="mt-5 text-xl font-semibold text-foreground">{member.name}</h3>
-              <p className="mt-1 text-sm font-medium text-primary">{member.role}</p>
+
               <p className="mt-4 text-sm leading-6 text-muted-foreground">{member.bio}</p>
+
+              {/* profile link removed to keep layout concise and professional */}
             </div>
           ))}
         </div>

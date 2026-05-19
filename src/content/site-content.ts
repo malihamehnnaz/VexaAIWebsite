@@ -38,6 +38,7 @@ export type TeamMember = {
   bio: string;
   linkedin: string;
   initials: string;
+  image?: string;
 };
 
 export type CompanyContact = {
@@ -323,51 +324,18 @@ export const teamMembers: TeamMember[] = [
   {
     name: 'Samara Sharin',
     role: 'Chief Executive Officer & Founder',
-    bio: "Samara brings hands-on experience from running her own business, paired with a Master's in Business Development. She works closely with clients to understand where AI can make a real difference — translating business needs into the right solutions.",
+    bio: 'Samara Sharin founded Vexa AI because she genuinely believes most businesses are wasting their best people on their worst tasks. Armed with a Master\'s in Business Development and a low tolerance for unnecessary manual work, she leads Vexa\'s client strategy and ensures every solution they build is one that a real business can actually use.',
     linkedin: 'https://www.linkedin.com/',
     initials: 'SS',
+    image: '/images/avatars/samara.jpg',
   },
   {
     name: 'Maliha Mehnaz',
     role: 'Chief Technology Officer & Consultant',
-    bio: 'Maliha brings 8 years of deep tech experience and has delivered over 48 projects. She handles the technical side of every engagement — making sure what gets built is solid, scalable, and actually works.',
+    bio: 'Maliha Mehnaz is the Chief Technology Officer & Consultant at Vexa AI, with over 8 years of experience in AI/ML engineering, Generative AI, and cloud architecture. She has led enterprise AI initiatives across the banking and automotive industries, delivering agentic AI systems, RAG pipelines, and multi-agent workflows at scale. At Vexa AI, Maliha drives technical strategy and helps clients build intelligent, production-ready AI solutions using cutting-edge technologies.',
     linkedin: 'https://www.linkedin.com/',
     initials: 'MM',
-  },
-  {
-    name: 'Subbir Bin Harun',
-    role: 'Account Manager & Consultant',
-    bio: 'Subbir Bin Harun supports client accounts, consulting engagements, and commercial coordination, helping Vexa AI scale with clarity and accountability.',
-    linkedin: 'https://www.linkedin.com/',
-    initials: 'SB',
-  },
-  {
-    name: 'Sofia Patel',
-    role: 'Head of AI Solutions',
-    bio: 'Sofia specializes in RAG, agent orchestration, evaluation frameworks, and responsible enterprise AI implementation.',
-    linkedin: 'https://www.linkedin.com/',
-    initials: 'SP',
-  },
-  {
-    name: 'Daniel Brooks',
-    role: 'Director of Cloud & DevOps',
-    bio: 'Daniel leads platform engineering, infrastructure automation, observability, and resilient delivery pipelines.',
-    linkedin: 'https://www.linkedin.com/',
-    initials: 'DB',
-  },
-  {
-    name: 'Nina Alvarez',
-    role: 'Principal Product Designer',
-    bio: 'Nina crafts polished digital experiences that balance executive trust, user adoption, and conversion performance.',
-    linkedin: 'https://www.linkedin.com/',
-    initials: 'NA',
-  },
-  {
-    name: 'Omar Hassan',
-    role: 'Lead Data Engineer',
-    bio: 'Omar builds modern data foundations for analytics, AI, and operational reporting across cloud ecosystems.',
-    linkedin: 'https://www.linkedin.com/',
-    initials: 'OH',
+    image: '/images/avatars/maliha.jpg',
   },
 ];
 

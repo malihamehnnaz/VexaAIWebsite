@@ -34,7 +34,7 @@ const MAX_QUESTION_CHARS = 700;
 const MIN_SCOPE_MATCHES = 1;
 const SALES_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const MAX_SALES_SESSIONS = 500;
-const AZURE_OPENAI_MAX_TOKENS = 1200;
+const AZURE_OPENAI_MAX_TOKENS = 2000;
 const AZURE_OPENAI_API_VERSION_DEFAULT = '2024-12-01-preview';
 
 // Rate limiting & call protection
@@ -96,11 +96,13 @@ export type QuotePayload = {
   quoteId: string;
   currency: 'SEK';
   timeline: string;
+  teamSize: string;
   cloudDeployment: string;
   apiCallVolume: string;
   subtotalSek: number;
   contingencySek: number;
   totalSek: number;
+  priceRange?: string;
   confidence: 'high' | 'medium' | 'low';
   assumptions: string[];
   items: QuoteLineItem[];
@@ -117,6 +119,7 @@ type SalesSession = {
   requestedServices: string[];
   industry?: string;
   companySize?: string;
+  teamSize?: string;
   timeline?: string;
   cloudDeployment?: string;
   apiCallVolume?: string;
@@ -456,9 +459,39 @@ const updateSessionFromMessage = (
     }
   }
 
+  const extractedTeamSize = extractTeamSizeFromMessage(normalized);
+  if (extractedTeamSize) {
+    session.teamSize = extractedTeamSize;
+  }
+
   if (normalized.length > 30 && session.notes.length < 5) {
     session.notes.push(normalized);
   }
+};
+
+const extractTeamSizeFromMessage = (normalized: string): string | undefined => {
+  const rangeMatch = normalized.match(
+    /\b(\d{1,4})\s*(?:-|to)\s*(\d{1,4})\s+(?:people|persons|users|employees|staff|seats|agents|team members|teammates|personer|anvandare|användare|anstallda|anställda|medarbetare)\b/i
+  );
+  if (rangeMatch) {
+    return `${rangeMatch[1]}-${rangeMatch[2]} people`;
+  }
+
+  const directCountMatch = normalized.match(
+    /\b(?:for|around|about|roughly|cirka|ca|ungefar|ungefär)?\s*(\d{1,4})\s+(?:people|persons|users|employees|staff|seats|agents|team members|teammates|personer|anvandare|användare|anstallda|anställda|medarbetare)\b/i
+  );
+  if (directCountMatch) {
+    return `${directCountMatch[1]} people`;
+  }
+
+  const teamOfMatch = normalized.match(
+    /\b(?:team of|a team of|vi ar|vi är|vart team ar|vårt team är|our team is|our team has)\s*(\d{1,4})\b/i
+  );
+  if (teamOfMatch) {
+    return `${teamOfMatch[1]} people`;
+  }
+
+  return undefined;
 };
 
 const buildLocalAnswer = (language: Language, question: string, context: LanguageContext) => {
@@ -651,7 +684,7 @@ const checkRateLimit = (session: SalesSession, language: Language): { allowed: b
 // Delay helper for API calls
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
-const buildAssistantSystemPrompt = (language: Language, context: LanguageContext): string => {
+const buildAssistantSystemPrompt = (language: Language, context: LanguageContext, session: SalesSession): string => {
   const lang = language === 'sv' ? 'Swedish' : 'English';
   const services = context.services.map(s => `- ${s.title} (slug: ${s.slug}): ${s.summary}. Typical use cases: ${s.useCases.join(', ')}.`).join('\n');
   const solutions = context.solutions.map(s => `- ${s.title}: ${s.summary}`).join('\n');
@@ -660,6 +693,14 @@ const buildAssistantSystemPrompt = (language: Language, context: LanguageContext
   ).join('\n\n');
   const team = context.teamMembers.slice(0, 6).map(m => `- ${m.name}: ${m.role}. ${m.bio}`).join('\n');
   const contact = `Email: ${context.companyContact.email}, Phone: ${context.companyContact.phone}, Address: ${context.companyContact.address}`;
+  const sessionSnapshot = [
+    `Goal: ${session.goal ?? 'unknown'}`,
+    `Requested services: ${session.requestedServices.length ? session.requestedServices.join(', ') : 'unknown'}`,
+    `People count / team size: ${session.teamSize ?? 'unknown'}`,
+    `Timeline: ${session.timeline ?? 'unknown'}`,
+    `Cloud deployment: ${session.cloudDeployment ?? 'unknown'}`,
+    `API call volume: ${session.apiCallVolume ?? 'unknown'}`,
+  ].join('\n');
 
   const guardrailsText = language === 'sv'
     ? `
@@ -677,9 +718,8 @@ Du gör INTE följande:
 - Låtsas ha information du inte har
 - Nämna timpris, antal timmar per projekt eller prisuppdelningar i konversationen — dessa visas endast i en formell offert
 
-Om någon frågar något utanför scope: Var vänlig och notera att du är specialiserad på Vexa AI:s tjänster, 
-och omdirigera till vad Vexa kan hjälpa med. Du får vara lite flexibel för närliggande IT/teknik-frågor 
-men stanna fokuserad på försäljning av Vexa:s tjänster.`
+STRIKT REGEL FÖR IRRELEVANTA FRÅGOR: Om användaren frågar om NÅGOT som inte direkt rör Vexa AI:s tjänster, IT-strategi, digitalisering eller teknik inom vår verksamhet — svara ENBART med: "Jag är Vexa AI:s assistent och kan bara hjälpa med frågor om våra tjänster och lösningar. Vill du veta mer om vad vi erbjuder, få en projektuppskattning eller boka en konsultation?"
+Engagera INTE alls med, förklara eller besvara frågor utanför scope. Ignorera det off-topic innehållet helt och omdirigera omedelbart med meddelandet ovan.`
     : `
 --- GUARDRAILS & SCOPE ---
 You are an expert for Vexa AI services only. You discuss ONLY:
@@ -695,9 +735,8 @@ You do NOT:
 - Pretend to have information you don't have
 - Mention hourly rates, hours per project, or pricing breakdowns in conversation — these appear only inside a formal estimate/quote
 
-If someone asks something outside scope: Politely note that you specialize in Vexa AI services 
-and redirect to what Vexa can help with. You may be slightly flexible for related IT/tech questions 
-but stay focused on selling Vexa services.`;
+STRICT OFF-TOPIC RULE: If the user asks about ANYTHING not directly related to Vexa AI services, IT strategy, digitalization, or technology relevant to our offerings — respond with ONLY this (translated to the conversation language): "I'm Vexa AI's assistant and can only help with questions about our services and solutions. Would you like to know about what we offer, get a project estimate, or book a consultation?"
+Do NOT engage with, explain, or partially answer off-topic questions. Do not acknowledge the off-topic content at all. Redirect immediately with the message above.`;
 
   return `You are Alex, a knowledgeable assistant at Vexa AI. You help visitors understand our services, gather project requirements, and prepare estimates.
 
@@ -708,8 +747,16 @@ Your conversational style:
 - Proactively suggest relevant services or case studies when they fit.
 - CRITICAL: Read the full conversation history before responding. Never re-ask anything already answered.
 - CRITICAL: Read the full conversation history before responding. Never re-ask anything already answered.
-- When you have gathered: (1) what they want to build, and (2) the service type — ask: "Would you like me to prepare an estimate now, or share more details first?" and set the <suggestions> block to exactly: "Get estimate now|Share more details first".
+- Discovery order for estimates: first understand the goal, then identify the service type, then get the rough people count, then optionally gather timeline/cloud/API details, then ask whether to prepare the estimate.
+- Before producing any estimate, make sure you know: (1) what they want to build, (2) the service type, and (3) roughly how many people will use or be affected by it.
+- If the goal and service are mostly clear but people count is still unknown, your next question should usually be the people-count question.
+- Prioritize people count before timeline, cloud deployment, API volume, or other secondary details unless the visitor explicitly insists on something else.
+- If the known sales context says "People count / team size: unknown", treat that as missing required information.
+- If the people count is still unknown, ask exactly one question to get it before offering an estimate-readiness choice or generating an estimate.
+- Do not ask "Would you like me to prepare an estimate now?" until the people count is known.
+- When you have gathered: (1) what they want to build, (2) the service type, and (3) the people count — ask: "Would you like me to prepare an estimate now, or share more details first?" and set the <suggestions> block to exactly: "Get estimate now|Share more details first".
 - Only generate a <quote> block after the visitor confirms (e.g. "yes", "get estimate now", "go ahead"). Never generate one without confirmation.
+- Never generate a <quote> block if people count is unknown, even if the visitor asks for a quote immediately.
 - After confirmation, generate the <quote> block immediately in your next response — no more questions.
 - Always respond in ${lang}.
 
@@ -751,6 +798,20 @@ Address: City, Country
 - Clear emphasis on key points
 - Professional language but conversational tone
 
+Estimate behavior examples:
+- Example 1. Visitor: "We need an AI support assistant for our internal helpdesk. Can you give me an estimate?"
+  Good response: Briefly confirm the use case, identify the likely service, then ask only: "Roughly how many people will use it?"
+  Bad response: Giving pricing, offering "Get estimate now", or asking about timeline first.
+- Example 2. Visitor: "We want a customer support chatbot on Azure with around 20k API calls per day."
+  Good response: Acknowledge Azure and API volume, then ask for people count if it is still unknown.
+  Bad response: Generating a quote or estimate-readiness prompt before people count is known.
+- Example 3. Visitor: "It is for about 35 people."
+  Good response: Store that answer, then either ask the next most useful missing detail or ask whether to prepare the estimate now.
+  Bad response: Asking for people count again.
+- Example 4. Visitor: "Just give me the estimate now."
+  Good response when people count is unknown: Politely state that you need the rough people count first, then ask for it in one sentence.
+  Good response when people count is known: Prepare the estimate in the next response.
+
 NEVER use casual language like "btw", "lol", or emoji. Always be professional while staying friendly.
 
 Vexa AI info:
@@ -767,6 +828,9 @@ ${caseStudies}
 
 Team:
 ${team}
+
+--- KNOWN SALES CONTEXT ---
+${sessionSnapshot}
 
 --- TARGET CLIENT PROFILE ---
 - Company size: 20–200 employees
@@ -794,6 +858,10 @@ ${PRICING_CATALOG_TEXT}
 
 Quote rules:
 - Use the LOW end of the range for a focused/simple scope; HIGH end for large or complex projects.
+- Use people count as a scope signal: 1-5 people should normally stay near the low end, 6-20 people low-to-mid, 21-50 people mid-range, and 50+ people upper-mid to high if the solution scope supports it.
+- When you prepare a quote, use a leaner estimate by lowering the reference total to roughly 2/3 of the usual estimate.
+- Present the result as a suggested price range rather than a single exact total. If the JSON quote must include a numeric total, keep it as the conservative reference value.
+- If people count is missing, do not estimate. Ask for it first in one concise question.
 - Start every sales conversation by understanding the client's pain point — not by pitching packages.
 - Contingency: 10% of subtotal (round to nearest 500 SEK).
 - Set rateSek to 0 and estimatedHours to 0 in all items — never reveal rate or hours.
@@ -807,6 +875,7 @@ When generating a quote, write your conversational message first, then append:
   "quoteId": "VXA-XXXXXXXX",
   "currency": "SEK",
   "timeline": "...",
+  "teamSize": "...",
   "cloudDeployment": "...",
   "apiCallVolume": "...",
   "subtotalSek": 0,
@@ -843,6 +912,33 @@ Stage-appropriate suggestions:
 Important: Never fabricate facts not in the knowledge base above.`;
 };
 
+const roundToNearest = (value: number, unit: number) => Math.round(value / unit) * unit;
+
+const adjustQuoteForLowerRange = (parsed: QuotePayload): QuotePayload => {
+  const scale = 2 / 3;
+  const scaledItems = parsed.items.map(item => ({
+    ...item,
+    estimatedHours: 0,
+    rateSek: 0,
+    subtotalSek: roundToNearest(item.subtotalSek * scale, 100),
+  }));
+
+  const subtotalSek = roundToNearest(parsed.subtotalSek * scale, 100);
+  const contingencySek = roundToNearest(parsed.contingencySek * scale, 100);
+  const totalSek = roundToNearest(parsed.totalSek * scale, 100);
+  const low = roundToNearest(totalSek * 0.85, 500);
+  const high = roundToNearest(totalSek * 1.15, 500);
+
+  return {
+    ...parsed,
+    items: scaledItems,
+    subtotalSek,
+    contingencySek,
+    totalSek,
+    priceRange: `${low.toLocaleString()}–${high.toLocaleString()} SEK`,
+  };
+};
+
 const parseQuoteFromAiResponse = (raw: string, language: Language): { answer: string; quote?: QuotePayload; suggestions?: string[]; nextQuestion?: string } => {
   // Extract <suggestions> tag first (present in most responses)
   let cleaned = raw;
@@ -857,7 +953,18 @@ const parseQuoteFromAiResponse = (raw: string, language: Language): { answer: st
 
   const suggestionsMatch = cleaned.match(/<suggestions>([\s\S]*?)<\/suggestions>/);
   if (suggestionsMatch) {
-    suggestions = suggestionsMatch[1].split('|').map(s => s.trim()).filter(Boolean);
+    suggestions = suggestionsMatch[1]
+      .split(/\s*\|\s*|\r?\n/)
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    if (suggestions.length === 1 && suggestions[0].includes('  ')) {
+      suggestions = suggestions[0]
+        .split(/\s{2,}/)
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
     cleaned = cleaned.replace(/<suggestions>[\s\S]*?<\/suggestions>/, '').trim();
   }
 
@@ -882,14 +989,23 @@ const parseQuoteFromAiResponse = (raw: string, language: Language): { answer: st
     if (!parsed.generatedAtIso) parsed.generatedAtIso = new Date().toISOString();
     parsed.currency = 'SEK';
 
-    // If AI didn't provide suggestions after a quote, use default follow-up options
-    if (!suggestions) {
+    // If AI didn't provide suggestions after a quote, or if they are empty, use default follow-up options.
+    if (!suggestions?.length) {
       suggestions = language === 'sv'
         ? ['Ladda ner PDF', 'Kontakta teamet', 'Förfina omfång', 'Börja om']
         : ['Download PDF', 'Contact the team', 'Refine scope', 'Start over'];
     }
 
-    return { answer, quote: parsed, suggestions, nextQuestion };
+    const adjustedQuote = adjustQuoteForLowerRange(parsed);
+
+    // If AI didn't provide suggestions after a quote, or if they are empty, use default follow-up options.
+    if (!suggestions?.length) {
+      suggestions = language === 'sv'
+        ? ['Ladda ner PDF', 'Kontakta teamet', 'Förfina omfång', 'Börja om']
+        : ['Download PDF', 'Contact the team', 'Refine scope', 'Start over'];
+    }
+
+    return { answer, quote: adjustedQuote, suggestions, nextQuestion };
   } catch {
     return { answer: cleaned.replace(/<quote>[\s\S]*?<\/quote>/, '').trim(), suggestions, nextQuestion };
   }
@@ -899,6 +1015,7 @@ const tryGenerateAiConversationResponse = async (
   language: Language,
   question: string,
   context: LanguageContext,
+  session: SalesSession,
   history: ChatTurn[]
 ): Promise<{ answer: string; quote?: QuotePayload; suggestions?: string[] } | null> => {
   const client = getAzureClient();
@@ -908,7 +1025,7 @@ const tryGenerateAiConversationResponse = async (
     return null;
   }
 
-  const systemPrompt = buildAssistantSystemPrompt(language, context);
+  const systemPrompt = buildAssistantSystemPrompt(language, context, session);
 
   const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
     { role: 'system', content: systemPrompt },
@@ -979,16 +1096,31 @@ const answerCustomerQuestionsFlow = async (
 
   const session = getSalesSession(sessionId);
   session.updatedAt = Date.now();
-  updateSessionFromMessage(session, normalizeQuestion(question), context);
+
+  // Use client-supplied history if available (more reliable than server session)
+  const clientHistory: ChatTurn[] = input.history ?? session.chatHistory;
+
+  // Re-derive session fields from full history so they survive stateless serverless restarts
+  for (const turn of clientHistory) {
+    if (turn.role === 'user') {
+      updateSessionFromMessage(session, normalizeQuestion(turn.content), context);
+    }
+  }
+
+  const normalizedQuestion = normalizeQuestion(question);
+  updateSessionFromMessage(session, normalizedQuestion, context);
+
+  // Parse structured wizard prompts (e.g. "People/team size: 6–20 people\nTimeline: 1–3 months")
+  const structuredTeamSize = question.match(/(?:people\/team size|antal personer)[:\s]+([^\n.]+)/i)?.[1]?.trim();
+  if (structuredTeamSize) session.teamSize = structuredTeamSize;
+  const structuredTimeline = question.match(/(?:timeline|tidslinje)[:\s]+([^\n.]+)/i)?.[1]?.trim();
+  if (structuredTimeline) session.timeline = structuredTimeline;
 
   // Check rate limiting — if over limit, add a silent delay instead of showing a warning
   const rateLimitCheck = checkRateLimit(session, language);
   if (!rateLimitCheck.allowed) {
     await delay(2500);
   }
-
-  // Use client-supplied history if available (more reliable than server session)
-  const clientHistory: ChatTurn[] = input.history ?? session.chatHistory;
 
   // Deterministic handling for common quick-action prompts to avoid repetitive generic responses.
   const quickIntentResponse = getQuickIntentResponse(language, question, context);
@@ -1005,6 +1137,7 @@ const answerCustomerQuestionsFlow = async (
     language,
     question,
     context,
+    session,
     clientHistory
   );
 
@@ -1012,6 +1145,9 @@ const answerCustomerQuestionsFlow = async (
   session.chatHistory.push({ role: 'user', content: question });
 
   if (aiResponse) {
+    if (aiResponse.quote) {
+      aiResponse.quote.teamSize = aiResponse.quote.teamSize || session.teamSize || (language === 'sv' ? 'Ej angivet' : 'Not specified');
+    }
     session.chatHistory.push({ role: 'assistant', content: aiResponse.answer });
     // Keep history bounded to last 20 turns
     if (session.chatHistory.length > 20) session.chatHistory = session.chatHistory.slice(-20);

@@ -12,18 +12,38 @@ import type {
   RecommendServicePackagesInput,
   RecommendServicePackagesOutput,
 } from '@/ai/flows/recommend-service-packages';
+import {
+  validateChatMessage,
+  sanitizeHistory,
+  validateContactForm,
+  sanitizeText,
+  MAX_NAME_CHARS,
+  MAX_EMAIL_CHARS,
+  MAX_COMPANY_CHARS,
+  MAX_CONTACT_MESSAGE_CHARS,
+} from '@/lib/sanitize';
 
-const CHATBOT_RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const CHATBOT_MAX_REQUESTS_PER_WINDOW = 20;
-const CHATBOT_MAX_TRACKED_CLIENTS = 500;
+// ── Rate limiting (in-memory, resets on cold start) ───────────────────────────
 
-const chatbotRateLimitStore = new Map<string, number[]>();
+const CHATBOT_WINDOW_MS = 60 * 1000;
+const CHATBOT_MAX_PER_WINDOW = 20;
+
+const CONTACT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const CONTACT_MAX_PER_WINDOW = 3;           // max 3 form submissions per 10 min per IP
+
+const MAX_TRACKED_CLIENTS = 1000;
+
+const chatbotStore = new Map<string, number[]>();
+const contactStore = new Map<string, number[]>();
 
 export type SendContactEmailInput = {
   name: string;
   company?: string;
   email: string;
   message: string;
+  availableDate?: string;
+  availableTime?: string;
+  honeypot?: string;
 };
 
 export type SendContactEmailResult = {
@@ -43,48 +63,61 @@ function getContactRecipientEmail() {
   return process.env.RESEND_TO_EMAIL?.trim() || 'malihamehnazcse@gmail.com';
 }
 
-function trimRateLimitStore() {
-  while (chatbotRateLimitStore.size > CHATBOT_MAX_TRACKED_CLIENTS) {
-    const oldestKey = chatbotRateLimitStore.keys().next().value;
-    if (!oldestKey) break;
-    chatbotRateLimitStore.delete(oldestKey);
-  }
+function trimStore(store: Map<string, number[]>) {
+  if (store.size <= MAX_TRACKED_CLIENTS) return;
+  const oldest = store.keys().next().value;
+  if (oldest) store.delete(oldest);
 }
 
-async function getChatbotClientKey() {
+async function getClientIp(): Promise<string> {
   try {
-    const headerStore = await headers();
-    const forwardedFor = headerStore.get('x-forwarded-for')?.split(',')[0]?.trim();
-    const realIp = headerStore.get('x-real-ip')?.trim();
-    const userAgent = headerStore.get('user-agent')?.trim() ?? 'unknown-agent';
-
-    return `${forwardedFor || realIp || 'unknown-ip'}:${userAgent}`;
+    const h = await headers();
+    return (
+      h.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      h.get('x-real-ip')?.trim() ||
+      'unknown'
+    );
   } catch {
-    return `fallback-client:${Date.now().toString().slice(-6)}`;
+    return 'unknown';
   }
 }
 
-function isChatbotRateLimited(clientKey: string) {
-  const now = Date.now();
-  const recentRequests = (chatbotRateLimitStore.get(clientKey) ?? []).filter(
-    timestamp => now - timestamp < CHATBOT_RATE_LIMIT_WINDOW_MS
-  );
-
-  if (recentRequests.length === 0) {
-    chatbotRateLimitStore.delete(clientKey);
+async function getClientKey(): Promise<string> {
+  try {
+    const h = await headers();
+    const ip =
+      h.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      h.get('x-real-ip')?.trim() ||
+      'unknown';
+    const ua = h.get('user-agent')?.trim()?.slice(0, 100) ?? 'unknown';
+    return `${ip}:${ua}`;
+  } catch {
+    return `fallback:${Date.now().toString().slice(-8)}`;
   }
+}
 
-  if (recentRequests.length >= CHATBOT_MAX_REQUESTS_PER_WINDOW) {
-    chatbotRateLimitStore.set(clientKey, recentRequests);
-    trimRateLimitStore();
+function isRateLimited(
+  store: Map<string, number[]>,
+  key: string,
+  windowMs: number,
+  max: number
+): boolean {
+  const now = Date.now();
+  const recent = (store.get(key) ?? []).filter(t => now - t < windowMs);
+
+  if (recent.length >= max) {
+    store.set(key, recent);
+    trimStore(store);
     return true;
   }
 
-  recentRequests.push(now);
-  chatbotRateLimitStore.set(clientKey, recentRequests);
-  trimRateLimitStore();
+  recent.push(now);
+  store.set(key, recent);
+  trimStore(store);
   return false;
 }
+
+// ── Public actions ────────────────────────────────────────────────────────────
 
 export async function getRecommendation(
   input: RecommendServicePackagesInput
@@ -97,58 +130,121 @@ export async function getChatbotResponse(
   input: AnswerCustomerQuestionsInput
 ): Promise<AnswerCustomerQuestionsOutput> {
   const language = input.language === 'sv' ? 'sv' : 'en';
-  try {
-    const clientKey = await getChatbotClientKey();
 
-    if (isChatbotRateLimited(clientKey)) {
+  // 1. Rate limit
+  const clientKey = await getClientKey();
+  if (isRateLimited(chatbotStore, clientKey, CHATBOT_WINDOW_MS, CHATBOT_MAX_PER_WINDOW)) {
+    return {
+      answer:
+        language === 'sv'
+          ? 'Du skickar meddelanden för snabbt. Vänta en minut och försök igen.'
+          : 'You are sending messages too quickly. Please wait a minute and try again.',
+    };
+  }
+
+  // 2. Validate and sanitize the message
+  const msgResult = validateChatMessage(input.question);
+  if (!msgResult.ok) {
+    if (msgResult.reason === 'too_long') {
       return {
         answer:
           language === 'sv'
-            ? 'Du skickar meddelanden for snabbt. Vanta en minut och forsok igen med en fraga om Vexa AI.'
-            : 'You are sending messages too quickly. Please wait a minute and try again with a Vexa AI question.',
+            ? 'Meddelandet är för långt. Håll det under 700 tecken.'
+            : 'Your message is too long. Please keep it under 700 characters.',
       };
     }
+    if (msgResult.reason === 'injection' || msgResult.reason === 'dangerous') {
+      return {
+        answer:
+          language === 'sv'
+            ? 'Jag är Vexa AI:s assistent och kan bara svara på frågor om våra tjänster.'
+            : "I'm Vexa AI's assistant and can only answer questions about our services.",
+      };
+    }
+    return {
+      answer:
+        language === 'sv'
+          ? 'Skriv en fråga om Vexa AI.'
+          : 'Please enter a question about Vexa AI.',
+    };
+  }
 
-    return await answerCustomerQuestions({...input, sessionId: clientKey});
+  // 3. Sanitize and cap history
+  const safeHistory = sanitizeHistory(input.history ?? []);
+
+  try {
+    return await answerCustomerQuestions({
+      question: msgResult.value,
+      language,
+      history: safeHistory,
+      sessionId: clientKey,
+    });
   } catch (error) {
     console.error('Chatbot request failed', error);
-    try {
-      return await answerCustomerQuestions({
-        ...input,
-        sessionId: 'fallback-session',
-      });
-    } catch {
-      return {
-        answer:
-          language === 'sv'
-            ? 'Tyvarr har jag problem att ansluta just nu. Forsok igen senare.'
-            : "Sorry, I'm having trouble connecting. Please try again later.",
-      };
-    }
+    return {
+      answer:
+        language === 'sv'
+          ? 'Tyvärr har jag problem att ansluta just nu. Försök igen senare.'
+          : "Sorry, I'm having trouble connecting. Please try again later.",
+    };
   }
 }
 
 export async function sendContactEmail(
   input: SendContactEmailInput
 ): Promise<SendContactEmailResult> {
+  // 1. Honeypot + field validation
+  const contactResult = validateContactForm({
+    name: String(input.name ?? ''),
+    email: String(input.email ?? ''),
+    message: String(input.message ?? ''),
+    company: input.company ? String(input.company) : undefined,
+    honeypot: input.honeypot,
+  });
+
+  if (!contactResult.ok) {
+    if (contactResult.reason === 'dangerous') {
+      // Don't reveal to bots that they were caught; pretend success
+      return { success: true, message: 'Your message was sent successfully. We will get back to you soon.' };
+    }
+    return { success: false, message: 'Please check your inputs and try again.' };
+  }
+
+  // 2. Rate limit contact form per IP
+  const ip = await getClientIp();
+  if (isRateLimited(contactStore, ip, CONTACT_WINDOW_MS, CONTACT_MAX_PER_WINDOW)) {
+    return {
+      success: false,
+      message: 'Too many submissions. Please wait a few minutes before trying again.',
+    };
+  }
+
+  // 3. Sanitize before email
+  const safeName    = sanitizeText(input.name, MAX_NAME_CHARS);
+  const safeEmail   = sanitizeText(input.email, MAX_EMAIL_CHARS);
+  const safeCompany = input.company ? sanitizeText(input.company, MAX_COMPANY_CHARS) : '';
+  const safeMessage = sanitizeText(input.message, MAX_CONTACT_MESSAGE_CHARS);
+
   try {
     const apiKey = process.env.RESEND_API_KEY;
 
     if (!apiKey) {
       return {
         success: false,
-        message: 'Server email is not configured yet. Add RESEND_API_KEY to enable direct sending.',
+        message: 'Email sending is not configured yet. Please contact us directly.',
       };
     }
 
-    const subject = `New Vexa AI inquiry from ${input.name}`;
+    const subject = `New Vexa AI inquiry from ${safeName}`;
     const text = [
-      `Name: ${input.name}`,
-      `Company: ${input.company || 'Not provided'}`,
-      `Email: ${input.email}`,
+      `Name: ${safeName}`,
+      `Company: ${safeCompany || 'Not provided'}`,
+      `Email: ${safeEmail}`,
+      `Availability date: ${input.availableDate || 'Not provided'}`,
+      `Availability time: ${input.availableTime || 'Not provided'}`,
       '',
       'Message:',
-      input.message,
+      safeMessage,
     ].join('\n');
 
     const response = await fetch('https://api.resend.com/emails', {
@@ -160,7 +256,7 @@ export async function sendContactEmail(
       body: JSON.stringify({
         from: getResendFromEmail(),
         to: [getContactRecipientEmail()],
-        reply_to: input.email || getOwnerReplyToEmail(),
+        reply_to: safeEmail || getOwnerReplyToEmail(),
         subject,
         text,
       }),
@@ -168,11 +264,10 @@ export async function sendContactEmail(
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Failed to send contact email', errorText);
+      console.error('Failed to send contact email', await response.text());
       return {
         success: false,
-        message: 'Resend is still in testing mode and can only send to malihamehnazcse@gmail.com until a domain is verified.',
+        message: 'Could not send your message right now. Please try again later.',
       };
     }
 
