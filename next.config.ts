@@ -16,7 +16,7 @@ const csp = [
   "img-src 'self' data: blob: https://placehold.co https://images.unsplash.com https://picsum.photos https://videos.pexels.com",
   "font-src 'self' data:",
   "connect-src 'self'",
-  "frame-src 'none'",
+  "frame-src https://www.openstreetmap.org",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",

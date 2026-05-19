@@ -27,6 +27,22 @@ import { useLanguage } from '@/components/common/language-provider';
 import { siteCopy } from '@/lib/localization';
 import { logContactSubmission } from '@/lib/supabase-logger';
 
+function getTodayInStockholm(): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm' }).format(new Date());
+}
+
+function getCurrentStockholmMinutes(): number {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Stockholm',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+  const hour = parseInt(parts.find(p => p.type === 'hour')!.value, 10);
+  const minute = parseInt(parts.find(p => p.type === 'minute')!.value, 10);
+  return hour * 60 + minute;
+}
+
 export default function ContactForm() {
   const { toast } = useToast();
   const { language } = useLanguage();
@@ -34,6 +50,8 @@ export default function ContactForm() {
   const { user } = useUser();
   const [pagePath, setPagePath] = useState('');
   const [userAgent, setUserAgent] = useState('');
+  const [nowMinutes, setNowMinutes] = useState(() => getCurrentStockholmMinutes());
+  const todayInStockholm = useMemo(() => getTodayInStockholm(), []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -48,6 +66,11 @@ export default function ContactForm() {
       });
     }
   }, [fstore, user?.id]);
+
+  useEffect(() => {
+    const id = setInterval(() => setNowMinutes(getCurrentStockholmMinutes()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const copy = siteCopy[language].form;
   const formSchema = useMemo(
@@ -86,6 +109,15 @@ export default function ContactForm() {
     },
   });
   const availableDate = form.watch("availableDate");
+
+  useEffect(() => {
+    if (availableDate !== todayInStockholm) return;
+    const currentTime = form.getValues('availableTime');
+    if (!currentTime) return;
+    const [h, m] = currentTime.split(':').map(Number);
+    if (h * 60 + m <= nowMinutes) form.setValue('availableTime', '');
+  }, [availableDate, todayInStockholm, nowMinutes, form]);
+
   const timeSlots = useMemo(() => {
     const slots: string[] = [];
     const startMinutes = 8 * 60;
@@ -276,6 +308,7 @@ export default function ContactForm() {
                       <Input
                         type="date"
                         placeholder={copy.availablePlaceholder}
+                        min={todayInStockholm}
                         ref={ref}
                         {...rest}
                         value={value ?? ''}
@@ -308,11 +341,15 @@ export default function ContactForm() {
                           <SelectValue placeholder={copy.timePlaceholder} />
                         </SelectTrigger>
                         <SelectContent>
-                          {timeSlots.map((time) => (
-                            <SelectItem key={time} value={time}>
-                              {time}
-                            </SelectItem>
-                          ))}
+                          {timeSlots.map((time) => {
+                            const [h, m] = time.split(':').map(Number);
+                            const isPast = availableDate === todayInStockholm && h * 60 + m <= nowMinutes;
+                            return (
+                              <SelectItem key={time} value={time} disabled={isPast}>
+                                {time}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </FormControl>
