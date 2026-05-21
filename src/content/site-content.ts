@@ -315,7 +315,7 @@ export const companyValues = [
 
 export const companyContact: CompanyContact = {
   email: 'admin@vexaai.se',
-  phone: '0735777459',
+  phone: '073 577 74 59',
   phoneHref: 'tel:0735777459',
   address: 'Rådhusesplanaden 6 F, 903 28 Umeå, Sweden',
 };

@@ -715,7 +715,7 @@ export function getLocalizedCompanyContact(language: Language): CompanyContact {
 
   return {
     ...companyContact,
-    address: 'Radhusesplanaden 6 F, 903 28 Umea, Sverige',
+    address: 'Rådhusesplanaden 6 F, 903 28 Umeå, Sverige',
   };
 }
 
