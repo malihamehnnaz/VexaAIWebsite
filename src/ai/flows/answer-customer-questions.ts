@@ -859,8 +859,7 @@ ${PRICING_CATALOG_TEXT}
 Quote rules:
 - Use the LOW end of the range for a focused/simple scope; HIGH end for large or complex projects.
 - Use people count as a scope signal: 1-5 people should normally stay near the low end, 6-20 people low-to-mid, 21-50 people mid-range, and 50+ people upper-mid to high if the solution scope supports it.
-- When you prepare a quote, use a leaner estimate by lowering the reference total to roughly 2/3 of the usual estimate.
-- Present the result as a suggested price range rather than a single exact total. If the JSON quote must include a numeric total, keep it as the conservative reference value.
+- Present the result as a suggested price range rather than a single exact total. If the JSON quote must include a numeric total, use the mid-point of the applicable pricing range.
 - If people count is missing, do not estimate. Ask for it first in one concise question.
 - Start every sales conversation by understanding the client's pain point — not by pitching packages.
 - Contingency: 10% of subtotal (round to nearest 500 SEK).
