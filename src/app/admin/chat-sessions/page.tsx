@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from '@/components/ui/table';
+import { GoogleAnalyticsPanel } from '@/components/features/google-analytics-panel';
 
 // ── Supabase row types ────────────────────────────────────────────────────────
 
@@ -328,6 +329,9 @@ export default function AdminChatSessionsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Google Analytics 4 */}
+      <GoogleAnalyticsPanel />
 
       {/* Diagnostic panel */}
       <Card>

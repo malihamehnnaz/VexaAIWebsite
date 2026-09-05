@@ -248,3 +248,32 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_messenger_messages_dedupe_key ON messenger
 CREATE INDEX IF NOT EXISTS idx_messenger_messages_conversation_id ON messenger_messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messenger_messages_page_id ON messenger_messages(page_id);
 CREATE INDEX IF NOT EXISTS idx_messenger_messages_occurred_at ON messenger_messages(occurred_at DESC);
+
+-- ── Google OAuth / GA4 ─────────────────────────────────────────────────────────
+-- Backs /api/google/oauth(/callback) and /api/google/analytics/*.
+-- user_id is 'admin' today — this app has exactly one authenticated identity
+-- (the shared admin login in src/lib/session.ts; app_users above exists in
+-- schema but isn't wired to any real multi-user auth flow). If real per-user
+-- auth is added later, this table's user_id is the one place that needs to
+-- start storing a real user identifier instead of the constant.
+-- refresh_token_encrypted / access_token_encrypted are AES-256-GCM ciphertext
+-- (see src/lib/google/crypto.ts) — never stored in plaintext.
+CREATE TABLE IF NOT EXISTS google_connections (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id text NOT NULL DEFAULT 'admin',
+  provider text NOT NULL DEFAULT 'google',
+  google_account_id text,
+  google_email text,
+  refresh_token_encrypted text NOT NULL,
+  access_token_encrypted text,
+  access_token_expires_at timestamptz,
+  property_id text NOT NULL,
+  scopes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  last_sync_at timestamptz,
+  metadata jsonb,
+  UNIQUE (user_id, provider)
+);
+
+CREATE INDEX IF NOT EXISTS idx_google_connections_user_id ON google_connections(user_id);
