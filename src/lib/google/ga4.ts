@@ -115,7 +115,7 @@ export interface Ga4Overview {
   newUsers: number;
   sessions: number;
   screenPageViews: number;
-  keyEvents: number; // GA4 Data API metric name is still `conversions`
+  keyEvents: number; // GA4 Data API metric name: `keyEvents` (confirmed live against this property's real metadata on 2026-09-05 — `conversions` no longer exists; Google renamed the API metric itself, not just the UI label)
   totalUsers: number;
   engagedSessions: number;
   engagementRate: number; // 0–1, as GA4 returns it
@@ -128,7 +128,7 @@ export interface Ga4Overview {
 }
 
 const OVERVIEW_METRICS = [
-  'activeUsers', 'newUsers', 'sessions', 'screenPageViews', 'conversions',
+  'activeUsers', 'newUsers', 'sessions', 'screenPageViews', 'keyEvents',
   'totalUsers', 'engagedSessions', 'engagementRate', 'averageSessionDuration',
   'eventCount', 'bounceRate', 'totalRevenue',
 ];
@@ -149,7 +149,7 @@ export async function getOverview(accessToken: string, propertyId: string, range
     newUsers: Number(row.newUsers ?? 0),
     sessions,
     screenPageViews,
-    keyEvents: Number(row.conversions ?? 0),
+    keyEvents: Number(row.keyEvents ?? 0),
     totalUsers,
     engagedSessions: Number(row.engagedSessions ?? 0),
     engagementRate: Number(row.engagementRate ?? 0),
@@ -175,7 +175,7 @@ export async function getAcquisition(accessToken: string, propertyId: string, ra
   const report = await runReport(accessToken, propertyId, {
     dateRanges: [range],
     dimensions: [{ name: 'sessionDefaultChannelGroup' }],
-    metrics: [{ name: 'sessions' }, { name: 'activeUsers' }, { name: 'conversions' }],
+    metrics: [{ name: 'sessions' }, { name: 'activeUsers' }, { name: 'keyEvents' }],
     orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
     limit: '25',
   });
@@ -184,7 +184,7 @@ export async function getAcquisition(accessToken: string, propertyId: string, ra
     channel: row.sessionDefaultChannelGroup || '(unassigned)',
     sessions: Number(row.sessions ?? 0),
     activeUsers: Number(row.activeUsers ?? 0),
-    keyEvents: Number(row.conversions ?? 0),
+    keyEvents: Number(row.keyEvents ?? 0),
   }));
 }
 
@@ -278,10 +278,11 @@ export async function getEvents(accessToken: string, propertyId: string, range: 
 }
 
 // ── Key events / conversions ──────────────────────────────────────────────────
-// GA4's `conversions` metric is already scoped to key/conversion events only
-// (Google's UI just renamed "conversions" to "key events" — the API metric
-// name didn't change). Breaking it down by eventName shows which specific
-// events are configured as key events and how each contributed.
+// GA4's `keyEvents` metric is already scoped to key/conversion events only.
+// Breaking it down by eventName shows which specific events are configured
+// as key events and how each contributed. This property already has 3 named
+// key events configured (confirmed live via /api/google/analytics/metadata):
+// boka_bord, purchase, reservation_completed.
 
 export interface Ga4KeyEventRow {
   eventName: string;
@@ -293,18 +294,18 @@ export async function getKeyEvents(accessToken: string, propertyId: string, rang
   const report = await runReport(accessToken, propertyId, {
     dateRanges: [range],
     dimensions: [{ name: 'eventName' }],
-    metrics: [{ name: 'conversions' }, { name: 'activeUsers' }],
-    orderBys: [{ metric: { metricName: 'conversions' }, desc: true }],
+    metrics: [{ name: 'keyEvents' }, { name: 'activeUsers' }],
+    orderBys: [{ metric: { metricName: 'keyEvents' }, desc: true }],
     limit: '50',
   });
 
-  // Only rows where this event actually generated key-event conversions —
-  // conversions comes back 0 for every non-key event name, which would
-  // otherwise flood this list with irrelevant events.
+  // Only rows where this event actually generated key events — keyEvents
+  // comes back 0 for every non-key event name, which would otherwise flood
+  // this list with irrelevant events.
   return rowsToObjects(report)
     .map(row => ({
       eventName: row.eventName || '(not set)',
-      keyEvents: Number(row.conversions ?? 0),
+      keyEvents: Number(row.keyEvents ?? 0),
       activeUsers: Number(row.activeUsers ?? 0),
     }))
     .filter(row => row.keyEvents > 0);
