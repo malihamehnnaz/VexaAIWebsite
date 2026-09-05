@@ -85,7 +85,10 @@ export async function getConnectionStatus(): Promise<ConnectionStatus> {
 // consent unless the caller already forced prompt=consent, which it does),
 // the existing stored one is preserved rather than overwritten with nothing.
 export async function saveConnectionFromCode(code: string): Promise<void> {
+  console.log('[Google OAuth] token_exchange_started');
   const tokens: GoogleTokenResult = await exchangeCodeForTokens(code);
+  console.log('[Google OAuth] token_exchange_succeeded');
+
   const supabase = getSupabaseAdmin();
   const existing = await getConnectionRow();
 
@@ -110,10 +113,12 @@ export async function saveConnectionFromCode(code: string): Promise<void> {
     updated_at: new Date().toISOString(),
   };
 
+  console.log('[Google OAuth] connection_save_started');
   const { error } = await supabase
     .from('google_connections')
     .upsert(row, { onConflict: 'user_id,provider' });
   if (error) throw new GoogleConnectionError(error.message, 'db_error');
+  console.log('[Google OAuth] connection_save_succeeded');
 }
 
 const EXPIRY_BUFFER_MS = 60_000; // refresh a minute early to avoid edge-of-expiry failures
