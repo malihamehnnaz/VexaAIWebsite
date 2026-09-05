@@ -87,75 +87,108 @@ function isWebhookBody(value: unknown): value is WebhookBody {
   return typeof value === 'object' && value !== null;
 }
 
+// Defensive array coercion — Meta's payload shape is trusted but not
+// guaranteed; a malformed/unexpected body should never crash the endpoint.
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 // ── Safe logging ──────────────────────────────────────────────────────────────
-// Never log tokens/secrets. In production, log only counts/ids — not message
-// content, which may contain user-entered text — full payloads are only
-// logged in development for debugging.
+// Prefixed "[FACEBOOK WEBHOOK]" so events are easy to find/grep for in
+// production logs. Never logs tokens/secrets (verify token, app secret, page
+// access token, API keys) — those never flow through this module in the
+// first place. Message text IS logged (by design, to confirm parsing) since
+// this is a private, owner-only log stream, not a public response body.
+
+const LOG_PREFIX = '[FACEBOOK WEBHOOK]';
 
 export function logWebhookEvent(body: unknown): void {
+  console.log(`${LOG_PREFIX} Event received`);
+
   if (!isWebhookBody(body)) {
-    console.warn('[webhook] received payload with unexpected shape');
+    console.warn(`${LOG_PREFIX} Unexpected payload shape (not a JSON object) — skipping`);
     return;
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[webhook] event:', JSON.stringify(body));
-    return;
-  }
+  console.log(`${LOG_PREFIX} Object: ${body.object ?? 'unknown'}`);
 
-  const entries = body.entry ?? [];
-  console.log('[webhook] event received:', JSON.stringify({
-    object: body.object,
-    entries: entries.length,
-    messaging: entries.reduce((sum, e) => sum + (e.messaging?.length ?? 0), 0),
-  }));
+  for (const entry of asArray<PageEntry>(body.entry)) {
+    console.log(`${LOG_PREFIX} Entry: ${JSON.stringify({
+      pageId: entry?.id ?? 'unknown',
+      time: entry?.time ?? null,
+      messagingCount: asArray<MessagingEvent>(entry?.messaging).length,
+    })}`);
+  }
 }
 
 // ── Event dispatch (extensible) ───────────────────────────────────────────────
 // Add new branches here — or plug in the existing AI chatbot/reply flow — as
-// more Messenger event types need handling.
+// more Messenger event types need handling. No outgoing API calls are made
+// yet; this is purely a parse-and-log confirmation step.
+
+type MessengerEventType = 'message' | 'postback' | 'delivery' | 'read' | 'unknown';
+
+function describeEventType(event: MessagingEvent): MessengerEventType {
+  if (event.message) return 'message';
+  if (event.postback) return 'postback';
+  if (event.delivery) return 'delivery';
+  if (event.read) return 'read';
+  return 'unknown';
+}
+
+function logMessagingEvent(event: MessagingEvent): void {
+  console.log(`${LOG_PREFIX} Sender ID: ${event.sender?.id ?? 'unknown'}`);
+  console.log(`${LOG_PREFIX} Recipient/Page ID: ${event.recipient?.id ?? 'unknown'}`);
+  console.log(`${LOG_PREFIX} Event type: ${describeEventType(event)}`);
+
+  if (event.message?.text) {
+    console.log(`${LOG_PREFIX} Message: ${event.message.text}`);
+  }
+  if (event.message?.mid) {
+    console.log(`${LOG_PREFIX} Message ID: ${event.message.mid}`);
+  }
+  if (event.message?.quick_reply?.payload) {
+    console.log(`${LOG_PREFIX} Quick reply payload: ${event.message.quick_reply.payload}`);
+  }
+  if (event.postback?.payload) {
+    console.log(`${LOG_PREFIX} Postback payload: ${event.postback.payload}`);
+  }
+  if (event.timestamp) {
+    console.log(`${LOG_PREFIX} Timestamp: ${event.timestamp}`);
+  }
+}
 
 async function handleMessage(event: MessagingEvent): Promise<void> {
-  const senderId = event.sender?.id ?? 'unknown';
-
-  if (event.message?.quick_reply) {
-    console.log(`[webhook] quick reply from ${senderId}: ${event.message.quick_reply.payload ?? ''}`);
-    return;
-  }
-
-  console.log(`[webhook] message from ${senderId} (mid=${event.message?.mid ?? 'n/a'})`);
+  void event;
   // TODO: reply via the Send API (POST to graph.facebook.com/<version>/me/messages
   // with a PAGE_ACCESS_TOKEN) once this integration needs to respond to users.
 }
 
 async function handlePostback(event: MessagingEvent): Promise<void> {
-  const senderId = event.sender?.id ?? 'unknown';
-  console.log(`[webhook] postback from ${senderId}: ${event.postback?.payload ?? ''}`);
+  void event;
+  // TODO: route postback payloads to the relevant flow once replies are wired up.
 }
 
 async function handleMessagingEvent(event: MessagingEvent): Promise<void> {
   try {
+    logMessagingEvent(event);
+
     if (event.message) {
       await handleMessage(event);
     } else if (event.postback) {
       await handlePostback(event);
-    } else if (event.delivery) {
-      console.log('[webhook] delivery receipt received');
-    } else if (event.read) {
-      console.log('[webhook] read receipt received');
-    } else {
-      console.log('[webhook] unhandled messaging event type');
     }
+    // delivery/read receipts: logged above, nothing further to do yet.
   } catch (err) {
-    console.error('[webhook] error handling messaging event:', err instanceof Error ? err.message : 'unknown error');
+    console.error(`${LOG_PREFIX} Error handling messaging event:`, err instanceof Error ? err.message : 'unknown error');
   }
 }
 
 export async function processWebhookBody(body: unknown): Promise<void> {
   if (!isWebhookBody(body) || body.object !== 'page') return;
 
-  for (const entry of body.entry ?? []) {
-    for (const event of entry.messaging ?? []) {
+  for (const entry of asArray<PageEntry>(body.entry)) {
+    for (const event of asArray<MessagingEvent>(entry?.messaging)) {
       await handleMessagingEvent(event);
     }
   }
