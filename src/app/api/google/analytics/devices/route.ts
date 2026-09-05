@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
 import { isAuthorizedForGa4 } from '@/lib/google/auth';
 import { getValidAccessToken, markSynced } from '@/lib/google/store';
-import { getAcquisition } from '@/lib/google/ga4';
+import { getDevices } from '@/lib/google/ga4';
 import { googleErrorResponse } from '@/lib/google/respond';
 import { resolveDateRangeParams, isDateRangeError } from '@/lib/google/date-range';
 import { withCache } from '@/lib/google/cache';
 
-// GET /api/google/analytics/acquisition — sessions/users/key events by
-// default channel group. Query params: same `range`/custom/comparison set
-// as overview (comparison isn't computed for this list-shaped report — see
-// the final report for why). Authenticated by admin session OR bearer key.
+// GET /api/google/analytics/devices — device category, OS, and browser
+// breakdown. Query params: same `range`/custom set as overview.
 
 const CACHE_TTL_SECONDS = 300;
 
@@ -26,10 +24,10 @@ export async function GET(request: Request) {
 
   try {
     const { accessToken, propertyId } = await getValidAccessToken();
-    const cacheKey = `ga4:acquisition:${propertyId}:${JSON.stringify(resolved.info)}`;
-    const channels = await withCache(cacheKey, CACHE_TTL_SECONDS, () => getAcquisition(accessToken, propertyId, resolved.current));
+    const cacheKey = `ga4:devices:${propertyId}:${JSON.stringify(resolved.info)}`;
+    const devices = await withCache(cacheKey, CACHE_TTL_SECONDS, () => getDevices(accessToken, propertyId, resolved.current));
     await markSynced();
-    return NextResponse.json({ success: true, propertyId, dateRange: resolved.info, channels });
+    return NextResponse.json({ success: true, propertyId, dateRange: resolved.info, devices });
   } catch (err) {
     return googleErrorResponse(err);
   }
