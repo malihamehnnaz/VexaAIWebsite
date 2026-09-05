@@ -277,3 +277,54 @@ CREATE TABLE IF NOT EXISTS google_connections (
 );
 
 CREATE INDEX IF NOT EXISTS idx_google_connections_user_id ON google_connections(user_id);
+
+-- ── Facebook Comments ──────────────────────────────────────────────────────────
+-- Backs /webhook (Page "feed" comment events, alongside the existing
+-- Messenger handling) and /api/facebook/comments/* (the separate marketing
+-- website's API). Scoped in application code to page_id = '106658601471856'
+-- (GP's - Guilty Pleasure Café) only — see src/lib/facebook/config.ts; Nitol
+-- Bot (211548128717427) is never written here. No access tokens are stored
+-- in either table.
+
+CREATE TABLE IF NOT EXISTS facebook_posts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_id text NOT NULL,
+  post_id text NOT NULL,
+  message text,
+  permalink text,
+  created_at_meta timestamptz,
+  metadata jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (page_id, post_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_facebook_posts_page_id ON facebook_posts(page_id);
+CREATE INDEX IF NOT EXISTS idx_facebook_posts_created_at_meta ON facebook_posts(created_at_meta DESC);
+
+-- status lifecycle: new -> read -> replied (see src/lib/facebook/store.ts).
+-- parent_comment_id is null for a top-level comment (its Meta "parent" is
+-- the post itself), or another comment's comment_id for a nested reply.
+CREATE TABLE IF NOT EXISTS facebook_comments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_id text NOT NULL,
+  post_id text NOT NULL,
+  comment_id text NOT NULL,
+  parent_comment_id text,
+  commenter_id text,
+  commenter_name text,
+  message text,
+  status text NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'read', 'replied')),
+  created_at_meta timestamptz,
+  updated_at_meta timestamptz,
+  metadata jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (page_id, comment_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_facebook_comments_page_id ON facebook_comments(page_id);
+CREATE INDEX IF NOT EXISTS idx_facebook_comments_post_id ON facebook_comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_facebook_comments_parent_comment_id ON facebook_comments(parent_comment_id);
+CREATE INDEX IF NOT EXISTS idx_facebook_comments_status ON facebook_comments(status);
+CREATE INDEX IF NOT EXISTS idx_facebook_comments_created_at_meta ON facebook_comments(created_at_meta DESC);

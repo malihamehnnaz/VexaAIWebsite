@@ -8,6 +8,7 @@
 import { after } from 'next/server';
 import { constantTimeEqual } from '@/lib/utils';
 import { recordInboundEvent } from '@/lib/messenger-store';
+import { isFeedEntry, handleFeedEntry } from '@/lib/facebook-comments-webhook';
 
 // ── Meta verify-token check (GET /webhook) ───────────────────────────────────
 
@@ -69,6 +70,9 @@ interface PageEntry {
   id?: string;
   time?: number;
   messaging?: MessagingEvent[];
+  // Page "feed" changes (comments) — a structurally different envelope from
+  // Messenger's `messaging`. See src/lib/facebook-comments-webhook.ts.
+  changes?: unknown;
 }
 
 interface WebhookBody {
@@ -196,6 +200,13 @@ export async function processWebhookBody(body: unknown): Promise<void> {
     const pageId = entry?.id ?? 'unknown';
     for (const event of asArray<MessagingEvent>(entry?.messaging)) {
       await handleMessagingEvent(event, pageId);
+    }
+
+    // Facebook Comments — a structurally separate envelope (`changes`, not
+    // `messaging`) that can appear on its own entry. Existing Messenger
+    // handling above is untouched either way.
+    if (entry && isFeedEntry(entry)) {
+      await handleFeedEntry(entry);
     }
   }
 }

@@ -8,26 +8,13 @@
 //   POST https://graph.facebook.com/<version>/<PAGE-ID>/messages?access_token=...
 //   body: { recipient: { id }, messaging_type: "RESPONSE", message: { text } }
 //   success response: { recipient_id, message_id }
-// META_GRAPH_API_VERSION overrides the version if Meta ships a newer one
-// later without needing a code change.
+//
+// Graph API version + Page Access Token resolution live in
+// src/lib/meta/config.ts — shared with the Facebook Comments integration
+// (src/lib/facebook/graph.ts) so there's one lookup, not two.
+import { getGraphApiVersion, resolvePageAccessToken } from '@/lib/meta/config';
 
-const DEFAULT_GRAPH_API_VERSION = 'v26.0';
-
-function graphApiVersion(): string {
-  return process.env.META_GRAPH_API_VERSION || DEFAULT_GRAPH_API_VERSION;
-}
-
-// Page Access Tokens, one per Facebook Page (this app already manages two:
-// GP's - Guilty Pleasure Café and Nitol Bot). Looked up as
-// META_PAGE_ACCESS_TOKEN_<pageId> first so more Pages can be added later by
-// just setting another env var; falls back to the single generic
-// META_PAGE_ACCESS_TOKEN for a one-Page setup. Never logged, never returned
-// to any API response.
-export function resolvePageAccessToken(pageId: string): string | null {
-  const perPage = process.env[`META_PAGE_ACCESS_TOKEN_${pageId}`];
-  if (perPage) return perPage;
-  return process.env.META_PAGE_ACCESS_TOKEN || null;
-}
+export { resolvePageAccessToken };
 
 export class MessengerSendError extends Error {
   constructor(message: string, public readonly cause?: unknown) {
@@ -55,7 +42,7 @@ export async function sendTextMessage(pageId: string, recipientId: string, text:
     throw new MessengerSendError(`No Page Access Token configured for page ${pageId}`);
   }
 
-  const url = `https://graph.facebook.com/${graphApiVersion()}/${encodeURIComponent(pageId)}/messages?access_token=${encodeURIComponent(token)}`;
+  const url = `https://graph.facebook.com/${getGraphApiVersion()}/${encodeURIComponent(pageId)}/messages?access_token=${encodeURIComponent(token)}`;
 
   let response: Response;
   try {
