@@ -127,19 +127,21 @@ export interface Ga4Overview {
   totalRevenue: number; // 0 if the property has no ecommerce tracking — a real value, not a placeholder
 }
 
-const OVERVIEW_METRICS = [
-  'activeUsers', 'newUsers', 'sessions', 'screenPageViews', 'keyEvents',
-  'totalUsers', 'engagedSessions', 'engagementRate', 'averageSessionDuration',
-  'eventCount', 'bounceRate', 'totalRevenue',
-];
+// GA4's runReport caps requests at 10 metrics ("Requests are limited to 10
+// metrics within a nested request" — confirmed live via the Report Explorer
+// against this property's real error response on 2026-09-05). These 12
+// wanted fields are split into two batches of 6 and fetched concurrently
+// rather than dropping any of them.
+const OVERVIEW_METRICS_BATCH_1 = ['activeUsers', 'newUsers', 'sessions', 'screenPageViews', 'keyEvents', 'totalUsers'];
+const OVERVIEW_METRICS_BATCH_2 = ['engagedSessions', 'engagementRate', 'averageSessionDuration', 'eventCount', 'bounceRate', 'totalRevenue'];
 
 export async function getOverview(accessToken: string, propertyId: string, range: DateRange): Promise<Ga4Overview> {
-  const report = await runReport(accessToken, propertyId, {
-    dateRanges: [range],
-    metrics: OVERVIEW_METRICS.map(name => ({ name })),
-  });
+  const [report1, report2] = await Promise.all([
+    runReport(accessToken, propertyId, { dateRanges: [range], metrics: OVERVIEW_METRICS_BATCH_1.map(name => ({ name })) }),
+    runReport(accessToken, propertyId, { dateRanges: [range], metrics: OVERVIEW_METRICS_BATCH_2.map(name => ({ name })) }),
+  ]);
 
-  const row = rowsToObjects(report)[0] ?? {};
+  const row = { ...(rowsToObjects(report1)[0] ?? {}), ...(rowsToObjects(report2)[0] ?? {}) };
   const sessions = Number(row.sessions ?? 0);
   const totalUsers = Number(row.totalUsers ?? 0);
   const screenPageViews = Number(row.screenPageViews ?? 0);
