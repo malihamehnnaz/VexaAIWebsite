@@ -199,3 +199,52 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
 
 CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_admin_user_id ON admin_audit_logs(admin_user_id);
 CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at ON admin_audit_logs(created_at DESC);
+
+-- ── Facebook Messenger ─────────────────────────────────────────────────────────
+-- Backs the /webhook (Messenger events in) and /api/messenger/* (marketing
+-- website API out) routes. One conversation per (page_id, sender_id) pair;
+-- supports multiple Facebook Pages — every row is tagged with its page_id.
+
+CREATE TABLE IF NOT EXISTS messenger_conversations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_id text NOT NULL,
+  sender_id text NOT NULL,
+  last_message_text text,
+  last_message_at timestamptz,
+  last_direction text CHECK (last_direction IN ('inbound', 'outbound')),
+  message_count integer NOT NULL DEFAULT 0,
+  unread_count integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  metadata jsonb,
+  UNIQUE (page_id, sender_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_messenger_conversations_page_id ON messenger_conversations(page_id);
+CREATE INDEX IF NOT EXISTS idx_messenger_conversations_last_message_at ON messenger_conversations(last_message_at DESC);
+
+-- Individual Messenger messages, inbound and outbound. dedupe_key is the
+-- idempotency key: Meta's own message id ("mid:<id>") when available, else a
+-- deterministic composite for event types (postbacks) that have no mid — so
+-- a retried webhook delivery is never stored twice.
+CREATE TABLE IF NOT EXISTS messenger_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id uuid NOT NULL REFERENCES messenger_conversations(id) ON DELETE CASCADE,
+  page_id text NOT NULL,
+  sender_id text NOT NULL,
+  recipient_id text NOT NULL,
+  message_id text,
+  dedupe_key text NOT NULL,
+  event_type text NOT NULL DEFAULT 'message',
+  direction text NOT NULL CHECK (direction IN ('inbound', 'outbound')),
+  text text,
+  status text NOT NULL DEFAULT 'received',
+  occurred_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  metadata jsonb
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messenger_messages_dedupe_key ON messenger_messages(dedupe_key);
+CREATE INDEX IF NOT EXISTS idx_messenger_messages_conversation_id ON messenger_messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messenger_messages_page_id ON messenger_messages(page_id);
+CREATE INDEX IF NOT EXISTS idx_messenger_messages_occurred_at ON messenger_messages(occurred_at DESC);

@@ -5,16 +5,9 @@
 //
 // Docs: https://developers.facebook.com/docs/messenger-platform/webhooks
 
-// ── Constant-time comparisons ────────────────────────────────────────────────
-// Same approach as src/lib/session.ts: compare every character so a failed
-// match doesn't leak timing information about how many characters matched.
-
-function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
+import { after } from 'next/server';
+import { constantTimeEqual } from '@/lib/utils';
+import { recordInboundEvent } from '@/lib/messenger-store';
 
 // ── Meta verify-token check (GET /webhook) ───────────────────────────────────
 
@@ -158,27 +151,39 @@ function logMessagingEvent(event: MessagingEvent): void {
   }
 }
 
-async function handleMessage(event: MessagingEvent): Promise<void> {
-  void event;
-  // TODO: reply via the Send API (POST to graph.facebook.com/<version>/me/messages
-  // with a PAGE_ACCESS_TOKEN) once this integration needs to respond to users.
+// Persisting to the database happens via Next's after() — scheduled during
+// this request but run once the HTTP response has already been sent, so a
+// slow/unavailable database never delays Meta's 200 (requirement: webhook
+// must stay fast). Errors inside it are caught and logged, never thrown.
+function schedulePersist(event: MessagingEvent, pageId: string, kind: 'message' | 'postback'): void {
+  after(async () => {
+    try {
+      await recordInboundEvent({
+        pageId,
+        senderId: event.sender?.id ?? 'unknown',
+        recipientId: event.recipient?.id ?? 'unknown',
+        eventType: kind,
+        messageId: event.message?.mid ?? null,
+        text: event.message?.text ?? event.postback?.title ?? null,
+        timestampMs: event.timestamp ?? null,
+      });
+    } catch (err) {
+      console.error(`${LOG_PREFIX} Failed to persist event:`, err instanceof Error ? err.message : 'unknown error');
+    }
+  });
 }
 
-async function handlePostback(event: MessagingEvent): Promise<void> {
-  void event;
-  // TODO: route postback payloads to the relevant flow once replies are wired up.
-}
-
-async function handleMessagingEvent(event: MessagingEvent): Promise<void> {
+async function handleMessagingEvent(event: MessagingEvent, pageId: string): Promise<void> {
   try {
     logMessagingEvent(event);
 
     if (event.message) {
-      await handleMessage(event);
+      schedulePersist(event, pageId, 'message');
     } else if (event.postback) {
-      await handlePostback(event);
+      schedulePersist(event, pageId, 'postback');
     }
-    // delivery/read receipts: logged above, nothing further to do yet.
+    // delivery/read receipts: logged above only — no user-generated content
+    // to store, so they don't need a conversation/message row.
   } catch (err) {
     console.error(`${LOG_PREFIX} Error handling messaging event:`, err instanceof Error ? err.message : 'unknown error');
   }
@@ -188,8 +193,9 @@ export async function processWebhookBody(body: unknown): Promise<void> {
   if (!isWebhookBody(body) || body.object !== 'page') return;
 
   for (const entry of asArray<PageEntry>(body.entry)) {
+    const pageId = entry?.id ?? 'unknown';
     for (const event of asArray<MessagingEvent>(entry?.messaging)) {
-      await handleMessagingEvent(event);
+      await handleMessagingEvent(event, pageId);
     }
   }
 }
