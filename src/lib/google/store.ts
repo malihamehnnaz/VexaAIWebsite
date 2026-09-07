@@ -38,6 +38,12 @@ export interface ConnectionStatus {
   googleEmail: string | null;
   connectedAt: string | null;
   lastSyncAt: string | null;
+  // Scopes Google actually granted at consent time (not what we asked for).
+  // Scope strings are public identifiers, not credentials. Exposed so the
+  // Marketing Website — and a reconnect self-check — can tell which
+  // capabilities are really available without guessing.
+  grantedScopes: string[];
+  capabilities: { analytics: boolean; searchConsole: boolean };
 }
 
 export class GoogleConnectionError extends Error {
@@ -69,14 +75,24 @@ async function getConnectionRow(): Promise<ConnectionRow | null> {
 export async function getConnectionStatus(): Promise<ConnectionStatus> {
   const row = await getConnectionRow();
   if (!row) {
-    return { connected: false, propertyId: null, googleEmail: null, connectedAt: null, lastSyncAt: null };
+    return {
+      connected: false, propertyId: null, googleEmail: null, connectedAt: null, lastSyncAt: null,
+      grantedScopes: [], capabilities: { analytics: false, searchConsole: false },
+    };
   }
+
+  const grantedScopes = (row.scopes ?? '').split(/\s+/).filter(Boolean);
   return {
     connected: true,
     propertyId: row.property_id,
     googleEmail: row.google_email,
     connectedAt: row.created_at,
     lastSyncAt: row.last_sync_at,
+    grantedScopes,
+    capabilities: {
+      analytics: grantedScopes.includes('https://www.googleapis.com/auth/analytics.readonly'),
+      searchConsole: grantedScopes.includes('https://www.googleapis.com/auth/webmasters.readonly'),
+    },
   };
 }
 
