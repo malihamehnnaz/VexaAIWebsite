@@ -7,11 +7,24 @@
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 
-// analytics.readonly is the only Analytics scope requested (read-only, no
-// write/admin access). openid+email are additionally requested — both
-// non-sensitive, identity-only scopes — solely so the connected Google
-// account's email can be shown in the dashboard ("Connected as ...").
-export const GOOGLE_OAUTH_SCOPES = 'https://www.googleapis.com/auth/analytics.readonly openid email';
+// Read-only scopes only — no write/admin access to any Google property.
+//   analytics.readonly  — GA4 reporting (src/lib/google/ga4.ts)
+//   webmasters.readonly — Search Console (src/lib/google/search-console.ts)
+// openid+email are additionally requested — both non-sensitive,
+// identity-only scopes — solely so the connected Google account's email can
+// be shown in the dashboard ("Connected as ...").
+//
+// NOTE: adding a scope here only takes effect on the NEXT authorization.
+// An existing connection keeps working for whatever it was already granted;
+// Search Console calls will fail with an insufficient-permission error until
+// the account is reconnected via /api/google/oauth (which uses
+// prompt=consent, so the expanded scope is re-consented cleanly).
+export const GOOGLE_OAUTH_SCOPES = [
+  'https://www.googleapis.com/auth/analytics.readonly',
+  'https://www.googleapis.com/auth/webmasters.readonly',
+  'openid',
+  'email',
+].join(' ');
 
 function requireEnv(name: string): string {
   const value = process.env[name];

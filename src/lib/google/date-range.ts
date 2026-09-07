@@ -6,7 +6,7 @@
 // only understands "today"/"yesterday"/"NdaysAgo" — computed with date-fns
 // (already a project dependency) rather than hand-rolled date math.
 
-import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, startOfYear, subDays, format } from 'date-fns';
 
 export type DatePreset = 'today' | 'yesterday' | '7d' | '28d' | '30d' | '90d' | 'this_month' | 'last_month' | 'this_year' | 'custom';
 
@@ -110,6 +110,25 @@ export function isDateRangeError(value: DateRangeResolution | DateRangeError): v
   return 'error' in value;
 }
 
+// GA4 accepts relative forms ("28daysAgo", "today"); Search Console's API
+// requires concrete YYYY-MM-DD. This converts a resolved range into concrete
+// dates so both integrations can share one preset vocabulary and one set of
+// query params, rather than the Marketing Website having to learn two.
+export function toConcreteDates(range: ResolvedRange): ResolvedRange {
+  const now = new Date();
+
+  const convert = (value: string): string => {
+    if (ISO_DATE.test(value)) return value;
+    if (value === 'today') return ymd(now);
+    if (value === 'yesterday') return ymd(subDays(now, 1));
+    const relative = /^(\d+)daysAgo$/.exec(value);
+    if (relative) return ymd(subDays(now, parseInt(relative[1], 10)));
+    return value; // unrecognized — pass through rather than guess
+  };
+
+  return { startDate: convert(range.startDate), endDate: convert(range.endDate) };
+}
+
 // current/comparison/absoluteDiff/percentDiff for one numeric metric — used
 // wherever a comparison range was actually requested; never fabricated when
 // one wasn't.
@@ -123,6 +142,26 @@ export interface ComparedValue {
 export function compareValue(current: number, comparison: number | null): ComparedValue {
   if (comparison == null) {
     return { current, comparison: null, absoluteDiff: null, percentDiff: null };
+  }
+  const absoluteDiff = current - comparison;
+  const percentDiff = comparison === 0 ? null : (absoluteDiff / comparison) * 100;
+  return { current, comparison, absoluteDiff, percentDiff };
+}
+
+// Null-safe variant, for sources (like Search Console) that legitimately
+// return "no data" for a metric. A missing value on either side stays null
+// rather than being coerced to 0, which would misreport absent data as a
+// measured zero and produce a meaningless diff.
+export interface NullableComparedValue {
+  current: number | null;
+  comparison: number | null;
+  absoluteDiff: number | null;
+  percentDiff: number | null;
+}
+
+export function compareNullableValue(current: number | null, comparison: number | null): NullableComparedValue {
+  if (current == null || comparison == null) {
+    return { current, comparison, absoluteDiff: null, percentDiff: null };
   }
   const absoluteDiff = current - comparison;
   const percentDiff = comparison === 0 ? null : (absoluteDiff / comparison) * 100;
