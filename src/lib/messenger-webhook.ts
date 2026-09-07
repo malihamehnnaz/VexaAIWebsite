@@ -9,6 +9,7 @@ import { after } from 'next/server';
 import { constantTimeEqual } from '@/lib/utils';
 import { recordInboundEvent } from '@/lib/messenger-store';
 import { isFeedEntry, handleFeedEntry } from '@/lib/facebook-comments-webhook';
+import { isInstagramEntry, handleInstagramEntry } from '@/lib/instagram-webhook';
 
 // ── Meta verify-token check (GET /webhook) ───────────────────────────────────
 
@@ -194,19 +195,32 @@ async function handleMessagingEvent(event: MessagingEvent, pageId: string): Prom
 }
 
 export async function processWebhookBody(body: unknown): Promise<void> {
-  if (!isWebhookBody(body) || body.object !== 'page') return;
+  if (!isWebhookBody(body)) return;
 
-  for (const entry of asArray<PageEntry>(body.entry)) {
-    const pageId = entry?.id ?? 'unknown';
-    for (const event of asArray<MessagingEvent>(entry?.messaging)) {
-      await handleMessagingEvent(event, pageId);
+  // "page" covers Messenger + Facebook feed/comments (existing behavior,
+  // untouched). "instagram" is Meta's separate top-level object for
+  // Instagram events (comments, DMs) — same single webhook endpoint, since
+  // Meta only supports one callback URL per app regardless of how many
+  // object types are subscribed.
+  if (body.object === 'page') {
+    for (const entry of asArray<PageEntry>(body.entry)) {
+      const pageId = entry?.id ?? 'unknown';
+      for (const event of asArray<MessagingEvent>(entry?.messaging)) {
+        await handleMessagingEvent(event, pageId);
+      }
+
+      // Facebook Comments — a structurally separate envelope (`changes`, not
+      // `messaging`) that can appear on its own entry. Existing Messenger
+      // handling above is untouched either way.
+      if (entry && isFeedEntry(entry)) {
+        await handleFeedEntry(entry);
+      }
     }
-
-    // Facebook Comments — a structurally separate envelope (`changes`, not
-    // `messaging`) that can appear on its own entry. Existing Messenger
-    // handling above is untouched either way.
-    if (entry && isFeedEntry(entry)) {
-      await handleFeedEntry(entry);
+  } else if (body.object === 'instagram') {
+    for (const entry of asArray<{ id?: string; changes?: unknown; messaging?: unknown }>(body.entry)) {
+      if (entry && isInstagramEntry(entry)) {
+        await handleInstagramEntry(entry);
+      }
     }
   }
 }
