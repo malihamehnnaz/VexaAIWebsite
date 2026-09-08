@@ -32,9 +32,23 @@ export async function OPTIONS(request: Request) {
 }
 
 // Metrics requiring metric_type=total_value in the current Instagram Data
-// API (aggregate-over-range metrics, not time-series ones).
-const TOTAL_VALUE_METRICS = ['reach', 'accounts_engaged', 'total_interactions', 'likes', 'comments', 'shares', 'saves', 'replies', 'profile_links_taps', 'website_clicks'];
-const TIME_SERIES_METRICS = ['views', 'profile_views'];
+// API (aggregate-over-range metrics, not time-series ones). Confirmed
+// against Meta's live IG User Insights reference (2026-09-08): `views`
+// belongs here too — it supports ONLY metric_type=total_value, there is no
+// time-series form. It was previously requested without metric_type, which
+// is why it always came back null.
+const TOTAL_VALUE_METRICS = ['reach', 'views', 'accounts_engaged', 'total_interactions', 'likes', 'comments', 'shares', 'saves', 'replies', 'profile_links_taps', 'website_clicks'];
+const TIME_SERIES_METRICS: string[] = [];
+
+// `profile_views` is not a valid IG User Insights metric in the current
+// Graph API (confirmed against Meta's live reference, 2026-09-08 — no such
+// metric, and no renamed equivalent, exists at the account level; the
+// closest real metric, profile_links_taps, is a different thing already
+// implemented separately). Requesting it always errors and returns null via
+// the existing "never fabricate" fallback in getAccountInsight. Rather than
+// keep quietly asking Meta for a metric that can never succeed, this is
+// reported as an explicit, permanent Meta API limitation.
+const PROFILE_VIEWS_UNAVAILABLE_REASON = 'Meta\'s Instagram Graph API has no "profile_views" (or renamed equivalent) metric at the account level in the current version. Not a Vexa limitation — there is no metric to request.';
 
 // Plain object, not a Map — this passes through withCache's JSON
 // (de)serialization (used for the Redis-backed cache path), where a Map
@@ -105,7 +119,7 @@ export async function GET(request: Request) {
         shares: metric('shares'),
         saves: metric('saves'),
         replies: metric('replies'),
-        profileViews: metric('profile_views'),
+        profileViews: { available: false, reason: PROFILE_VIEWS_UNAVAILABLE_REASON },
         websiteClicks: metric('website_clicks'),
         profileLinksTaps: metric('profile_links_taps'),
         followers: { value: accountFields?.followers_count ?? null, previousValue: null, changePercent: null },
