@@ -311,6 +311,43 @@ export async function getPostInsightRaw(pageId: string, postId: string, metric: 
   return graphGet(`/${encodeURIComponent(postId)}/insights`, { metric, access_token: token });
 }
 
+// Diagnostic-only: attempts the standard Graph API Page-token derivation
+// (GET /{page-id}?fields=access_token, authenticated with whatever token
+// resolvePageAccessToken currently returns) to check whether a genuine
+// Page-type token can be obtained from it — never returns the derived token
+// itself, only whether one came back and, via debug_token, what type it is.
+// This is the standard mechanism for a System User (or a User token with
+// Page admin access) to obtain that Page's actual Page Access Token; used
+// here purely to test the hypothesis that Page Insights specifically
+// requires that derived token rather than the System User token directly.
+export async function probePageAccessTokenDerivation(pageId: string, appId: string): Promise<{ derived: boolean; debug?: TokenDebugInfo; error?: string }> {
+  const systemUserToken = resolvePageAccessToken(pageId);
+  const appSecret = process.env.META_APP_SECRET;
+  if (!systemUserToken) return { derived: false, error: 'No token configured for this page' };
+
+  let derivedToken: string | undefined;
+  try {
+    const payload = await graphGet<{ access_token?: string }>(`/${encodeURIComponent(pageId)}`, { fields: 'access_token', access_token: systemUserToken });
+    derivedToken = payload.access_token;
+  } catch (err) {
+    return { derived: false, error: err instanceof FacebookGraphError ? err.message : 'Unknown error deriving token' };
+  }
+  if (!derivedToken) return { derived: false, error: 'Graph API returned no access_token field' };
+  if (!appSecret) return { derived: true, error: 'Derived a token but cannot debug it — META_APP_SECRET not configured' };
+
+  try {
+    const inspectingToken = `${appId}|${appSecret}`;
+    const debugPayload = await graphGet<DebugTokenResponse>('/debug_token', { input_token: derivedToken, access_token: inspectingToken });
+    const d = debugPayload.data ?? {};
+    return {
+      derived: true,
+      debug: { appId: d.app_id, isValid: d.is_valid, type: d.type, profileId: d.profile_id, scopes: d.scopes, expiresAt: d.expires_at, dataAccessExpiresAt: d.data_access_expires_at },
+    };
+  } catch (err) {
+    return { derived: true, error: `Derived a token but debug_token failed: ${err instanceof FacebookGraphError ? err.message : 'Unknown error'}` };
+  }
+}
+
 // ── Diagnostics (temporary — subscription/permission troubleshooting) ───────
 // Confirmed against Meta's current docs (2026-09-05):
 //   GET /{page-id}?fields=id,name — confirms which Page a token actually acts as
