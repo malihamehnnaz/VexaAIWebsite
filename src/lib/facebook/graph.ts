@@ -148,39 +148,75 @@ export async function postCommentReply(pageId: string, commentId: string, messag
 //
 // CURRENT METRIC NAMES (updated 2026-09-09): Meta deprecated most legacy
 // page_* metrics effective June 15, 2026 (developers.facebook.com/docs/
-// graph-api/reference/v26.0/insights: "By June 15, 2026, a number of the
-// Page Insights metrics will be deprecated for all API versions. The API
-// returns an invalid metric error when calling any of these metrics.") —
-// that date has already passed. Empirically confirmed via the probeMetric
-// diagnostic (/api/facebook/diagnostics) which metric names Meta still
-// recognizes as valid on THIS API version, distinguishing "name no longer
-// exists" from "name exists but this token is rejected":
-//   REMOVED (confirmed "(#100) The value must be a valid insights metric"):
-//     page_fans, page_impressions, page_impressions_unique, page_fan_removes,
-//     page_fan_adds (assumed — same deprecated family, not individually
-//     reprobed to conserve the diagnostic endpoint's rate limit).
-//   STILL VALID NAMES (confirmed "(#190) This method must be called with a
-//   Page Access Token" — recognized metric, but see the token problem
-//   below): page_follows, page_daily_follows_unique, page_total_media_view_unique,
-//     page_post_engagements, page_video_views, page_actions_post_reactions_total.
-//   No current replacement was found for a page-level "impressions" concept
-//   — Meta's 2026 overhaul folded it into the page_total_media_view_unique
-//   family. Requesting the old name is pointless (permanently #100), so
-//   "impressions" as its own metric is not requested at all below; reach is
-//   covered by page_total_media_view_unique instead.
+// graph-api/reference/v26.0/insights) — that date has already passed.
+// Empirically confirmed (via probeMetric, /api/facebook/diagnostics) which
+// names Meta still recognizes: page_follows, page_daily_follows_unique,
+// page_total_media_view_unique, page_post_engagements, page_video_views,
+// page_actions_post_reactions_total. Removed entirely: page_fans,
+// page_impressions, page_impressions_unique, page_fan_removes/adds — all
+// confirmed "(#100) invalid insights metric". No current replacement exists
+// for a page-level "impressions" concept — folded into
+// page_total_media_view_unique.
 //
-// SEPARATE, CURRENTLY BLOCKING PROBLEM: even the still-valid metric names
-// above ALL fail with "(#190) This method must be called with a Page Access
-// Token" against the connected token — a Business Manager System User
-// token. The same token works fine for posts/comments/Messenger/Instagram
-// Insights, so this is specific to the legacy Page/post Insights product.
-// This is a genuine, current Meta-side restriction — not fixable in code —
-// and needs either a Page-login-derived Page token, or the System User
-// explicitly granted Insights access for this Page in Business Manager.
-// The real error message (safe — never contains the token) is captured per
-// metric below so the real endpoint can report accurately instead of a bare
-// null, and so this automatically self-corrects with no code change if
-// either problem is fixed on Meta's side later.
+// TOKEN: Page Insights specifically rejects the connected Business Manager
+// System User token directly ("(#190) This method must be called with a
+// Page Access Token"), even though that same token works fine for
+// posts/comments/Messenger/Instagram Insights. Root-caused (2026-09-09, via
+// the probePageTokenDerivation/probeDerivedInsightMetric diagnostics): a
+// genuine Page-type token CAN be derived from it — GET /{page-id}?fields=
+// access_token, authenticated with the System User token — and that
+// derived token (confirmed via debug_token: type PAGE, correctly scoped to
+// this Page, valid, non-expiring) resolves real Insights data. This is the
+// standard Graph API mechanism for a System User with Page admin access to
+// obtain that Page's actual Page Access Token; Meta's Page Insights product
+// apparently requires that specific token type rather than accepting a
+// System User token directly, unlike every other endpoint this app calls.
+// getPageAccessToken() below performs this derivation (cached in-memory,
+// never persisted or logged) and is used ONLY by the Insights functions —
+// every other Facebook/Instagram function in this codebase keeps using
+// resolvePageAccessToken()'s System User token exactly as before, since
+// that already works for them.
+
+// In-memory only (never Redis/DB — matches this app's existing security
+// posture of not encrypting Meta Page tokens at rest, since the raw System
+// User token already sits in a plain env var). Resets on cold start, which
+// just costs one extra derivation call — harmless. Cached for 6 hours;
+// derived Page tokens from a long-lived source token don't expire on their
+// own (confirmed: expiresAt 0), but a modest TTL bounds staleness if the
+// source token is ever rotated.
+const PAGE_TOKEN_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const pageAccessTokenCache = new Map<string, { token: string; cachedAt: number }>();
+
+// Test-only escape hatch — the cache is module-level and otherwise persists
+// across test cases within the same file.
+export function __resetPageAccessTokenCacheForTests(): void {
+  pageAccessTokenCache.clear();
+}
+
+// Derives this Page's actual Page Access Token from the configured System
+// User token (see the header comment above). Returns null — never
+// throws — if derivation fails for any reason, so callers can safely fall
+// back to the System User token and preserve prior behavior rather than
+// breaking harder than before.
+async function getPageAccessToken(pageId: string): Promise<string | null> {
+  const cached = pageAccessTokenCache.get(pageId);
+  if (cached && Date.now() - cached.cachedAt < PAGE_TOKEN_CACHE_TTL_MS) {
+    return cached.token;
+  }
+
+  const systemUserToken = resolvePageAccessToken(pageId);
+  if (!systemUserToken) return null;
+
+  try {
+    const payload = await graphGet<{ access_token?: string }>(`/${encodeURIComponent(pageId)}`, { fields: 'access_token', access_token: systemUserToken });
+    if (!payload.access_token) return null;
+    pageAccessTokenCache.set(pageId, { token: payload.access_token, cachedAt: Date.now() });
+    return payload.access_token;
+  } catch (err) {
+    console.error('[facebook-graph] Page Access Token derivation failed:', err instanceof FacebookGraphError ? err.message : 'unknown error');
+    return null;
+  }
+}
 
 export interface DailyInsightValue {
   date: string; // YYYY-MM-DD, derived from Meta's end_time
@@ -211,7 +247,10 @@ function toDateOnly(endTime: string | undefined): string | null {
 // series instead, same "unavailable is not fatal" contract as Instagram's
 // getAccountInsight, so one bad metric can't fail the whole overview.
 export async function getPageInsight(pageId: string, metric: string, since: string, until: string): Promise<PageInsightResult> {
-  const token = resolvePageAccessToken(pageId);
+  // Prefer the derived Page-type token (see the header comment above);
+  // fall back to the System User token as-is if derivation isn't possible,
+  // preserving prior behavior rather than failing harder.
+  const token = (await getPageAccessToken(pageId)) ?? resolvePageAccessToken(pageId);
   if (!token) return { metric, daily: [] };
 
   try {
@@ -268,7 +307,7 @@ export interface PostInsightResult {
 }
 
 export async function getPostInsight(pageId: string, postId: string, metric: string): Promise<PostInsightResult> {
-  const token = resolvePageAccessToken(pageId);
+  const token = (await getPageAccessToken(pageId)) ?? resolvePageAccessToken(pageId);
   if (!token) return { metric, value: null };
 
   try {
@@ -339,8 +378,14 @@ export async function probeInsightWithDerivedToken(pageId: string, metric: strin
   if (!derivedToken) return { derived: false, insightError: 'no access_token field returned' };
 
   try {
-    const result = await graphGet(`/${encodeURIComponent(pageId)}/insights`, { metric, period: 'day', since, until, access_token: derivedToken });
-    return { derived: true, insightResult: result };
+    // IMPORTANT: Meta's raw Insights payload includes paging.previous/next
+    // URLs that embed the access_token used for the request as a plaintext
+    // query parameter. Never return or log the raw payload — extract only
+    // the safe fields (name/period/values), same discipline getPageInsight
+    // itself already follows.
+    const result = await graphGet<{ data?: Array<{ name?: string; period?: string; values?: unknown }> }>(`/${encodeURIComponent(pageId)}/insights`, { metric, period: 'day', since, until, access_token: derivedToken });
+    const row = result.data?.[0];
+    return { derived: true, insightResult: row ? { name: row.name, period: row.period, values: row.values } : null };
   } catch (err) {
     return { derived: true, insightError: err instanceof FacebookGraphError ? err.message : 'unknown error' };
   }
