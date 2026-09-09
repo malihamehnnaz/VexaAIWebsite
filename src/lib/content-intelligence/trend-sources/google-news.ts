@@ -18,7 +18,11 @@
 
 import type { TrendSignal, TrendSourceResult, TrendEvidenceItem } from '@/lib/content-intelligence/types';
 
-const DEFAULT_QUERY_TERMS = ['restaurant trends', 'cafe trends', 'food trends', 'restaurant marketing'];
+// Consumer/social-content-oriented terms, not B2B trade-press terms —
+// "food trends" alone pulls in industry/manufacturing trade show coverage
+// (confirmed via live testing) that's irrelevant to a café's own social
+// content. Still fully generic, not GP-specific.
+const DEFAULT_QUERY_TERMS = ['restaurant social media trends', 'cafe menu trends', 'food trends 2026', 'restaurant marketing ideas'];
 const RSS_BASE = 'https://news.google.com/rss/search';
 const MAX_ITEMS_PER_QUERY = 12;
 const FETCH_TIMEOUT_MS = 8000;

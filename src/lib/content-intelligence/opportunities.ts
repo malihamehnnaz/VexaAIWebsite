@@ -34,10 +34,19 @@ function freshnessScoreFor(freshness: TrendSignal['freshness'] | null): number {
   return 50; // no trend attached — evergreen, neutral
 }
 
-function confidenceFromScore(score: number, hasRealHistory: boolean, hasTrend: boolean): Confidence {
-  if (hasRealHistory && hasTrend && score >= 70) return 'high';
-  if ((hasRealHistory || hasTrend) && score >= 50) return 'medium';
-  return 'low';
+// trendConfidence is the linked TrendSignal's own confidence (how many
+// independent real articles support it) — a low-confidence trend (e.g. one
+// single source) must cap the opportunity's own confidence, never inflate
+// it past what the underlying evidence actually supports.
+function confidenceFromScore(score: number, hasRealHistory: boolean, hasTrend: boolean, trendConfidence: Confidence | null): Confidence {
+  const rank: Record<Confidence, number> = { low: 0, medium: 1, high: 2 };
+  let level: Confidence;
+  if (hasRealHistory && hasTrend && score >= 70) level = 'high';
+  else if ((hasRealHistory || hasTrend) && score >= 50) level = 'medium';
+  else level = 'low';
+
+  if (trendConfidence && rank[trendConfidence] < rank[level]) return trendConfidence;
+  return level;
 }
 
 function bestFormat(performance: PerformanceSummary): { format: ContentFormat; reason: string } {
@@ -147,7 +156,7 @@ function buildOpportunity(params: {
     historicalFitScore,
     freshnessScore,
     opportunityScore,
-    confidence: confidenceFromScore(opportunityScore, performance.totalHistoricalPosts > 0, trendSignal != null),
+    confidence: confidenceFromScore(opportunityScore, performance.totalHistoricalPosts > 0, trendSignal != null, trendSignal?.confidence ?? null),
     recommendedDay: day,
     recommendedTime: time,
     supportingEvidence,
