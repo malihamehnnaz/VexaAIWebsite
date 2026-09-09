@@ -30,7 +30,11 @@ export async function POST(request: Request) {
   try {
     const result = await syncIfStale(true);
     if (result.status === 'failed') {
-      return NextResponse.json({ success: false, error: result.error ?? 'Sync failed' }, { status: 502 });
+      // result.error is an internal message (DB/Google API detail) — logged
+      // server-side by syncIfStale/recordSyncOutcome already; never
+      // returned verbatim to the caller (non-negotiable: no upstream
+      // response bodies/internal details leaked through this API).
+      return NextResponse.json({ success: false, error: 'Sync failed. Please try again or check server logs.' }, { status: 502 });
     }
     return NextResponse.json({ success: true, status: result.status });
   } catch (err) {
