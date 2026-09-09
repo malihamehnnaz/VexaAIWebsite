@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { corsJson, corsPreflight, isAuthorizedRequest, unauthorizedResponse } from '@/lib/messenger-api';
 import { rateLimit } from '@/lib/rate-limit';
-import { getPageIdentity, getPageSubscribedApps, debugPageToken, getPageInsightRaw, FacebookGraphError } from '@/lib/facebook/graph';
+import { getPageIdentity, getPageSubscribedApps, debugPageToken, getPageInsightRaw, getPostInsightRaw, FacebookGraphError } from '@/lib/facebook/graph';
 import { GP_CAFE_PAGE_ID, isSupportedCommentsPageId } from '@/lib/facebook/config';
 
 // GET /api/facebook/diagnostics — TEMPORARY, for troubleshooting the
@@ -76,6 +76,16 @@ export async function GET(request: Request) {
       result.insightProbe = await getPageInsightRaw(pageId, probeMetric, since, until);
     } catch (err) {
       result.insightProbeError = err instanceof FacebookGraphError ? err.message : 'unknown error';
+    }
+  }
+
+  const probePostId = params.get('probePostId');
+  const probePostMetric = params.get('probePostMetric');
+  if (probePostId && probePostMetric) {
+    try {
+      result.postInsightProbe = await getPostInsightRaw(pageId, probePostId, probePostMetric);
+    } catch (err) {
+      result.postInsightProbeError = err instanceof FacebookGraphError ? err.message : 'unknown error';
     }
   }
 

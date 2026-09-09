@@ -252,6 +252,16 @@ export async function getPageInsightRaw(pageId: string, metric: string, since: s
   return graphGet(`/${encodeURIComponent(pageId)}/insights`, { metric, period: 'day', since, until, access_token: token });
 }
 
+// Same, but for a single post's insights (GET /{post-id}/insights) — used to
+// empirically check whether post-level Insights hit the same token-type
+// restriction as Page-level Insights, before building real post-level
+// support on top of an assumption.
+export async function getPostInsightRaw(pageId: string, postId: string, metric: string): Promise<unknown> {
+  const token = resolvePageAccessToken(pageId);
+  if (!token) throw new FacebookGraphError(`No Page Access Token configured for page ${pageId}`, 0);
+  return graphGet(`/${encodeURIComponent(postId)}/insights`, { metric, access_token: token });
+}
+
 // ── Diagnostics (temporary — subscription/permission troubleshooting) ───────
 // Confirmed against Meta's current docs (2026-09-05):
 //   GET /{page-id}?fields=id,name — confirms which Page a token actually acts as
