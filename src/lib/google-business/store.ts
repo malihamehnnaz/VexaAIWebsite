@@ -21,7 +21,7 @@ export async function upsertLocation(accountId: string, location: RawLocation): 
       address: location.address,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: 'user_id,location_id' }
+    { onConflict: 'location_id' } // location_id alone is UNIQUE — see the migration's comment on why
   );
   if (error) throw new Error(`google_business_locations upsert failed: ${error.message}`);
 }

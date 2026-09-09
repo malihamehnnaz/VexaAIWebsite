@@ -40,16 +40,23 @@ ALTER TABLE google_connections ALTER COLUMN refresh_token_encrypted DROP NOT NUL
 -- re-resolved on every request (src/lib/google-business/sync.ts). One row
 -- per tenant (user_id, matching google_connections' own tenant key) per
 -- location — a second client is additional rows, not a schema change.
+--
+-- location_id is UNIQUE on its own (not just per-tenant): it's Google's own
+-- resource id for that location, and a given Google location belongs to
+-- exactly one Business Profile account/tenant — two tenants never
+-- legitimately share one. This also has to be a plain UNIQUE (not just the
+-- composite (user_id, location_id)) so google_business_reviews can
+-- foreign-key onto it — Postgres requires the referenced column(s) to carry
+-- their own unique constraint, not just be unique as part of a wider one.
 CREATE TABLE IF NOT EXISTS google_business_locations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id text NOT NULL DEFAULT 'admin',
   google_account_id text NOT NULL,   -- bare numeric id, prefix already stripped (see resource-id.ts)
-  location_id text NOT NULL,          -- bare numeric id, prefix already stripped
+  location_id text NOT NULL UNIQUE,   -- bare numeric id, prefix already stripped
   title text,
   address jsonb,                      -- storefrontAddress, as Google returns it
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (user_id, location_id)
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_google_business_locations_user_id ON google_business_locations(user_id);

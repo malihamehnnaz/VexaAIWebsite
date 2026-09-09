@@ -599,12 +599,11 @@ CREATE TABLE IF NOT EXISTS google_business_locations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id text NOT NULL DEFAULT 'admin',
   google_account_id text NOT NULL,
-  location_id text NOT NULL,
+  location_id text NOT NULL UNIQUE,
   title text,
   address jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (user_id, location_id)
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_google_business_locations_user_id ON google_business_locations(user_id);
