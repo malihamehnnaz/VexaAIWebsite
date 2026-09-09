@@ -147,10 +147,31 @@ export async function postCommentReply(pageId: string, commentId: string, messag
 // (no metric_type param, unlike Instagram's Insights endpoint). Metrics come
 // back either as a flat number per day, or — for
 // page_actions_post_reactions_total — an object keyed by reaction type.
-// page_impressions_unique is documented as "deprecated above Graph API v25";
-// requested anyway with a per-metric try/catch (same as Instagram's
-// getAccountInsight) so the real, current behavior for this Page/token
-// decides its availability rather than assuming the doc note applies here.
+//
+// Empirically confirmed against this Page/token (2026-09-09, via the
+// probeMetric diagnostic — see /api/facebook/diagnostics): EVERY metric
+// currently fails, in one of two distinct, genuine ways, neither a code bug:
+//   - "(#100) The value must be a valid insights metric" — the metric name
+//     itself has been removed. Matches Meta's own notice that "by June 15,
+//     2026, a number of Page Insights metrics will be deprecated for all API
+//     versions" (developers.facebook.com/docs/graph-api/reference/v26.0/
+//     insights) — that date has already passed. Hit by page_fans,
+//     page_impressions, page_impressions_unique, page_fan_removes (at least).
+//   - "(#190) This method must be called with a Page Access Token" — the
+//     metric name is still recognized, but Meta rejects THIS token
+//     (a Business Manager System User token) for the legacy /insights
+//     endpoint specifically, even though the same token works for
+//     posts/comments/Messenger/Instagram. Hit by page_follows,
+//     page_daily_follows, page_media_view, page_total_media_view_unique,
+//     page_views_total, page_post_engagements, page_video_views,
+//     page_actions_post_reactions_total (at least). This is a genuine
+//     Meta-side token/permission restriction — not fixable in code; needs
+//     either a Page-login-derived Page token, or the System User granted
+//     Insights access for this Page in Business Manager.
+// The real error message (safe — never contains the token) is captured per
+// metric below so the real endpoint can report accurately instead of a bare
+// null, and so this automatically self-corrects with no code change if
+// either problem is fixed on Meta's side later.
 
 export interface DailyInsightValue {
   date: string; // YYYY-MM-DD, derived from Meta's end_time
@@ -160,6 +181,7 @@ export interface DailyInsightValue {
 export interface PageInsightResult {
   metric: string;
   daily: DailyInsightValue[]; // empty if Meta returned nothing / metric unavailable
+  unavailableReason?: string; // set only when Meta actively rejected the metric (not on a legitimate empty series)
 }
 
 interface InsightsApiRow {
@@ -210,8 +232,11 @@ export async function getPageInsight(pageId: string, metric: string, since: stri
 
     return { metric, daily };
   } catch (err) {
-    console.error(`[facebook-graph] page insight "${metric}" unavailable:`, err instanceof Error ? err.message : err);
-    return { metric, daily: [] }; // never fabricate — unavailable metric is an empty series, not zeros
+    const reason = err instanceof FacebookGraphError ? err.message : 'Unavailable';
+    console.error(`[facebook-graph] page insight "${metric}" unavailable:`, reason);
+    // never fabricate — unavailable metric is an empty series with a real
+    // reason attached, not zeros and not a silent, indistinguishable null
+    return { metric, daily: [], unavailableReason: reason };
   }
 }
 
