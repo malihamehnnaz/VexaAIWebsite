@@ -583,3 +583,60 @@ CREATE TABLE IF NOT EXISTS content_performance (
 CREATE INDEX IF NOT EXISTS idx_content_performance_generated_content_id ON content_performance(generated_content_id);
 CREATE INDEX IF NOT EXISTS idx_content_performance_opportunity_id ON content_performance(opportunity_id);
 CREATE INDEX IF NOT EXISTS idx_content_performance_trend_signal_id ON content_performance(trend_signal_id);
+
+-- ── Google Business Profile (review management) ──────────────────────────────
+-- See supabase_migration_google_business.sql for full rationale. Reuses the
+-- existing google_connections row (business.manage as a third scope) rather
+-- than a second Google connection/token table.
+
+-- (Run once against production: ALTER TABLE google_connections ADD COLUMN
+-- IF NOT EXISTS status text NOT NULL DEFAULT 'connected' + its CHECK
+-- constraint — see the migration file; not repeated here since this file
+-- only ever CREATEs, it doesn't ALTER an existing table's already-recorded
+-- definition above.)
+
+CREATE TABLE IF NOT EXISTS google_business_locations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id text NOT NULL DEFAULT 'admin',
+  google_account_id text NOT NULL,
+  location_id text NOT NULL,
+  title text,
+  address jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, location_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_google_business_locations_user_id ON google_business_locations(user_id);
+
+CREATE TABLE IF NOT EXISTS google_business_reviews (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  location_id text NOT NULL REFERENCES google_business_locations(location_id) ON DELETE CASCADE,
+  review_id text NOT NULL,
+  reviewer_display_name text,
+  reviewer_photo_url text,
+  reviewer_is_anonymous boolean NOT NULL DEFAULT false,
+  star_rating integer,
+  comment text,
+  create_time timestamptz,
+  update_time timestamptz,
+  reply_comment text,
+  reply_update_time timestamptz,
+  reply_state text,
+  policy_violation jsonb,
+  synced_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (location_id, review_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_google_business_reviews_location_id ON google_business_reviews(location_id);
+CREATE INDEX IF NOT EXISTS idx_google_business_reviews_create_time ON google_business_reviews(create_time DESC);
+CREATE INDEX IF NOT EXISTS idx_google_business_reviews_star_rating ON google_business_reviews(star_rating);
+
+CREATE TABLE IF NOT EXISTS google_business_sync_state (
+  user_id text PRIMARY KEY DEFAULT 'admin',
+  last_synced_at timestamptz,
+  last_sync_status text,
+  last_sync_error text,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);

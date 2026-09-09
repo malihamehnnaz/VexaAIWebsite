@@ -7,21 +7,26 @@
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 
-// Read-only scopes only — no write/admin access to any Google property.
 //   analytics.readonly  — GA4 reporting (src/lib/google/ga4.ts)
 //   webmasters.readonly — Search Console (src/lib/google/search-console.ts)
+//   business.manage     — Google Business Profile review read/reply
+//     (src/lib/google-business/*) — the one non-read-only scope here: it's
+//     what lets this app write review replies, which is the entire point
+//     of that feature. Everything else stays read-only.
 // openid+email are additionally requested — both non-sensitive,
 // identity-only scopes — solely so the connected Google account's email can
 // be shown in the dashboard ("Connected as ...").
 //
 // NOTE: adding a scope here only takes effect on the NEXT authorization.
 // An existing connection keeps working for whatever it was already granted;
-// Search Console calls will fail with an insufficient-permission error until
-// the account is reconnected via /api/google/oauth (which uses
-// prompt=consent, so the expanded scope is re-consented cleanly).
+// calls needing a scope added after that connection was made will fail with
+// an insufficient-permission error until the account is reconnected via
+// /api/google/oauth (which uses prompt=consent, so the expanded scope is
+// re-consented cleanly).
 export const GOOGLE_OAUTH_SCOPES = [
   'https://www.googleapis.com/auth/analytics.readonly',
   'https://www.googleapis.com/auth/webmasters.readonly',
+  'https://www.googleapis.com/auth/business.manage',
   'openid',
   'email',
 ].join(' ');
@@ -72,7 +77,14 @@ interface TokenEndpointError {
 }
 
 export class GoogleOAuthError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
+  // `code` is Google's raw `error` field from the token endpoint (e.g.
+  // "invalid_grant" — the specific, structured signal that the refresh
+  // token itself was revoked/expired, as opposed to a transient network or
+  // server error). Callers that need to distinguish "this connection needs
+  // reconnecting" from "try again later" (src/lib/google/store.ts) key off
+  // this rather than string-matching `message`, which is a human-readable
+  // description and not guaranteed stable.
+  constructor(message: string, public readonly cause?: unknown, public readonly code?: string) {
     super(message);
     this.name = 'GoogleOAuthError';
   }
@@ -114,7 +126,7 @@ async function callTokenEndpoint(body: URLSearchParams): Promise<TokenEndpointSu
       status: response.status,
       error: payload?.error,
     });
-    throw new GoogleOAuthError(payload?.error_description || payload?.error || 'Google token endpoint error');
+    throw new GoogleOAuthError(payload?.error_description || payload?.error || 'Google token endpoint error', undefined, payload?.error);
   }
 
   return payload;
