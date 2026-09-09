@@ -482,3 +482,104 @@ CREATE TABLE IF NOT EXISTS instagram_messages (
 
 CREATE INDEX IF NOT EXISTS idx_instagram_messages_conversation_id ON instagram_messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_instagram_messages_occurred_at ON instagram_messages(occurred_at DESC);
+
+-- ── Facebook Content Intelligence ────────────────────────────────────────────
+-- See supabase_migration_content_intelligence.sql for full column-by-column
+-- rationale. Backs src/lib/content-intelligence/* and
+-- /api/content-intelligence/*. Four tables, kept separate per the
+-- architecture rule that CURRENT TREND / GP PERFORMANCE / CONTENT
+-- OPPORTUNITY / AI-GENERATED CONTENT stay distinguishable in the data model.
+
+CREATE TABLE IF NOT EXISTS content_trend_signals (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  topic text NOT NULL,
+  category text,
+  description text,
+  source text NOT NULL,
+  source_url text,
+  detected_at timestamptz NOT NULL,
+  freshness text NOT NULL CHECK (freshness IN ('new', 'recent', 'aging', 'stale')),
+  momentum_score numeric NOT NULL,
+  relevance_score numeric NOT NULL,
+  confidence text NOT NULL CHECK (confidence IN ('low', 'medium', 'high')),
+  evidence jsonb NOT NULL,
+  fetched_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_trend_signals_fetched_at ON content_trend_signals(fetched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_content_trend_signals_category ON content_trend_signals(category);
+CREATE INDEX IF NOT EXISTS idx_content_trend_signals_confidence ON content_trend_signals(confidence);
+CREATE INDEX IF NOT EXISTS idx_content_trend_signals_freshness ON content_trend_signals(freshness);
+
+CREATE TABLE IF NOT EXISTS content_opportunities (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_id text NOT NULL,
+  title text NOT NULL,
+  recommendation text NOT NULL,
+  topic text NOT NULL,
+  format text NOT NULL,
+  reason text NOT NULL,
+  trend_signal_id uuid REFERENCES content_trend_signals(id) ON DELETE SET NULL,
+  trend_score numeric NOT NULL,
+  audience_fit_score numeric NOT NULL,
+  historical_fit_score numeric NOT NULL,
+  freshness_score numeric NOT NULL,
+  opportunity_score numeric NOT NULL,
+  confidence text NOT NULL CHECK (confidence IN ('low', 'medium', 'high')),
+  recommended_day text,
+  recommended_time text,
+  supporting_evidence jsonb NOT NULL,
+  computed_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_opportunities_page_id ON content_opportunities(page_id);
+CREATE INDEX IF NOT EXISTS idx_content_opportunities_opportunity_score ON content_opportunities(opportunity_score DESC);
+CREATE INDEX IF NOT EXISTS idx_content_opportunities_computed_at ON content_opportunities(computed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_content_opportunities_trend_signal_id ON content_opportunities(trend_signal_id);
+
+CREATE TABLE IF NOT EXISTS generated_content (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  opportunity_id uuid NOT NULL REFERENCES content_opportunities(id) ON DELETE CASCADE,
+  page_id text NOT NULL,
+  platform text NOT NULL CHECK (platform IN ('facebook', 'instagram')),
+  format text NOT NULL,
+  objective text,
+  tone text,
+  additional_instructions text,
+  concept text,
+  hook text,
+  caption text,
+  cta text,
+  hashtags jsonb,
+  creative_brief text,
+  video_script text,
+  visual_direction text,
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'approved', 'published', 'rejected')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_generated_content_opportunity_id ON generated_content(opportunity_id);
+CREATE INDEX IF NOT EXISTS idx_generated_content_page_id ON generated_content(page_id);
+CREATE INDEX IF NOT EXISTS idx_generated_content_status ON generated_content(status);
+
+CREATE TABLE IF NOT EXISTS content_performance (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  generated_content_id uuid NOT NULL REFERENCES generated_content(id) ON DELETE CASCADE,
+  opportunity_id uuid REFERENCES content_opportunities(id) ON DELETE SET NULL,
+  trend_signal_id uuid REFERENCES content_trend_signals(id) ON DELETE SET NULL,
+  topic text,
+  format text,
+  platform text NOT NULL CHECK (platform IN ('facebook', 'instagram')),
+  published_post_id text,
+  published_at timestamptz,
+  metrics jsonb,
+  measured_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_performance_generated_content_id ON content_performance(generated_content_id);
+CREATE INDEX IF NOT EXISTS idx_content_performance_opportunity_id ON content_performance(opportunity_id);
+CREATE INDEX IF NOT EXISTS idx_content_performance_trend_signal_id ON content_performance(trend_signal_id);
