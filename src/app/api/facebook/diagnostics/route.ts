@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { corsJson, corsPreflight, isAuthorizedRequest, unauthorizedResponse } from '@/lib/messenger-api';
 import { rateLimit } from '@/lib/rate-limit';
-import { getPageIdentity, getPageSubscribedApps, debugPageToken, getPageInsightRaw, getPostInsightRaw, probePageAccessTokenDerivation, FacebookGraphError } from '@/lib/facebook/graph';
+import { getPageIdentity, getPageSubscribedApps, debugPageToken, getPageInsightRaw, getPostInsightRaw, probePageAccessTokenDerivation, probeInsightWithDerivedToken, FacebookGraphError } from '@/lib/facebook/graph';
 import { GP_CAFE_PAGE_ID, isSupportedCommentsPageId } from '@/lib/facebook/config';
 
 // GET /api/facebook/diagnostics — TEMPORARY, for troubleshooting the
@@ -91,6 +91,13 @@ export async function GET(request: Request) {
 
   if (params.get('probePageTokenDerivation') === 'true') {
     result.pageTokenDerivation = await probePageAccessTokenDerivation(pageId, appId);
+  }
+
+  const probeDerivedInsightMetric = params.get('probeDerivedInsightMetric');
+  if (probeDerivedInsightMetric) {
+    const until = new Date().toISOString().slice(0, 10);
+    const since = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    result.derivedInsightProbe = await probeInsightWithDerivedToken(pageId, probeDerivedInsightMetric, since, until);
   }
 
   return corsJson(request, { success: true, ...result });

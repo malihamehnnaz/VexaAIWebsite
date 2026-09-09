@@ -320,6 +320,32 @@ export async function getPostInsightRaw(pageId: string, postId: string, metric: 
 // Page admin access) to obtain that Page's actual Page Access Token; used
 // here purely to test the hypothesis that Page Insights specifically
 // requires that derived token rather than the System User token directly.
+// Diagnostic-only: derives a Page Access Token the same way as
+// probePageAccessTokenDerivation, then immediately tries a real Page
+// Insights call with it — to confirm (or refute) that the derived token
+// resolves the "(#190) This method must be called with a Page Access
+// Token" error, before wiring this into the real request path.
+export async function probeInsightWithDerivedToken(pageId: string, metric: string, since: string, until: string): Promise<{ derived: boolean; insightError?: string; insightResult?: unknown }> {
+  const systemUserToken = resolvePageAccessToken(pageId);
+  if (!systemUserToken) return { derived: false };
+
+  let derivedToken: string | undefined;
+  try {
+    const payload = await graphGet<{ access_token?: string }>(`/${encodeURIComponent(pageId)}`, { fields: 'access_token', access_token: systemUserToken });
+    derivedToken = payload.access_token;
+  } catch (err) {
+    return { derived: false, insightError: err instanceof FacebookGraphError ? `derivation failed: ${err.message}` : 'derivation failed: unknown error' };
+  }
+  if (!derivedToken) return { derived: false, insightError: 'no access_token field returned' };
+
+  try {
+    const result = await graphGet(`/${encodeURIComponent(pageId)}/insights`, { metric, period: 'day', since, until, access_token: derivedToken });
+    return { derived: true, insightResult: result };
+  } catch (err) {
+    return { derived: true, insightError: err instanceof FacebookGraphError ? err.message : 'unknown error' };
+  }
+}
+
 export async function probePageAccessTokenDerivation(pageId: string, appId: string): Promise<{ derived: boolean; debug?: TokenDebugInfo; error?: string }> {
   const systemUserToken = resolvePageAccessToken(pageId);
   const appSecret = process.env.META_APP_SECRET;
