@@ -140,6 +140,81 @@ export async function postCommentReply(pageId: string, commentId: string, messag
   return { replyCommentId: payload.id };
 }
 
+// ── Page Insights (organic analytics) ────────────────────────────────────────
+// Confirmed against Meta's current Page Insights reference (2026-09-09,
+// developers.facebook.com/docs/graph-api/reference/page/insights/):
+// GET /{page-id}/insights?metric=...&period=day&since=...&until=...
+// (no metric_type param, unlike Instagram's Insights endpoint). Metrics come
+// back either as a flat number per day, or — for
+// page_actions_post_reactions_total — an object keyed by reaction type.
+// page_impressions_unique is documented as "deprecated above Graph API v25";
+// requested anyway with a per-metric try/catch (same as Instagram's
+// getAccountInsight) so the real, current behavior for this Page/token
+// decides its availability rather than assuming the doc note applies here.
+
+export interface DailyInsightValue {
+  date: string; // YYYY-MM-DD, derived from Meta's end_time
+  value: number | null;
+}
+
+export interface PageInsightResult {
+  metric: string;
+  daily: DailyInsightValue[]; // empty if Meta returned nothing / metric unavailable
+}
+
+interface InsightsApiRow {
+  name?: string;
+  period?: string;
+  values?: Array<{ value?: number | Record<string, number>; end_time?: string }>;
+}
+
+function toDateOnly(endTime: string | undefined): string | null {
+  if (!endTime) return null;
+  const d = new Date(endTime);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+// A single metric's daily series over [since, until] (inclusive, YYYY-MM-DD).
+// Never throws for a metric Meta rejects/doesn't support — returns an empty
+// series instead, same "unavailable is not fatal" contract as Instagram's
+// getAccountInsight, so one bad metric can't fail the whole overview.
+export async function getPageInsight(pageId: string, metric: string, since: string, until: string): Promise<PageInsightResult> {
+  const token = resolvePageAccessToken(pageId);
+  if (!token) return { metric, daily: [] };
+
+  try {
+    const payload = await graphGet<{ data?: InsightsApiRow[] }>(`/${encodeURIComponent(pageId)}/insights`, {
+      metric,
+      period: 'day',
+      since,
+      until,
+      access_token: token,
+    });
+    const row = payload.data?.[0];
+    if (!row?.values?.length) return { metric, daily: [] };
+
+    const daily: DailyInsightValue[] = row.values.map(v => {
+      const date = toDateOnly(v.end_time);
+      let value: number | null = null;
+      if (typeof v.value === 'number') {
+        value = v.value;
+      } else if (v.value && typeof v.value === 'object') {
+        // e.g. page_actions_post_reactions_total: {"like": 10, "love": 3, ...}
+        // Summing real per-type counts Meta returned — not an estimate.
+        const sum = Object.values(v.value).reduce((acc, n) => acc + (typeof n === 'number' ? n : 0), 0);
+        value = sum;
+      }
+      return { date: date ?? '', value };
+    }).filter(d => d.date !== '');
+
+    return { metric, daily };
+  } catch (err) {
+    console.error(`[facebook-graph] page insight "${metric}" unavailable:`, err instanceof Error ? err.message : err);
+    return { metric, daily: [] }; // never fabricate — unavailable metric is an empty series, not zeros
+  }
+}
+
 // ── Diagnostics (temporary — subscription/permission troubleshooting) ───────
 // Confirmed against Meta's current docs (2026-09-05):
 //   GET /{page-id}?fields=id,name — confirms which Page a token actually acts as

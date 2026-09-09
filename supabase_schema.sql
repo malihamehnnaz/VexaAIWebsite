@@ -329,6 +329,26 @@ CREATE INDEX IF NOT EXISTS idx_facebook_comments_parent_comment_id ON facebook_c
 CREATE INDEX IF NOT EXISTS idx_facebook_comments_status ON facebook_comments(status);
 CREATE INDEX IF NOT EXISTS idx_facebook_comments_created_at_meta ON facebook_comments(created_at_meta DESC);
 
+-- One row per (page_id, metric, date) — deduplicated history of Facebook
+-- Page organic Insights, populated opportunistically by every real
+-- /api/facebook/insights request (src/lib/facebook/store.ts). Same shape/
+-- purpose as instagram_insights, except upserted (not append-only) since
+-- the unique constraint is exactly what makes repeated syncs idempotent
+-- rather than an append-only audit log.
+CREATE TABLE IF NOT EXISTS facebook_insights (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_id text NOT NULL,
+  metric text NOT NULL,
+  value numeric,
+  date date NOT NULL,
+  fetched_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (page_id, metric, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_facebook_insights_page_id ON facebook_insights(page_id);
+CREATE INDEX IF NOT EXISTS idx_facebook_insights_metric ON facebook_insights(metric);
+CREATE INDEX IF NOT EXISTS idx_facebook_insights_date ON facebook_insights(date DESC);
+
 -- ── Instagram ──────────────────────────────────────────────────────────────────
 -- Backs /webhook (Instagram "comments"/messaging events, alongside the
 -- existing Messenger and Facebook Comments handling) and /api/instagram/*
