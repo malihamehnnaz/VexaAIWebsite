@@ -227,14 +227,21 @@ export async function generateOpportunities(pageId: string): Promise<Opportunity
 
   const ranked = opportunities.sort((a, b) => b.opportunityScore - a.opportunityScore);
 
-  // Best-effort persistence — opportunities reference real trend_signal_id
-  // values already (trendFetch.signals were persisted by getTrendSignals,
-  // which returns the DB-assigned ids, not synthetic source ids).
+  // Persistence assigns each opportunity's REAL database id — callers
+  // (e.g. /api/content-intelligence/generate, which looks an opportunity up
+  // by the id the client was given) must receive that real id, not the
+  // in-memory randomUUID() assigned when it was computed, or the lookup can
+  // never succeed. Falls back to the in-memory objects (still fully usable
+  // for next-best-post/trends' own response, just not later look-up-able
+  // by generate) only if persistence itself fails — never fails the whole
+  // request over a persistence-layer problem.
+  let persisted = ranked;
   try {
-    await saveOpportunities(ranked);
+    const saved = await saveOpportunities(ranked);
+    if (saved.length === ranked.length) persisted = saved;
   } catch (err) {
     console.error('[content-intelligence/opportunities] failed to persist opportunities:', err instanceof Error ? err.message : err);
   }
 
-  return { opportunities: ranked, insufficientData: false, insufficientDataReason: null, trendFetch, restaurantContext };
+  return { opportunities: persisted, insufficientData: false, insufficientDataReason: null, trendFetch, restaurantContext };
 }

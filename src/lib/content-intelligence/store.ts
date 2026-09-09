@@ -102,8 +102,14 @@ export async function getRecentTrendSignals(maxAgeMs: number): Promise<{ signals
 
 // ── Opportunities ─────────────────────────────────────────────────────────────
 
-export async function saveOpportunities(opportunities: ContentOpportunity[]): Promise<void> {
-  if (opportunities.length === 0) return;
+// Returns the persisted rows WITH their real database ids — same reason as
+// saveTrendSignals: callers must use these ids (not the in-memory
+// randomUUID() assigned when the opportunity was computed) for anything
+// referencing it afterward — e.g. /api/content-intelligence/generate looks
+// an opportunity up by the id the client was given, which must be the real
+// content_opportunities.id or the lookup can never succeed.
+export async function saveOpportunities(opportunities: ContentOpportunity[]): Promise<ContentOpportunity[]> {
+  if (opportunities.length === 0) return [];
   const supabase = getSupabaseAdmin();
   const rows = opportunities.map(o => ({
     page_id: o.pageId,
@@ -123,8 +129,9 @@ export async function saveOpportunities(opportunities: ContentOpportunity[]): Pr
     recommended_time: o.recommendedTime,
     supporting_evidence: o.supportingEvidence,
   }));
-  const { error } = await supabase.from('content_opportunities').insert(rows);
+  const { data, error } = await supabase.from('content_opportunities').insert(rows).select('*');
   if (error) throw new Error(`content_opportunities insert failed: ${error.message}`);
+  return (data as OpportunityRow[] ?? []).map(rowToOpportunity);
 }
 
 interface OpportunityRow {

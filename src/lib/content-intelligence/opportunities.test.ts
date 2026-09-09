@@ -4,7 +4,11 @@ const { getTrendSignalsMock, getPerformanceSummaryMock, getRestaurantContextMock
   getTrendSignalsMock: vi.fn(),
   getPerformanceSummaryMock: vi.fn(),
   getRestaurantContextMock: vi.fn(),
-  saveOpportunitiesMock: vi.fn().mockResolvedValue(undefined),
+  // Simulates real persistence: the DB assigns its own id to each row,
+  // distinct from the in-memory randomUUID() the opportunity was built
+  // with — same as the real store.ts behavior (and the bug this mock
+  // shape exists to catch a regression of).
+  saveOpportunitiesMock: vi.fn().mockImplementation(async (opps: Array<{ id: string }>) => opps.map((o, i) => ({ ...o, id: `db-assigned-id-${i}` }))),
 }));
 
 vi.mock('@/lib/content-intelligence/trends', () => ({ getTrendSignals: getTrendSignalsMock }));
@@ -148,5 +152,15 @@ describe('generateOpportunities — scoring and ranking', () => {
 
     await generateOpportunities(PAGE_ID);
     expect(saveOpportunitiesMock).toHaveBeenCalled();
+  });
+
+  it('returns opportunities using the real, persisted database id — not the in-memory id assigned before saving (regression: these previously mismatched, breaking /generate lookups)', async () => {
+    getTrendSignalsMock.mockResolvedValue({ signals: [trendSignal()], sourceStatuses: [], dataFreshness: 'fresh', fetchedAt: '2026-09-09T06:00:00Z' });
+    getPerformanceSummaryMock.mockResolvedValue(REAL_PERFORMANCE);
+
+    const result = await generateOpportunities(PAGE_ID);
+    for (const o of result.opportunities) {
+      expect(o.id).toMatch(/^db-assigned-id-\d+$/);
+    }
   });
 });
