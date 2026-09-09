@@ -47,7 +47,16 @@ async function fetchFreshFromAllSources(): Promise<{ signals: TrendSignal[]; sou
 // hits Google News RSS N times, one per query term).
 export async function getTrendSignals(forceRefresh = false): Promise<TrendFetchResult> {
   if (!forceRefresh) {
-    const cached = await getRecentTrendSignals(TREND_CACHE_TTL_MS);
+    // A cache-lookup failure (e.g. the table not existing yet, before the
+    // migration is applied — same pending-migration pattern as every prior
+    // integration) must fall through to a fresh fetch, never crash the
+    // whole pipeline over a persistence-layer problem.
+    let cached: Awaited<ReturnType<typeof getRecentTrendSignals>> = null;
+    try {
+      cached = await getRecentTrendSignals(TREND_CACHE_TTL_MS);
+    } catch (err) {
+      console.error('[content-intelligence/trends] cache lookup failed, fetching fresh:', err instanceof Error ? err.message : err);
+    }
     if (cached) {
       return {
         signals: cached.signals,
