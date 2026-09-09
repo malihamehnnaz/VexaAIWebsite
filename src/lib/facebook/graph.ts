@@ -215,6 +215,18 @@ export async function getPageInsight(pageId: string, metric: string, since: stri
   }
 }
 
+// Diagnostic-only variant of getPageInsight that does NOT swallow the Graph
+// API error — used solely by /api/facebook/diagnostics to surface the real
+// reason every Page Insights metric was coming back empty, since getPageInsight
+// itself deliberately hides per-metric errors from the real endpoint's
+// response (never-fabricate contract). Temporary, same as the rest of this
+// diagnostics section.
+export async function getPageInsightRaw(pageId: string, metric: string, since: string, until: string): Promise<unknown> {
+  const token = resolvePageAccessToken(pageId);
+  if (!token) throw new FacebookGraphError(`No Page Access Token configured for page ${pageId}`, 0);
+  return graphGet(`/${encodeURIComponent(pageId)}/insights`, { metric, period: 'day', since, until, access_token: token });
+}
+
 // ── Diagnostics (temporary — subscription/permission troubleshooting) ───────
 // Confirmed against Meta's current docs (2026-09-05):
 //   GET /{page-id}?fields=id,name — confirms which Page a token actually acts as

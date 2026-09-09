@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { corsJson, corsPreflight, isAuthorizedRequest, unauthorizedResponse } from '@/lib/messenger-api';
 import { rateLimit } from '@/lib/rate-limit';
-import { getPageIdentity, getPageSubscribedApps, debugPageToken, FacebookGraphError } from '@/lib/facebook/graph';
+import { getPageIdentity, getPageSubscribedApps, debugPageToken, getPageInsightRaw, FacebookGraphError } from '@/lib/facebook/graph';
 import { GP_CAFE_PAGE_ID, isSupportedCommentsPageId } from '@/lib/facebook/config';
 
 // GET /api/facebook/diagnostics — TEMPORARY, for troubleshooting the
@@ -66,6 +66,17 @@ export async function GET(request: Request) {
     result.tokenDebug = await debugPageToken(pageId, appId);
   } catch (err) {
     result.tokenDebugError = err instanceof FacebookGraphError ? err.message : 'unknown error';
+  }
+
+  const probeMetric = params.get('probeMetric');
+  if (probeMetric) {
+    const until = new Date().toISOString().slice(0, 10);
+    const since = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    try {
+      result.insightProbe = await getPageInsightRaw(pageId, probeMetric, since, until);
+    } catch (err) {
+      result.insightProbeError = err instanceof FacebookGraphError ? err.message : 'unknown error';
+    }
   }
 
   return corsJson(request, { success: true, ...result });
