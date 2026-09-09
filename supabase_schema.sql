@@ -329,23 +329,39 @@ CREATE INDEX IF NOT EXISTS idx_facebook_comments_parent_comment_id ON facebook_c
 CREATE INDEX IF NOT EXISTS idx_facebook_comments_status ON facebook_comments(status);
 CREATE INDEX IF NOT EXISTS idx_facebook_comments_created_at_meta ON facebook_comments(created_at_meta DESC);
 
--- One row per (page_id, metric, date) — deduplicated history of Facebook
--- Page organic Insights, populated opportunistically by every real
--- /api/facebook/insights request (src/lib/facebook/store.ts). Same shape/
--- purpose as instagram_insights, except upserted (not append-only) since
--- the unique constraint is exactly what makes repeated syncs idempotent
--- rather than an append-only audit log.
+-- One row per (page_id, post_id, metric, date) — deduplicated history of
+-- Facebook Page organic Insights (exclusively organic; there is no Facebook
+-- Ads integration anywhere in this codebase to mix with), populated
+-- opportunistically by every real /api/facebook/insights request and by the
+-- backfill service (src/lib/facebook/store.ts, src/lib/facebook/backfill.ts).
+-- Same shape/purpose as instagram_insights, except upserted (not
+-- append-only) since the unique constraint is exactly what makes repeated
+-- syncs idempotent rather than an append-only audit log.
+--
+-- post_id defaults to '' (empty string), not null, specifically so the
+-- UNIQUE constraint dedupes correctly — Postgres treats every NULL as
+-- distinct from every other NULL in a unique constraint, which would let
+-- duplicate page-level rows through if post_id were nullable. '' means
+-- "this is a page-level metric"; a real Graph API post id means post-level.
+-- `date` is the calendar day for a page-level (period=day) metric, or the
+-- sync date for a post-level metric (Meta returns post insights as
+-- lifetime-to-date totals, not a daily series).
 CREATE TABLE IF NOT EXISTS facebook_insights (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   page_id text NOT NULL,
+  post_id text NOT NULL DEFAULT '',
+  level text NOT NULL DEFAULT 'page' CHECK (level IN ('page', 'post')),
   metric text NOT NULL,
   value numeric,
   date date NOT NULL,
+  graph_api_version text,
   fetched_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (page_id, metric, date)
+  UNIQUE (page_id, post_id, metric, date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_facebook_insights_page_id ON facebook_insights(page_id);
+CREATE INDEX IF NOT EXISTS idx_facebook_insights_post_id ON facebook_insights(post_id);
+CREATE INDEX IF NOT EXISTS idx_facebook_insights_level ON facebook_insights(level);
 CREATE INDEX IF NOT EXISTS idx_facebook_insights_metric ON facebook_insights(metric);
 CREATE INDEX IF NOT EXISTS idx_facebook_insights_date ON facebook_insights(date DESC);
 

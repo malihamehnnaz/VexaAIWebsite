@@ -141,33 +141,42 @@ export async function postCommentReply(pageId: string, commentId: string, messag
 }
 
 // ── Page Insights (organic analytics) ────────────────────────────────────────
-// Confirmed against Meta's current Page Insights reference (2026-09-09,
-// developers.facebook.com/docs/graph-api/reference/page/insights/):
-// GET /{page-id}/insights?metric=...&period=day&since=...&until=...
-// (no metric_type param, unlike Instagram's Insights endpoint). Metrics come
+// GET /{page-id}/insights?metric=...&period=day&since=...&until=... (no
+// metric_type param, unlike Instagram's Insights endpoint). Metrics come
 // back either as a flat number per day, or — for
 // page_actions_post_reactions_total — an object keyed by reaction type.
 //
-// Empirically confirmed against this Page/token (2026-09-09, via the
-// probeMetric diagnostic — see /api/facebook/diagnostics): EVERY metric
-// currently fails, in one of two distinct, genuine ways, neither a code bug:
-//   - "(#100) The value must be a valid insights metric" — the metric name
-//     itself has been removed. Matches Meta's own notice that "by June 15,
-//     2026, a number of Page Insights metrics will be deprecated for all API
-//     versions" (developers.facebook.com/docs/graph-api/reference/v26.0/
-//     insights) — that date has already passed. Hit by page_fans,
-//     page_impressions, page_impressions_unique, page_fan_removes (at least).
-//   - "(#190) This method must be called with a Page Access Token" — the
-//     metric name is still recognized, but Meta rejects THIS token
-//     (a Business Manager System User token) for the legacy /insights
-//     endpoint specifically, even though the same token works for
-//     posts/comments/Messenger/Instagram. Hit by page_follows,
-//     page_daily_follows, page_media_view, page_total_media_view_unique,
-//     page_views_total, page_post_engagements, page_video_views,
-//     page_actions_post_reactions_total (at least). This is a genuine
-//     Meta-side token/permission restriction — not fixable in code; needs
-//     either a Page-login-derived Page token, or the System User granted
-//     Insights access for this Page in Business Manager.
+// CURRENT METRIC NAMES (updated 2026-09-09): Meta deprecated most legacy
+// page_* metrics effective June 15, 2026 (developers.facebook.com/docs/
+// graph-api/reference/v26.0/insights: "By June 15, 2026, a number of the
+// Page Insights metrics will be deprecated for all API versions. The API
+// returns an invalid metric error when calling any of these metrics.") —
+// that date has already passed. Empirically confirmed via the probeMetric
+// diagnostic (/api/facebook/diagnostics) which metric names Meta still
+// recognizes as valid on THIS API version, distinguishing "name no longer
+// exists" from "name exists but this token is rejected":
+//   REMOVED (confirmed "(#100) The value must be a valid insights metric"):
+//     page_fans, page_impressions, page_impressions_unique, page_fan_removes,
+//     page_fan_adds (assumed — same deprecated family, not individually
+//     reprobed to conserve the diagnostic endpoint's rate limit).
+//   STILL VALID NAMES (confirmed "(#190) This method must be called with a
+//   Page Access Token" — recognized metric, but see the token problem
+//   below): page_follows, page_daily_follows_unique, page_total_media_view_unique,
+//     page_post_engagements, page_video_views, page_actions_post_reactions_total.
+//   No current replacement was found for a page-level "impressions" concept
+//   — Meta's 2026 overhaul folded it into the page_total_media_view_unique
+//   family. Requesting the old name is pointless (permanently #100), so
+//   "impressions" as its own metric is not requested at all below; reach is
+//   covered by page_total_media_view_unique instead.
+//
+// SEPARATE, CURRENTLY BLOCKING PROBLEM: even the still-valid metric names
+// above ALL fail with "(#190) This method must be called with a Page Access
+// Token" against the connected token — a Business Manager System User
+// token. The same token works fine for posts/comments/Messenger/Instagram
+// Insights, so this is specific to the legacy Page/post Insights product.
+// This is a genuine, current Meta-side restriction — not fixable in code —
+// and needs either a Page-login-derived Page token, or the System User
+// explicitly granted Insights access for this Page in Business Manager.
 // The real error message (safe — never contains the token) is captured per
 // metric below so the real endpoint can report accurately instead of a bare
 // null, and so this automatically self-corrects with no code change if
@@ -237,6 +246,46 @@ export async function getPageInsight(pageId: string, metric: string, since: stri
     // never fabricate — unavailable metric is an empty series with a real
     // reason attached, not zeros and not a silent, indistinguishable null
     return { metric, daily: [], unavailableReason: reason };
+  }
+}
+
+// ── Post-level Insights ──────────────────────────────────────────────────────
+// GET /{post-id}/insights?metric=... — no period/since/until (post insights
+// are lifetime-to-date totals, not a daily series). Empirically confirmed
+// (2026-09-09, via the probePostId/probePostMetric diagnostic) that this
+// call fails with a plain "Invalid OAuth 2.0 Access Token" for this
+// Page/token, regardless of which metric name is requested — the same class
+// of token-provenance rejection as Page-level Insights (and the
+// long-unexplained /subscribed_apps diagnostic anomaly noted earlier), just
+// with a different error shape. Implemented in full so it activates
+// immediately with no code change once the token problem is fixed Meta-side
+// — never-fabricate contract, same as getPageInsight.
+
+export interface PostInsightResult {
+  metric: string;
+  value: number | null; // lifetime total, not a daily series
+  unavailableReason?: string;
+}
+
+export async function getPostInsight(pageId: string, postId: string, metric: string): Promise<PostInsightResult> {
+  const token = resolvePageAccessToken(pageId);
+  if (!token) return { metric, value: null };
+
+  try {
+    const payload = await graphGet<{ data?: InsightsApiRow[] }>(`/${encodeURIComponent(postId)}/insights`, { metric, access_token: token });
+    const row = payload.data?.[0];
+    const raw = row?.values?.[0]?.value;
+    let value: number | null = null;
+    if (typeof raw === 'number') {
+      value = raw;
+    } else if (raw && typeof raw === 'object') {
+      value = Object.values(raw).reduce((acc, n) => acc + (typeof n === 'number' ? n : 0), 0);
+    }
+    return { metric, value };
+  } catch (err) {
+    const reason = err instanceof FacebookGraphError ? err.message : 'Unavailable';
+    console.error(`[facebook-graph] post insight "${metric}" unavailable:`, reason);
+    return { metric, value: null, unavailableReason: reason };
   }
 }
 

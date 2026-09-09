@@ -441,34 +441,45 @@ export async function getPostWithComments(postId: string): Promise<PostDetail | 
   };
 }
 
-// ── Page Insights (history) ──────────────────────────────────────────────────
-// One row per (metric, date) fetch — a history/audit log, not a
-// point-in-time cache, same shape/purpose as instagram_insights
-// (src/lib/instagram/store.ts). Populated opportunistically on every real
-// /api/facebook/insights request (see that route) rather than by a separate
-// scheduled job — this app has no cron/background-sync infrastructure
-// anywhere yet (GA4, Search Console, and Instagram all use this same
-// request-time-fetch-and-persist model), so this keeps the same
-// architecture rather than introducing a new one.
+// ── Page/Post Insights (history) ─────────────────────────────────────────────
+// One row per (page_id, post_id, metric, date) fetch, deduplicated via
+// upsert — same shape/purpose as instagram_insights (src/lib/instagram/
+// store.ts), except upserted rather than append-only. Populated both
+// opportunistically on every real /api/facebook/insights request (see that
+// route) AND by the historical backfill service (src/lib/facebook/
+// backfill.ts) — this app has no cron/background-sync infrastructure
+// anywhere yet (GA4, Search Console, and Instagram all use the same
+// request-time-fetch-and-persist model for ongoing/incremental sync), so
+// backfill is a deliberately-triggered one-time action on top of that same
+// architecture rather than a new scheduling system.
+//
+// Exclusively organic data — there is no Facebook Ads integration anywhere
+// in this codebase, so there is nothing to accidentally mix with.
 
 export interface RecordPageInsightInput {
   pageId: string;
+  postId?: string | null; // omit/null for a page-level metric; a real Graph API post id for post-level
   metric: string;
   value: number | null;
   date: string; // YYYY-MM-DD
+  graphApiVersion?: string;
 }
 
 export async function recordPageInsight(input: RecordPageInsightInput): Promise<void> {
   const supabase = getSupabaseAdmin();
+  const postId = input.postId ?? '';
   const { error } = await supabase.from('facebook_insights').upsert(
     {
       page_id: input.pageId,
+      post_id: postId,
+      level: postId ? 'post' : 'page',
       metric: input.metric,
       value: input.value,
       date: input.date,
+      graph_api_version: input.graphApiVersion ?? null,
       fetched_at: new Date().toISOString(),
     },
-    { onConflict: 'page_id,metric,date' }
+    { onConflict: 'page_id,post_id,metric,date' }
   );
   if (error) throw new Error(`facebook_insights upsert failed: ${error.message}`);
 }
