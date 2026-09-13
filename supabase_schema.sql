@@ -539,9 +539,16 @@ CREATE INDEX IF NOT EXISTS idx_content_opportunities_opportunity_score ON conten
 CREATE INDEX IF NOT EXISTS idx_content_opportunities_computed_at ON content_opportunities(computed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_content_opportunities_trend_signal_id ON content_opportunities(trend_signal_id);
 
+-- opportunity_id is nullable (widened by supabase_migration_social_scheduling.sql)
+-- — a scheduled post no longer has to originate from a Content Intelligence
+-- opportunity; the generic "write a caption, schedule it" flow has none.
+-- The status list and the scheduling/publishing columns below were also
+-- added by that same migration — this table now serves double duty as
+-- both Content Intelligence's draft store AND the Facebook post-scheduling
+-- Content Planner, rather than duplicating a second table for the latter.
 CREATE TABLE IF NOT EXISTS generated_content (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  opportunity_id uuid NOT NULL REFERENCES content_opportunities(id) ON DELETE CASCADE,
+  opportunity_id uuid REFERENCES content_opportunities(id) ON DELETE CASCADE,
   page_id text NOT NULL,
   platform text NOT NULL CHECK (platform IN ('facebook', 'instagram')),
   format text NOT NULL,
@@ -556,7 +563,29 @@ CREATE TABLE IF NOT EXISTS generated_content (
   creative_brief text,
   video_script text,
   visual_direction text,
-  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'approved', 'published', 'rejected')),
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'approved', 'rejected', 'published', 'schedule_pending', 'scheduled', 'publishing', 'failed', 'cancelled')),
+  -- Remote HTTPS URL(s) only — this app has no media upload/storage
+  -- infrastructure; scheduling never invents or hosts media. v1 supports at
+  -- most one photo URL (src/lib/social-scheduling/media.ts validates this).
+  media_urls jsonb,
+  -- Canonical scheduled instant, always UTC (exact timestamptz semantics —
+  -- never an ambiguous local time). `timezone` is the caller's original
+  -- IANA zone name, kept for display/audit only.
+  scheduled_at timestamptz,
+  timezone text,
+  published_at timestamptz,
+  external_post_id text,
+  external_permalink text,
+  attempt_count integer NOT NULL DEFAULT 0,
+  last_attempt_at timestamptz,
+  next_retry_at timestamptz,
+  error_code text,
+  error_message text,
+  -- When a worker claimed this row (scheduled -> publishing) — also used to
+  -- detect a row stuck in 'publishing' past a sane timeout (see
+  -- src/lib/social-scheduling/worker.ts's header comment on why a stuck row
+  -- is never auto-retried).
+  claimed_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -564,6 +593,9 @@ CREATE TABLE IF NOT EXISTS generated_content (
 CREATE INDEX IF NOT EXISTS idx_generated_content_opportunity_id ON generated_content(opportunity_id);
 CREATE INDEX IF NOT EXISTS idx_generated_content_page_id ON generated_content(page_id);
 CREATE INDEX IF NOT EXISTS idx_generated_content_status ON generated_content(status);
+CREATE INDEX IF NOT EXISTS idx_generated_content_scheduled_at ON generated_content(scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_generated_content_platform ON generated_content(platform);
+CREATE INDEX IF NOT EXISTS idx_generated_content_status_scheduled_at ON generated_content(status, scheduled_at);
 
 CREATE TABLE IF NOT EXISTS content_performance (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

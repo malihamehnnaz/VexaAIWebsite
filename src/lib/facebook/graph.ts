@@ -12,14 +12,28 @@ import { getGraphApiVersion, resolvePageAccessToken } from '@/lib/meta/config';
 const GRAPH_API_BASE = 'https://graph.facebook.com';
 
 export class FacebookGraphError extends Error {
-  constructor(message: string, public readonly status: number, public readonly cause?: unknown) {
+  // metaErrorCode/metaErrorType/metaErrorSubcode are Meta's own structured
+  // error fields (never the token, never the raw response body) — used by
+  // src/lib/social-scheduling/errors.ts to classify a publish failure as
+  // permanent (bad permissions/invalid content — never retried) vs
+  // transient (rate limit/server error — retried with backoff), the same
+  // way GoogleOAuthError.code lets src/lib/google/store.ts distinguish
+  // invalid_grant from a transient refresh failure.
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly cause?: unknown,
+    public readonly metaErrorCode?: number,
+    public readonly metaErrorType?: string,
+    public readonly metaErrorSubcode?: number
+  ) {
     super(message);
     this.name = 'FacebookGraphError';
   }
 }
 
 interface GraphErrorBody {
-  error?: { message?: string; type?: string; code?: number; fbtrace_id?: string };
+  error?: { message?: string; type?: string; code?: number; error_subcode?: number; fbtrace_id?: string };
 }
 
 interface GraphPaging {
@@ -43,7 +57,7 @@ async function graphGet<T>(path: string, params: Record<string, string>): Promis
 
   if (!response.ok || !payload || payload.error) {
     console.error('[facebook-graph] request failed:', { path, status: response.status, code: payload?.error?.code, type: payload?.error?.type, message: payload?.error?.message });
-    throw new FacebookGraphError(payload?.error?.message || `Graph API returned HTTP ${response.status}`, response.status);
+    throw new FacebookGraphError(payload?.error?.message || `Graph API returned HTTP ${response.status}`, response.status, undefined, payload?.error?.code, payload?.error?.type, payload?.error?.error_subcode);
   }
 
   return payload;
@@ -138,6 +152,72 @@ export async function postCommentReply(pageId: string, commentId: string, messag
   }
 
   return { replyCommentId: payload.id };
+}
+
+// ── Publishing (Page feed posts) ─────────────────────────────────────────────
+// Confirmed against Meta's current Page/feed and Page/photos reference
+// (2026-09-13): POST /{page-id}/feed with a `message` param creates a
+// text-only Page post and returns {"id": "<post-id>"}; a permalink can be
+// built as https://www.facebook.com/{post-id} for standard post types
+// (mirrors what /api/social-scheduling reports back — never fabricated).
+// A single photo (this app has no media upload/storage of its own — see
+// src/lib/social-scheduling/media.ts) is posted via POST /{page-id}/photos
+// with a remote `url` + `caption`, which returns {"id", "post_id"} — the
+// post_id (not the photo id) is what corresponds to a feed post/permalink.
+
+async function graphPostForm<T>(path: string, token: string, form: Record<string, string>): Promise<T> {
+  const url = `${GRAPH_API_BASE}/${getGraphApiVersion()}${path}`;
+  const body = new URLSearchParams({ ...form, access_token: token });
+
+  let response: Response;
+  try {
+    response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+  } catch (err) {
+    throw new FacebookGraphError('Network error calling Meta Graph API', 0, err);
+  }
+
+  const payload = await response.json().catch(() => null) as (T & GraphErrorBody) | null;
+  if (!response.ok || !payload || payload.error) {
+    console.error('[facebook-graph] publish failed:', { path, status: response.status, code: payload?.error?.code, type: payload?.error?.type, subcode: payload?.error?.error_subcode });
+    throw new FacebookGraphError(payload?.error?.message || `Graph API returned HTTP ${response.status}`, response.status, undefined, payload?.error?.code, payload?.error?.type, payload?.error?.error_subcode);
+  }
+  return payload;
+}
+
+export interface PublishedPost {
+  postId: string; // usable to build a permalink: https://www.facebook.com/{postId}
+}
+
+// Text-only Page post. This is the primary, always-available path — no
+// media infrastructure required.
+export async function createPageFeedPost(pageId: string, message: string): Promise<PublishedPost> {
+  const token = resolvePageAccessToken(pageId);
+  if (!token) throw new FacebookGraphError(`No Page Access Token configured for page ${pageId}`, 0);
+
+  const payload = await graphPostForm<{ id?: string }>(`/${encodeURIComponent(pageId)}/feed`, token, { message });
+  if (!payload.id) throw new FacebookGraphError('Graph API did not return a new post id', 0);
+  return { postId: payload.id };
+}
+
+// A single photo with a caption, published directly to the Page's feed —
+// Meta fetches the image itself from `photoUrl` (this app never uploads a
+// file to Meta), so photoUrl must already be a real, publicly-fetchable
+// HTTPS URL (validated in src/lib/social-scheduling/media.ts before this is
+// ever called).
+export async function createPagePhotoPost(pageId: string, photoUrl: string, caption: string): Promise<PublishedPost> {
+  const token = resolvePageAccessToken(pageId);
+  if (!token) throw new FacebookGraphError(`No Page Access Token configured for page ${pageId}`, 0);
+
+  const payload = await graphPostForm<{ id?: string; post_id?: string }>(`/${encodeURIComponent(pageId)}/photos`, token, {
+    url: photoUrl,
+    caption,
+    published: 'true',
+  });
+  // post_id is the feed post's id (what a permalink is built from); id is
+  // the photo node's id — distinct, and it's post_id callers need.
+  const postId = payload.post_id ?? payload.id;
+  if (!postId) throw new FacebookGraphError('Graph API did not return a new post id', 0);
+  return { postId };
 }
 
 // ── Page Insights (organic analytics) ────────────────────────────────────────
